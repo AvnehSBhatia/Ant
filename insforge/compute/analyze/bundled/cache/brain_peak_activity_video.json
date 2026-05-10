@@ -1,0 +1,4742 @@
+{
+  "video_path": "/Users/avneh/Code/Ant/test.mp4",
+  "predictions_npy": "/Users/avneh/Code/Ant/cache/brain_preds_video.npy",
+  "shape_timesteps_vertices": [
+    50,
+    20484
+  ],
+  "atlas": "Destrieux (surface), fsaverage5 vertex order assumed lh then rh",
+  "atlas_load_error": null,
+  "atlas_vertex_count_matches_predictions": true,
+  "top_timesteps_by_l2_norm": [
+    {
+      "rank_by_overall_activation": 1,
+      "timestep_index": 49,
+      "time_window_start_sec": 49.0,
+      "time_window_end_sec": 50.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 44.74327850341797,
+      "strongest_vertex": {
+        "global_vertex_index": 2241,
+        "activation": -1.0992567539215088,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 2241,
+        "destrieux_parcel_index": 33,
+        "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 2241,
+          "activation": -1.0992567539215088,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2241,
+          "destrieux_parcel_index": 33,
+          "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+        },
+        {
+          "global_vertex_index": 4961,
+          "activation": -1.0834412574768066,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4961,
+          "destrieux_parcel_index": 33,
+          "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+        },
+        {
+          "global_vertex_index": 4956,
+          "activation": -1.0407932996749878,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4956,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3154,
+          "activation": -1.0323829650878906,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3154,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 9284,
+          "activation": -1.0291941165924072,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9284,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 9282,
+          "activation": -0.9975852966308594,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9282,
+          "destrieux_parcel_index": 33,
+          "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+        },
+        {
+          "global_vertex_index": 3152,
+          "activation": -0.9890421628952026,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3152,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 1170,
+          "activation": -0.9886600971221924,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 1170,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3156,
+          "activation": -0.9884406924247742,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3156,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 4954,
+          "activation": -0.9872729778289795,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4954,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 9283,
+          "activation": -0.9871194362640381,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9283,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3155,
+          "activation": -0.9784665107727051,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3155,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 20061,
+          "activation": -0.9616187214851379,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9819,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16035,
+          "activation": 0.9586098194122314,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 5793,
+          "destrieux_parcel_index": 15,
+          "destrieux_parcel_name": "G_front_middle"
+        },
+        {
+          "global_vertex_index": 20059,
+          "activation": -0.9573987722396851,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9817,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 177,
+          "activation": 0.956424355506897,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 177,
+          "destrieux_parcel_index": 54,
+          "destrieux_parcel_name": "S_front_middle"
+        },
+        {
+          "global_vertex_index": 5791,
+          "activation": 0.9510818719863892,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5791,
+          "destrieux_parcel_index": 54,
+          "destrieux_parcel_name": "S_front_middle"
+        },
+        {
+          "global_vertex_index": 4953,
+          "activation": -0.9507726430892944,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4953,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 1236,
+          "activation": -0.9506642818450928,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 1236,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 4478,
+          "activation": 0.9441627264022827,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4478,
+          "destrieux_parcel_index": 54,
+          "destrieux_parcel_name": "S_front_middle"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 2,
+      "timestep_index": 7,
+      "time_window_start_sec": 7.0,
+      "time_window_end_sec": 8.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 29.992841720581055,
+      "strongest_vertex": {
+        "global_vertex_index": 14185,
+        "activation": 1.0537583827972412,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 3943,
+        "destrieux_parcel_index": 34,
+        "destrieux_parcel_name": "G_temp_sup-Lateral"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 14185,
+          "activation": 1.0537583827972412,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 1.0210825204849243,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12033,
+          "activation": 1.0006084442138672,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1791,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3152,
+          "activation": 0.9764519333839417,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3152,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18258,
+          "activation": 0.9659703969955444,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8016,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 0.9539598226547241,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16352,
+          "activation": 0.9503946304321289,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6110,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3154,
+          "activation": 0.9495037198066711,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3154,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.9444574117660522,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18260,
+          "activation": 0.9415264129638672,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8018,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.9373119473457336,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20024,
+          "activation": 0.9358989000320435,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9782,
+          "destrieux_parcel_index": 75,
+          "destrieux_parcel_name": "S_temporal_transverse"
+        },
+        {
+          "global_vertex_index": 12997,
+          "activation": 0.9316323399543762,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.9214010238647461,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14186,
+          "activation": 0.9211456179618835,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3944,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 6834,
+          "activation": 0.9186110496520996,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6834,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.9081442356109619,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 4953,
+          "activation": 0.899027407169342,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4953,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.893245279788971,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18827,
+          "activation": 0.8915433883666992,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8585,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 3,
+      "timestep_index": 6,
+      "time_window_start_sec": 6.0,
+      "time_window_end_sec": 7.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 29.201366424560547,
+      "strongest_vertex": {
+        "global_vertex_index": 14185,
+        "activation": 0.9979226589202881,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 3943,
+        "destrieux_parcel_index": 34,
+        "destrieux_parcel_name": "G_temp_sup-Lateral"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 14185,
+          "activation": 0.9979226589202881,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 0.9695428609848022,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12033,
+          "activation": 0.9552590250968933,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1791,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3152,
+          "activation": 0.9497931003570557,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3152,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3154,
+          "activation": 0.930451512336731,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3154,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.9291631579399109,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 0.9238085150718689,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18258,
+          "activation": 0.9124738574028015,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8016,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16352,
+          "activation": 0.9066944122314453,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6110,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18260,
+          "activation": 0.9064329266548157,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8018,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 6834,
+          "activation": 0.8991132378578186,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6834,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12997,
+          "activation": 0.8932080268859863,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20024,
+          "activation": 0.8810218572616577,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9782,
+          "destrieux_parcel_index": 75,
+          "destrieux_parcel_name": "S_temporal_transverse"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.8807896375656128,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.8800713419914246,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14186,
+          "activation": 0.8736391663551331,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3944,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.8709430694580078,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18827,
+          "activation": 0.8697664737701416,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8585,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 4953,
+          "activation": 0.8670687675476074,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4953,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.8645657896995544,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 4,
+      "timestep_index": 5,
+      "time_window_start_sec": 5.0,
+      "time_window_end_sec": 6.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 29.02724266052246,
+      "strongest_vertex": {
+        "global_vertex_index": 14185,
+        "activation": 1.0682761669158936,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 3943,
+        "destrieux_parcel_index": 34,
+        "destrieux_parcel_name": "G_temp_sup-Lateral"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 14185,
+          "activation": 1.0682761669158936,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 1.0469131469726562,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3152,
+          "activation": 1.03377103805542,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3152,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3154,
+          "activation": 1.0231175422668457,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3154,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12033,
+          "activation": 1.021921157836914,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1791,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 1.0179239511489868,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 1.009377121925354,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16352,
+          "activation": 0.976409375667572,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6110,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.9733901023864746,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.9705771803855896,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 0.9682980179786682,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 4953,
+          "activation": 0.967098593711853,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4953,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12997,
+          "activation": 0.9600510597229004,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.9599179029464722,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18260,
+          "activation": 0.9549698829650879,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8018,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 6834,
+          "activation": 0.9544973373413086,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6834,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14186,
+          "activation": 0.9538183212280273,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3944,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 13146,
+          "activation": 0.949881911277771,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2904,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.9485683441162109,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16621,
+          "activation": 0.9481456875801086,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6379,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 5,
+      "timestep_index": 0,
+      "time_window_start_sec": 0.0,
+      "time_window_end_sec": 1.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 28.90553092956543,
+      "strongest_vertex": {
+        "global_vertex_index": 15642,
+        "activation": 0.8515114784240723,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 5400,
+        "destrieux_parcel_index": 34,
+        "destrieux_parcel_name": "G_temp_sup-Lateral"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 15642,
+          "activation": 0.8515114784240723,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 5400,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20417,
+          "activation": 0.8364371061325073,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 10175,
+          "destrieux_parcel_index": 35,
+          "destrieux_parcel_name": "G_temp_sup-Plan_polar"
+        },
+        {
+          "global_vertex_index": 20051,
+          "activation": 0.8191041946411133,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9809,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11559,
+          "activation": 0.8149242401123047,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1317,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 13480,
+          "activation": 0.8133938908576965,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3238,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 12781,
+          "activation": 0.8131628036499023,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2539,
+          "destrieux_parcel_index": 33,
+          "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+        },
+        {
+          "global_vertex_index": 17224,
+          "activation": 0.7912323474884033,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6982,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 10388,
+          "activation": 0.7885403633117676,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 146,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 17223,
+          "activation": 0.7785172462463379,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6981,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 12660,
+          "activation": 0.7743953466415405,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2418,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20416,
+          "activation": 0.7699390053749084,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 10174,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 13481,
+          "activation": 0.7694892883300781,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3239,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 20045,
+          "activation": 0.7563720941543579,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9803,
+          "destrieux_parcel_index": 75,
+          "destrieux_parcel_name": "S_temporal_transverse"
+        },
+        {
+          "global_vertex_index": 20048,
+          "activation": 0.7462115287780762,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9806,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 15636,
+          "activation": 0.7447793483734131,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 5394,
+          "destrieux_parcel_index": 75,
+          "destrieux_parcel_name": "S_temporal_transverse"
+        },
+        {
+          "global_vertex_index": 20047,
+          "activation": 0.742539644241333,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9805,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 17229,
+          "activation": 0.7387411594390869,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6987,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12658,
+          "activation": 0.7356503009796143,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2416,
+          "destrieux_parcel_index": 75,
+          "destrieux_parcel_name": "S_temporal_transverse"
+        },
+        {
+          "global_vertex_index": 13478,
+          "activation": 0.7349851727485657,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3236,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 2241,
+          "activation": 0.7346927523612976,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2241,
+          "destrieux_parcel_index": 33,
+          "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 6,
+      "timestep_index": 4,
+      "time_window_start_sec": 4.0,
+      "time_window_end_sec": 5.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 28.845983505249023,
+      "strongest_vertex": {
+        "global_vertex_index": 14185,
+        "activation": 1.1014792919158936,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 3943,
+        "destrieux_parcel_index": 34,
+        "destrieux_parcel_name": "G_temp_sup-Lateral"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 14185,
+          "activation": 1.1014792919158936,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3152,
+          "activation": 1.082761287689209,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3152,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 1.0757108926773071,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3154,
+          "activation": 1.067408561706543,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3154,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12033,
+          "activation": 1.0538619756698608,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1791,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 1.0389354228973389,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 4953,
+          "activation": 1.0330429077148438,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4953,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 1.0307679176330566,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 1.025309443473816,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 1.0165650844573975,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16352,
+          "activation": 1.0112550258636475,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6110,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16621,
+          "activation": 1.008945345878601,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6379,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 14186,
+          "activation": 0.9969746470451355,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3944,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18258,
+          "activation": 0.9946609139442444,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8016,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12997,
+          "activation": 0.9916426539421082,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.9911848902702332,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.9872820377349854,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 13146,
+          "activation": 0.9757079482078552,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2904,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 20024,
+          "activation": 0.9725444316864014,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9782,
+          "destrieux_parcel_index": 75,
+          "destrieux_parcel_name": "S_temporal_transverse"
+        },
+        {
+          "global_vertex_index": 3155,
+          "activation": 0.9691520929336548,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3155,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 7,
+      "timestep_index": 9,
+      "time_window_start_sec": 9.0,
+      "time_window_end_sec": 10.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 28.477672576904297,
+      "strongest_vertex": {
+        "global_vertex_index": 14185,
+        "activation": 0.9655629992485046,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 3943,
+        "destrieux_parcel_index": 34,
+        "destrieux_parcel_name": "G_temp_sup-Lateral"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 14185,
+          "activation": 0.9655629992485046,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 0.9338048696517944,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12033,
+          "activation": 0.9059140682220459,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1791,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.8922299146652222,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18260,
+          "activation": 0.8818814754486084,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8018,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.8790313005447388,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 6834,
+          "activation": 0.8781453371047974,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6834,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3152,
+          "activation": 0.8683148622512817,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3152,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.8672800064086914,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11499,
+          "activation": 0.8643876314163208,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1257,
+          "destrieux_parcel_index": 20,
+          "destrieux_parcel_name": "G_occipital_sup"
+        },
+        {
+          "global_vertex_index": 16352,
+          "activation": 0.8640487194061279,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6110,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3154,
+          "activation": 0.8636429905891418,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3154,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18827,
+          "activation": 0.8615925312042236,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8585,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.8588504195213318,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 0.8578857183456421,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 13146,
+          "activation": 0.8573524951934814,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2904,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 18258,
+          "activation": 0.8543875217437744,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8016,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.852497935295105,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12997,
+          "activation": 0.851553738117218,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14186,
+          "activation": 0.8388980627059937,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3944,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 8,
+      "timestep_index": 8,
+      "time_window_start_sec": 8.0,
+      "time_window_end_sec": 9.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 28.291749954223633,
+      "strongest_vertex": {
+        "global_vertex_index": 14185,
+        "activation": 0.9638843536376953,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 3943,
+        "destrieux_parcel_index": 34,
+        "destrieux_parcel_name": "G_temp_sup-Lateral"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 14185,
+          "activation": 0.9638843536376953,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 0.9322993159294128,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12033,
+          "activation": 0.923444390296936,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1791,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18258,
+          "activation": 0.880558967590332,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8016,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.8717244863510132,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18260,
+          "activation": 0.8713250756263733,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8018,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16352,
+          "activation": 0.8655732274055481,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6110,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3152,
+          "activation": 0.8578978776931763,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3152,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12997,
+          "activation": 0.8439584374427795,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11499,
+          "activation": 0.8431386947631836,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1257,
+          "destrieux_parcel_index": 20,
+          "destrieux_parcel_name": "G_occipital_sup"
+        },
+        {
+          "global_vertex_index": 14186,
+          "activation": 0.8419303894042969,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3944,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.840980052947998,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3154,
+          "activation": 0.8395625352859497,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3154,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.8367811441421509,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 0.8367383480072021,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18827,
+          "activation": 0.8339020609855652,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8585,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20024,
+          "activation": 0.8283035755157471,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9782,
+          "destrieux_parcel_index": 75,
+          "destrieux_parcel_name": "S_temporal_transverse"
+        },
+        {
+          "global_vertex_index": 13419,
+          "activation": 0.8220902681350708,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3177,
+          "destrieux_parcel_index": 20,
+          "destrieux_parcel_name": "G_occipital_sup"
+        },
+        {
+          "global_vertex_index": 6834,
+          "activation": 0.8207179307937622,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6834,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.8196313381195068,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 9,
+      "timestep_index": 2,
+      "time_window_start_sec": 2.0,
+      "time_window_end_sec": 3.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 28.04824447631836,
+      "strongest_vertex": {
+        "global_vertex_index": 14185,
+        "activation": 0.9067865610122681,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 3943,
+        "destrieux_parcel_index": 34,
+        "destrieux_parcel_name": "G_temp_sup-Lateral"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 14185,
+          "activation": 0.9067865610122681,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 0.8935195207595825,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3154,
+          "activation": 0.8782901763916016,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3154,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3152,
+          "activation": 0.8772504329681396,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3152,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 4953,
+          "activation": 0.8660481572151184,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4953,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12033,
+          "activation": 0.8602871298789978,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1791,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12997,
+          "activation": 0.8303281664848328,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20024,
+          "activation": 0.8258131742477417,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9782,
+          "destrieux_parcel_index": 75,
+          "destrieux_parcel_name": "S_temporal_transverse"
+        },
+        {
+          "global_vertex_index": 12781,
+          "activation": 0.8254998922348022,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2539,
+          "destrieux_parcel_index": 33,
+          "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+        },
+        {
+          "global_vertex_index": 16352,
+          "activation": 0.8226878643035889,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6110,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11559,
+          "activation": 0.8175422549247742,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1317,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 16621,
+          "activation": 0.8146398067474365,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6379,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 18258,
+          "activation": 0.8143914937973022,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8016,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3155,
+          "activation": 0.8103764057159424,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3155,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 15642,
+          "activation": 0.8053377270698547,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 5400,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 0.8025952577590942,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.8024346828460693,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 9284,
+          "activation": 0.793318510055542,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9284,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12998,
+          "activation": 0.7929381132125854,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2756,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 2241,
+          "activation": 0.792264461517334,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2241,
+          "destrieux_parcel_index": 33,
+          "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 10,
+      "timestep_index": 1,
+      "time_window_start_sec": 1.0,
+      "time_window_end_sec": 2.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 27.952096939086914,
+      "strongest_vertex": {
+        "global_vertex_index": 3154,
+        "activation": 0.8188502788543701,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 3154,
+        "destrieux_parcel_index": 34,
+        "destrieux_parcel_name": "G_temp_sup-Lateral"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 3154,
+          "activation": 0.8188502788543701,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3154,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 0.8150883913040161,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14185,
+          "activation": 0.8099234104156494,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12781,
+          "activation": 0.8016605377197266,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2539,
+          "destrieux_parcel_index": 33,
+          "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+        },
+        {
+          "global_vertex_index": 15642,
+          "activation": 0.8003096580505371,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 5400,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3152,
+          "activation": 0.7959409952163696,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3152,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11559,
+          "activation": 0.7923197746276855,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1317,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 13480,
+          "activation": 0.7829439640045166,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3238,
+          "destrieux_parcel_index": 36,
+          "destrieux_parcel_name": "G_temp_sup-Plan_tempo"
+        },
+        {
+          "global_vertex_index": 20417,
+          "activation": 0.777346670627594,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 10175,
+          "destrieux_parcel_index": 35,
+          "destrieux_parcel_name": "G_temp_sup-Plan_polar"
+        },
+        {
+          "global_vertex_index": 20024,
+          "activation": 0.7755101323127747,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9782,
+          "destrieux_parcel_index": 75,
+          "destrieux_parcel_name": "S_temporal_transverse"
+        },
+        {
+          "global_vertex_index": 12997,
+          "activation": 0.7726571559906006,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 4953,
+          "activation": 0.7698261737823486,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4953,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16352,
+          "activation": 0.7674882411956787,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6110,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12998,
+          "activation": 0.7623295187950134,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2756,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16621,
+          "activation": 0.7587687373161316,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6379,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 12033,
+          "activation": 0.7563298940658569,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1791,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18258,
+          "activation": 0.75322026014328,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8016,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20051,
+          "activation": 0.7530026435852051,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9809,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 2241,
+          "activation": 0.7523502111434937,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2241,
+          "destrieux_parcel_index": 33,
+          "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+        },
+        {
+          "global_vertex_index": 20416,
+          "activation": 0.7515822649002075,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 10174,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 11,
+      "timestep_index": 22,
+      "time_window_start_sec": 22.0,
+      "time_window_end_sec": 23.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 27.749746322631836,
+      "strongest_vertex": {
+        "global_vertex_index": 9498,
+        "activation": 1.028077483177185,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 9498,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 9498,
+          "activation": 1.028077483177185,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9499,
+          "activation": 1.0236635208129883,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.9959304332733154,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2314,
+          "activation": 0.9775101542472839,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2314,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.9738602042198181,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2313,
+          "activation": 0.9723167419433594,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2313,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.9492582082748413,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 5132,
+          "activation": 0.9318172335624695,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5132,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6827,
+          "activation": 0.9205992221832275,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6827,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5143,
+          "activation": 0.9198675751686096,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5143,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5142,
+          "activation": 0.9137245416641235,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5142,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.906947910785675,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 0.9032320976257324,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 5151,
+          "activation": 0.8905529379844666,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5151,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9497,
+          "activation": 0.8883532285690308,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9497,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 558,
+          "activation": 0.8836419582366943,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 558,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 8331,
+          "activation": 0.8816232681274414,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 8331,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 1233,
+          "activation": 0.88069748878479,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 1233,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6811,
+          "activation": 0.8789097666740417,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6811,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5138,
+          "activation": 0.8746167421340942,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5138,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 12,
+      "timestep_index": 3,
+      "time_window_start_sec": 3.0,
+      "time_window_end_sec": 4.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 27.406400680541992,
+      "strongest_vertex": {
+        "global_vertex_index": 14185,
+        "activation": 0.9916465282440186,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 3943,
+        "destrieux_parcel_index": 34,
+        "destrieux_parcel_name": "G_temp_sup-Lateral"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 14185,
+          "activation": 0.9916465282440186,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3152,
+          "activation": 0.9794394969940186,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3152,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 0.9772254228591919,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3154,
+          "activation": 0.9657817482948303,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3154,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 4953,
+          "activation": 0.9421671628952026,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4953,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.9349159002304077,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12033,
+          "activation": 0.9330943822860718,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1791,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 0.9154055118560791,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16621,
+          "activation": 0.9146177768707275,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6379,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 0.908473014831543,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.8964608907699585,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16352,
+          "activation": 0.8949347734451294,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6110,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14186,
+          "activation": 0.8929738402366638,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3944,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12997,
+          "activation": 0.8905174136161804,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.8895319700241089,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3155,
+          "activation": 0.8882806301116943,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3155,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 18258,
+          "activation": 0.8872134685516357,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8016,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20024,
+          "activation": 0.8862971067428589,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9782,
+          "destrieux_parcel_index": 75,
+          "destrieux_parcel_name": "S_temporal_transverse"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.8759429454803467,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3156,
+          "activation": 0.8678227663040161,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3156,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 13,
+      "timestep_index": 21,
+      "time_window_start_sec": 21.0,
+      "time_window_end_sec": 22.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 27.2603759765625,
+      "strongest_vertex": {
+        "global_vertex_index": 9499,
+        "activation": 1.0266748666763306,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 9499,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 9499,
+          "activation": 1.0266748666763306,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9498,
+          "activation": 1.019593358039856,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.9903957843780518,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2313,
+          "activation": 0.9514129161834717,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2313,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2314,
+          "activation": 0.9512038230895996,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2314,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.9444429278373718,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.9303693771362305,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 5132,
+          "activation": 0.906652569770813,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5132,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6827,
+          "activation": 0.9020290970802307,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6827,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5143,
+          "activation": 0.8880091905593872,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5143,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5151,
+          "activation": 0.8806307315826416,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5151,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.8800517320632935,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5142,
+          "activation": 0.8758142590522766,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5142,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 0.8758128881454468,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 9497,
+          "activation": 0.8757743835449219,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9497,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.8737629652023315,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 1233,
+          "activation": 0.8644630908966064,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 1233,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 558,
+          "activation": 0.8635541796684265,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 558,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 0.857500433921814,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 14638,
+          "activation": 0.8567575216293335,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 4396,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 14,
+      "timestep_index": 10,
+      "time_window_start_sec": 10.0,
+      "time_window_end_sec": 11.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 26.982219696044922,
+      "strongest_vertex": {
+        "global_vertex_index": 14185,
+        "activation": 0.8704606294631958,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 3943,
+        "destrieux_parcel_index": 34,
+        "destrieux_parcel_name": "G_temp_sup-Lateral"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 14185,
+          "activation": 0.8704606294631958,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 0.8500410318374634,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.8179775476455688,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11499,
+          "activation": 0.8128165006637573,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1257,
+          "destrieux_parcel_index": 20,
+          "destrieux_parcel_name": "G_occipital_sup"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.8063731789588928,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 19915,
+          "activation": 0.8026649355888367,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9673,
+          "destrieux_parcel_index": 43,
+          "destrieux_parcel_name": "Pole_occipital"
+        },
+        {
+          "global_vertex_index": 12033,
+          "activation": 0.7995694875717163,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1791,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 6834,
+          "activation": 0.7987142205238342,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6834,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.7949211597442627,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.792320728302002,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 10928,
+          "activation": 0.7918630838394165,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 686,
+          "destrieux_parcel_index": 43,
+          "destrieux_parcel_name": "Pole_occipital"
+        },
+        {
+          "global_vertex_index": 19675,
+          "activation": 0.7916027307510376,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9433,
+          "destrieux_parcel_index": 43,
+          "destrieux_parcel_name": "Pole_occipital"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.7861384749412537,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 3152,
+          "activation": 0.7852039337158203,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 3152,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 13146,
+          "activation": 0.78519606590271,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2904,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 0.7841107845306396,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 13419,
+          "activation": 0.7816293835639954,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3177,
+          "destrieux_parcel_index": 20,
+          "destrieux_parcel_name": "G_occipital_sup"
+        },
+        {
+          "global_vertex_index": 16084,
+          "activation": 0.7806661128997803,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 5842,
+          "destrieux_parcel_index": 58,
+          "destrieux_parcel_name": "S_oc_middle_and_Lunatus"
+        },
+        {
+          "global_vertex_index": 14186,
+          "activation": 0.7805694341659546,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3944,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 9498,
+          "activation": 0.7772224545478821,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 15,
+      "timestep_index": 11,
+      "time_window_start_sec": 11.0,
+      "time_window_end_sec": 12.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 26.751110076904297,
+      "strongest_vertex": {
+        "global_vertex_index": 9498,
+        "activation": 0.8296236395835876,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 9498,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 9498,
+          "activation": 0.8296236395835876,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 14185,
+          "activation": 0.8185873031616211,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 0.8045182824134827,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16084,
+          "activation": 0.7992701530456543,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 5842,
+          "destrieux_parcel_index": 58,
+          "destrieux_parcel_name": "S_oc_middle_and_Lunatus"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.7943630218505859,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 19914,
+          "activation": 0.7937431335449219,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9672,
+          "destrieux_parcel_index": 58,
+          "destrieux_parcel_name": "S_oc_middle_and_Lunatus"
+        },
+        {
+          "global_vertex_index": 19915,
+          "activation": 0.7892587780952454,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9673,
+          "destrieux_parcel_index": 43,
+          "destrieux_parcel_name": "Pole_occipital"
+        },
+        {
+          "global_vertex_index": 10928,
+          "activation": 0.7890580892562866,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 686,
+          "destrieux_parcel_index": 43,
+          "destrieux_parcel_name": "Pole_occipital"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.7884498238563538,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.7864493131637573,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.7862585186958313,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 19675,
+          "activation": 0.7825443744659424,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9433,
+          "destrieux_parcel_index": 43,
+          "destrieux_parcel_name": "Pole_occipital"
+        },
+        {
+          "global_vertex_index": 6834,
+          "activation": 0.777328372001648,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6834,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.7766448855400085,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 0.7735825181007385,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9499,
+          "activation": 0.7728703618049622,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.7695921063423157,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.768159031867981,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 13146,
+          "activation": 0.7608073949813843,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2904,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 19913,
+          "activation": 0.760002851486206,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9671,
+          "destrieux_parcel_index": 58,
+          "destrieux_parcel_name": "S_oc_middle_and_Lunatus"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 16,
+      "timestep_index": 20,
+      "time_window_start_sec": 20.0,
+      "time_window_end_sec": 21.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 26.63223648071289,
+      "strongest_vertex": {
+        "global_vertex_index": 9498,
+        "activation": 1.0481188297271729,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 9498,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 9498,
+          "activation": 1.0481188297271729,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9499,
+          "activation": 1.031968355178833,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2314,
+          "activation": 0.9965615272521973,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2314,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.9913123250007629,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.9834284782409668,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2313,
+          "activation": 0.950202226638794,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2313,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5143,
+          "activation": 0.9312582612037659,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5143,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6827,
+          "activation": 0.9142335653305054,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6827,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.9097338914871216,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 5132,
+          "activation": 0.9059255123138428,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5132,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5142,
+          "activation": 0.9056767225265503,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5142,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9497,
+          "activation": 0.886227011680603,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9497,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9500,
+          "activation": 0.8825840353965759,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9500,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 1233,
+          "activation": 0.8799052238464355,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 1233,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 558,
+          "activation": 0.8778413534164429,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 558,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5151,
+          "activation": 0.8679194450378418,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5151,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9501,
+          "activation": 0.8642555475234985,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9501,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5144,
+          "activation": 0.8568952083587646,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5144,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 14638,
+          "activation": 0.8568326234817505,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 4396,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6825,
+          "activation": 0.8508879542350769,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6825,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 17,
+      "timestep_index": 23,
+      "time_window_start_sec": 23.0,
+      "time_window_end_sec": 24.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 26.37912940979004,
+      "strongest_vertex": {
+        "global_vertex_index": 9498,
+        "activation": 0.9545581340789795,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 9498,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 9498,
+          "activation": 0.9545581340789795,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9499,
+          "activation": 0.9494080543518066,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.9350848197937012,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2313,
+          "activation": 0.9056869745254517,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2313,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.9016329050064087,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2314,
+          "activation": 0.8913954496383667,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2314,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.8867580890655518,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 0.8579427003860474,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 6827,
+          "activation": 0.8550362586975098,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6827,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5132,
+          "activation": 0.8522217869758606,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5132,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.8513624668121338,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 5143,
+          "activation": 0.8423974514007568,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5143,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5142,
+          "activation": 0.8371768593788147,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5142,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5151,
+          "activation": 0.8337223529815674,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5151,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.8253271579742432,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9497,
+          "activation": 0.824309766292572,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9497,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5138,
+          "activation": 0.8231654763221741,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5138,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 558,
+          "activation": 0.8056193590164185,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 558,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 8331,
+          "activation": 0.8029204607009888,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 8331,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 0.8018648624420166,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 18,
+      "timestep_index": 17,
+      "time_window_start_sec": 17.0,
+      "time_window_end_sec": 18.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 26.237199783325195,
+      "strongest_vertex": {
+        "global_vertex_index": 9498,
+        "activation": 0.9062044620513916,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 9498,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 9498,
+          "activation": 0.9062044620513916,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9499,
+          "activation": 0.8992814421653748,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2314,
+          "activation": 0.8886215090751648,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2314,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.8686075210571289,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5143,
+          "activation": 0.8526436686515808,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5143,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.8512300848960876,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 14638,
+          "activation": 0.8380530476570129,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 4396,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.8161438703536987,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 5142,
+          "activation": 0.8079110980033875,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5142,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2313,
+          "activation": 0.805709958076477,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2313,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9502,
+          "activation": 0.8035237789154053,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9502,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 18842,
+          "activation": 0.8016105890274048,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8600,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6827,
+          "activation": 0.7962482571601868,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6827,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5151,
+          "activation": 0.7731733322143555,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5151,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 559,
+          "activation": 0.7719955444335938,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 559,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9500,
+          "activation": 0.7691347599029541,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9500,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2315,
+          "activation": 0.7675751447677612,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2315,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9501,
+          "activation": 0.7672630548477173,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9501,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 1233,
+          "activation": 0.7647340297698975,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 1233,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5132,
+          "activation": 0.7614995241165161,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5132,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 19,
+      "timestep_index": 18,
+      "time_window_start_sec": 18.0,
+      "time_window_end_sec": 19.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 26.102148056030273,
+      "strongest_vertex": {
+        "global_vertex_index": 9498,
+        "activation": 0.9554890394210815,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 9498,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 9498,
+          "activation": 0.9554890394210815,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9499,
+          "activation": 0.9361546039581299,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2314,
+          "activation": 0.9253359436988831,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2314,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.9114447832107544,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.8870317935943604,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5143,
+          "activation": 0.874314546585083,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5143,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2313,
+          "activation": 0.8512120842933655,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2313,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.8487733602523804,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 5142,
+          "activation": 0.8417980670928955,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5142,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 14638,
+          "activation": 0.8367910385131836,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 4396,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6827,
+          "activation": 0.8314654231071472,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6827,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9502,
+          "activation": 0.8272371292114258,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9502,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 1233,
+          "activation": 0.8052904009819031,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 1233,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 559,
+          "activation": 0.8042494058609009,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 559,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5132,
+          "activation": 0.8027290105819702,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5132,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9500,
+          "activation": 0.8018816709518433,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9500,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 18842,
+          "activation": 0.7986186742782593,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8600,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5144,
+          "activation": 0.7921599745750427,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5144,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9501,
+          "activation": 0.791236162185669,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9501,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9497,
+          "activation": 0.791002094745636,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9497,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 20,
+      "timestep_index": 19,
+      "time_window_start_sec": 19.0,
+      "time_window_end_sec": 20.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 25.94732093811035,
+      "strongest_vertex": {
+        "global_vertex_index": 9498,
+        "activation": 0.9704295992851257,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 9498,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 9498,
+          "activation": 0.9704295992851257,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9499,
+          "activation": 0.9541211128234863,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2314,
+          "activation": 0.9385626316070557,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2314,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.9139893054962158,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.9119728803634644,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5143,
+          "activation": 0.8785200119018555,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5143,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2313,
+          "activation": 0.8720265626907349,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2313,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.8637776374816895,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14638,
+          "activation": 0.8506162166595459,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 4396,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6827,
+          "activation": 0.8464635610580444,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6827,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5142,
+          "activation": 0.8460057377815247,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5142,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5132,
+          "activation": 0.8366533517837524,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5132,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 18842,
+          "activation": 0.8319562077522278,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8600,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9500,
+          "activation": 0.8186327815055847,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9500,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9497,
+          "activation": 0.815725564956665,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9497,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9502,
+          "activation": 0.8147441744804382,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9502,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 1233,
+          "activation": 0.8146122694015503,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 1233,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5151,
+          "activation": 0.8132378458976746,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5151,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9501,
+          "activation": 0.8083852529525757,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9501,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5144,
+          "activation": 0.806251049041748,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5144,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 21,
+      "timestep_index": 12,
+      "time_window_start_sec": 12.0,
+      "time_window_end_sec": 13.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 25.769989013671875,
+      "strongest_vertex": {
+        "global_vertex_index": 9498,
+        "activation": 0.8104566335678101,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 9498,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 9498,
+          "activation": 0.8104566335678101,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.7565827369689941,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.7565507888793945,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14185,
+          "activation": 0.7505201101303101,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 0.7492072582244873,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 9499,
+          "activation": 0.7489598393440247,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.7351799607276917,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.7278740406036377,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 2314,
+          "activation": 0.7255172729492188,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2314,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.7253803014755249,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14140,
+          "activation": 0.7226893901824951,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3898,
+          "destrieux_parcel_index": 22,
+          "destrieux_parcel_name": "G_oc-temp_med-Lingual"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.7211332321166992,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 19675,
+          "activation": 0.7201708555221558,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9433,
+          "destrieux_parcel_index": 43,
+          "destrieux_parcel_name": "Pole_occipital"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 0.7194370031356812,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6834,
+          "activation": 0.7183641791343689,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6834,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 5151,
+          "activation": 0.7176738977432251,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5151,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6827,
+          "activation": 0.7173722982406616,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6827,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.7173168659210205,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16084,
+          "activation": 0.7153392434120178,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 5842,
+          "destrieux_parcel_index": 58,
+          "destrieux_parcel_name": "S_oc_middle_and_Lunatus"
+        },
+        {
+          "global_vertex_index": 2313,
+          "activation": 0.7129666805267334,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2313,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 22,
+      "timestep_index": 16,
+      "time_window_start_sec": 16.0,
+      "time_window_end_sec": 17.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 25.7235164642334,
+      "strongest_vertex": {
+        "global_vertex_index": 9498,
+        "activation": 0.8450871109962463,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 9498,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 9498,
+          "activation": 0.8450871109962463,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9499,
+          "activation": 0.8323810696601868,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2314,
+          "activation": 0.8168541193008423,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2314,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.8035266399383545,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.7934062480926514,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 14638,
+          "activation": 0.7832142114639282,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 4396,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.7784695625305176,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 5143,
+          "activation": 0.7628828287124634,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5143,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 18842,
+          "activation": 0.7532327175140381,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8600,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2313,
+          "activation": 0.7509472966194153,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2313,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 0.7447654008865356,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6827,
+          "activation": 0.7391577959060669,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6827,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5142,
+          "activation": 0.7327934503555298,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5142,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.7288686037063599,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9502,
+          "activation": 0.7282814383506775,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9502,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5151,
+          "activation": 0.7272065877914429,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5151,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.7251790761947632,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 4701,
+          "activation": 0.7208797931671143,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 4701,
+          "destrieux_parcel_index": 16,
+          "destrieux_parcel_name": "G_front_sup"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.7136972546577454,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 0.712816596031189,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 23,
+      "timestep_index": 26,
+      "time_window_start_sec": 26.0,
+      "time_window_end_sec": 27.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 25.160856246948242,
+      "strongest_vertex": {
+        "global_vertex_index": 14638,
+        "activation": 0.7703595161437988,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 4396,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 14638,
+          "activation": 0.7703595161437988,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 4396,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5143,
+          "activation": 0.75492262840271,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5143,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 1677,
+          "activation": 0.7517889738082886,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 1677,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14637,
+          "activation": 0.7487009167671204,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 4395,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 18842,
+          "activation": 0.7434217929840088,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8600,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 0.7394649386405945,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 18832,
+          "activation": 0.7361345291137695,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8590,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2315,
+          "activation": 0.7360085844993591,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2315,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9499,
+          "activation": 0.733012318611145,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5144,
+          "activation": 0.7320806980133057,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5144,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5142,
+          "activation": 0.7244919538497925,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5142,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2314,
+          "activation": 0.7218033075332642,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2314,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.7113542556762695,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.7109939455986023,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 12247,
+          "activation": 0.7109390497207642,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2005,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.7074733972549438,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 559,
+          "activation": 0.7061895132064819,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 559,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 18841,
+          "activation": 0.7051264047622681,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8599,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9498,
+          "activation": 0.6981903910636902,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5146,
+          "activation": 0.6915502548217773,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5146,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 24,
+      "timestep_index": 13,
+      "time_window_start_sec": 13.0,
+      "time_window_end_sec": 14.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 25.10716438293457,
+      "strongest_vertex": {
+        "global_vertex_index": 19675,
+        "activation": 0.7290085554122925,
+        "hemisphere": "right",
+        "vertex_within_hemisphere": 9433,
+        "destrieux_parcel_index": 43,
+        "destrieux_parcel_name": "Pole_occipital"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 19675,
+          "activation": 0.7290085554122925,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9433,
+          "destrieux_parcel_index": 43,
+          "destrieux_parcel_name": "Pole_occipital"
+        },
+        {
+          "global_vertex_index": 9498,
+          "activation": 0.7286515831947327,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 11499,
+          "activation": 0.7285584211349487,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 1257,
+          "destrieux_parcel_index": 20,
+          "destrieux_parcel_name": "G_occipital_sup"
+        },
+        {
+          "global_vertex_index": 11077,
+          "activation": 0.7254899144172668,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 835,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14185,
+          "activation": 0.725385844707489,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3943,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16084,
+          "activation": 0.7038416862487793,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 5842,
+          "destrieux_parcel_index": 58,
+          "destrieux_parcel_name": "S_oc_middle_and_Lunatus"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 0.7033517360687256,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 16353,
+          "activation": 0.7021068334579468,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6111,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14140,
+          "activation": 0.701988697052002,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3898,
+          "destrieux_parcel_index": 22,
+          "destrieux_parcel_name": "G_oc-temp_med-Lingual"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.7019808292388916,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 19915,
+          "activation": 0.7012975811958313,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9673,
+          "destrieux_parcel_index": 43,
+          "destrieux_parcel_name": "Pole_occipital"
+        },
+        {
+          "global_vertex_index": 19914,
+          "activation": 0.6988265514373779,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9672,
+          "destrieux_parcel_index": 58,
+          "destrieux_parcel_name": "S_oc_middle_and_Lunatus"
+        },
+        {
+          "global_vertex_index": 17115,
+          "activation": 0.698104739189148,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6873,
+          "destrieux_parcel_index": 20,
+          "destrieux_parcel_name": "G_occipital_sup"
+        },
+        {
+          "global_vertex_index": 13419,
+          "activation": 0.6974471807479858,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3177,
+          "destrieux_parcel_index": 20,
+          "destrieux_parcel_name": "G_occipital_sup"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.6953896284103394,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.6952837705612183,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.6903489828109741,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 14186,
+          "activation": 0.6899616718292236,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 3944,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 10928,
+          "activation": 0.6890639066696167,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 686,
+          "destrieux_parcel_index": 43,
+          "destrieux_parcel_name": "Pole_occipital"
+        },
+        {
+          "global_vertex_index": 13146,
+          "activation": 0.6837377548217773,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2904,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    },
+    {
+      "rank_by_overall_activation": 25,
+      "timestep_index": 24,
+      "time_window_start_sec": 24.0,
+      "time_window_end_sec": 25.0,
+      "tr_duration_sec": 1.0,
+      "activation_l2_across_vertices": 24.907846450805664,
+      "strongest_vertex": {
+        "global_vertex_index": 9499,
+        "activation": 0.8848313689231873,
+        "hemisphere": "left",
+        "vertex_within_hemisphere": 9499,
+        "destrieux_parcel_index": 74,
+        "destrieux_parcel_name": "S_temporal_sup"
+      },
+      "top_vertices_by_abs_activation": [
+        {
+          "global_vertex_index": 9499,
+          "activation": 0.8848313689231873,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9499,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 9498,
+          "activation": 0.8837965726852417,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 9498,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5139,
+          "activation": 0.8703503608703613,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5139,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 7755,
+          "activation": 0.8654940128326416,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7755,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 2314,
+          "activation": 0.8515990972518921,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2314,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 7754,
+          "activation": 0.8504252433776855,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 7754,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 549,
+          "activation": 0.8464856147766113,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 549,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 5141,
+          "activation": 0.8399176597595215,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5141,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 14638,
+          "activation": 0.8307063579559326,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 4396,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 2313,
+          "activation": 0.8301029205322266,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 2313,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 11226,
+          "activation": 0.825774073600769,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 984,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5143,
+          "activation": 0.8209775686264038,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5143,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 20060,
+          "activation": 0.8185924291610718,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 9818,
+          "destrieux_parcel_index": 34,
+          "destrieux_parcel_name": "G_temp_sup-Lateral"
+        },
+        {
+          "global_vertex_index": 16622,
+          "activation": 0.8053858280181885,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 6380,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5132,
+          "activation": 0.8049054145812988,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5132,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 5142,
+          "activation": 0.7958884239196777,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 5142,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 6827,
+          "activation": 0.7957743406295776,
+          "hemisphere": "left",
+          "vertex_within_hemisphere": 6827,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 18842,
+          "activation": 0.7904773950576782,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8600,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 13146,
+          "activation": 0.7901588678359985,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 2904,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        },
+        {
+          "global_vertex_index": 18832,
+          "activation": 0.7854844331741333,
+          "hemisphere": "right",
+          "vertex_within_hemisphere": 8590,
+          "destrieux_parcel_index": 74,
+          "destrieux_parcel_name": "S_temporal_sup"
+        }
+      ]
+    }
+  ],
+  "top_brain_vertices_over_full_video": [
+    {
+      "rank": 1,
+      "global_vertex_index": 14185,
+      "max_abs_activation_any_timestep": 1.1014792919158936,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 3943,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 2,
+      "global_vertex_index": 2241,
+      "max_abs_activation_any_timestep": 1.0992567539215088,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 2241,
+      "destrieux_parcel_index": 33,
+      "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+    },
+    {
+      "rank": 3,
+      "global_vertex_index": 4961,
+      "max_abs_activation_any_timestep": 1.0834412574768066,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 4961,
+      "destrieux_parcel_index": 33,
+      "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+    },
+    {
+      "rank": 4,
+      "global_vertex_index": 3152,
+      "max_abs_activation_any_timestep": 1.082761287689209,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 3152,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 5,
+      "global_vertex_index": 11077,
+      "max_abs_activation_any_timestep": 1.0757108926773071,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 835,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 6,
+      "global_vertex_index": 3154,
+      "max_abs_activation_any_timestep": 1.067408561706543,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 3154,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 7,
+      "global_vertex_index": 12033,
+      "max_abs_activation_any_timestep": 1.0538619756698608,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 1791,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 8,
+      "global_vertex_index": 9498,
+      "max_abs_activation_any_timestep": 1.0481188297271729,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 9498,
+      "destrieux_parcel_index": 74,
+      "destrieux_parcel_name": "S_temporal_sup"
+    },
+    {
+      "rank": 9,
+      "global_vertex_index": 4956,
+      "max_abs_activation_any_timestep": 1.0407932996749878,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 4956,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 10,
+      "global_vertex_index": 7755,
+      "max_abs_activation_any_timestep": 1.0389354228973389,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 7755,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 11,
+      "global_vertex_index": 4953,
+      "max_abs_activation_any_timestep": 1.0330429077148438,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 4953,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 12,
+      "global_vertex_index": 9499,
+      "max_abs_activation_any_timestep": 1.031968355178833,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 9499,
+      "destrieux_parcel_index": 74,
+      "destrieux_parcel_name": "S_temporal_sup"
+    },
+    {
+      "rank": 13,
+      "global_vertex_index": 7754,
+      "max_abs_activation_any_timestep": 1.0307679176330566,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 7754,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 14,
+      "global_vertex_index": 9284,
+      "max_abs_activation_any_timestep": 1.0291941165924072,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 9284,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 15,
+      "global_vertex_index": 16622,
+      "max_abs_activation_any_timestep": 1.025309443473816,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 6380,
+      "destrieux_parcel_index": 74,
+      "destrieux_parcel_name": "S_temporal_sup"
+    },
+    {
+      "rank": 16,
+      "global_vertex_index": 11226,
+      "max_abs_activation_any_timestep": 1.0165650844573975,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 984,
+      "destrieux_parcel_index": 74,
+      "destrieux_parcel_name": "S_temporal_sup"
+    },
+    {
+      "rank": 17,
+      "global_vertex_index": 16352,
+      "max_abs_activation_any_timestep": 1.0112550258636475,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 6110,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 18,
+      "global_vertex_index": 16621,
+      "max_abs_activation_any_timestep": 1.008945345878601,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 6379,
+      "destrieux_parcel_index": 74,
+      "destrieux_parcel_name": "S_temporal_sup"
+    },
+    {
+      "rank": 19,
+      "global_vertex_index": 9282,
+      "max_abs_activation_any_timestep": 0.9975852966308594,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 9282,
+      "destrieux_parcel_index": 33,
+      "destrieux_parcel_name": "G_temp_sup-G_T_transv"
+    },
+    {
+      "rank": 20,
+      "global_vertex_index": 14186,
+      "max_abs_activation_any_timestep": 0.9969746470451355,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 3944,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 21,
+      "global_vertex_index": 2314,
+      "max_abs_activation_any_timestep": 0.9965615272521973,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 2314,
+      "destrieux_parcel_index": 74,
+      "destrieux_parcel_name": "S_temporal_sup"
+    },
+    {
+      "rank": 22,
+      "global_vertex_index": 5139,
+      "max_abs_activation_any_timestep": 0.9959304332733154,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 5139,
+      "destrieux_parcel_index": 74,
+      "destrieux_parcel_name": "S_temporal_sup"
+    },
+    {
+      "rank": 23,
+      "global_vertex_index": 18258,
+      "max_abs_activation_any_timestep": 0.9946609139442444,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 8016,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 24,
+      "global_vertex_index": 12997,
+      "max_abs_activation_any_timestep": 0.9916426539421082,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 2755,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 25,
+      "global_vertex_index": 16353,
+      "max_abs_activation_any_timestep": 0.9911848902702332,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 6111,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 26,
+      "global_vertex_index": 1170,
+      "max_abs_activation_any_timestep": 0.9886600971221924,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 1170,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 27,
+      "global_vertex_index": 3156,
+      "max_abs_activation_any_timestep": 0.9884406924247742,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 3156,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 28,
+      "global_vertex_index": 20060,
+      "max_abs_activation_any_timestep": 0.9872820377349854,
+      "hemisphere": "right",
+      "vertex_within_hemisphere": 9818,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 29,
+      "global_vertex_index": 4954,
+      "max_abs_activation_any_timestep": 0.9872729778289795,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 4954,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    },
+    {
+      "rank": 30,
+      "global_vertex_index": 9283,
+      "max_abs_activation_any_timestep": 0.9871194362640381,
+      "hemisphere": "left",
+      "vertex_within_hemisphere": 9283,
+      "destrieux_parcel_index": 34,
+      "destrieux_parcel_name": "G_temp_sup-Lateral"
+    }
+  ],
+  "inference_video_path": "/Users/avneh/Code/Ant/cache/test_480p.mp4",
+  "input_video_path": "/Users/avneh/Code/Ant/test.mp4",
+  "video_duration_sec": 49.64,
+  "tr_sec": 1.0,
+  "timesteps_kept": 50,
+  "timesteps_from_model_before_crop": 100,
+  "timeline_note": "Full forward uses hub duration_trs=100; arrays and JSON are cropped to ceil(video_duration / TR) so times stay within the clip."
+}

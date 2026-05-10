@@ -1,0 +1,132 @@
+[
+  {
+    "src": "/assets/tribev2/brain-frame-00.png",
+    "timestep_index": 0,
+    "time_sec": 0.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-01.png",
+    "timestep_index": 2,
+    "time_sec": 2.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-02.png",
+    "timestep_index": 4,
+    "time_sec": 4.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-03.png",
+    "timestep_index": 6,
+    "time_sec": 6.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-04.png",
+    "timestep_index": 8,
+    "time_sec": 8.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-05.png",
+    "timestep_index": 10,
+    "time_sec": 10.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-06.png",
+    "timestep_index": 12,
+    "time_sec": 12.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-07.png",
+    "timestep_index": 14,
+    "time_sec": 14.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-08.png",
+    "timestep_index": 16,
+    "time_sec": 16.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-09.png",
+    "timestep_index": 18,
+    "time_sec": 18.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-10.png",
+    "timestep_index": 20,
+    "time_sec": 20.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-11.png",
+    "timestep_index": 22,
+    "time_sec": 22.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-12.png",
+    "timestep_index": 24,
+    "time_sec": 24.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-13.png",
+    "timestep_index": 26,
+    "time_sec": 26.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-14.png",
+    "timestep_index": 28,
+    "time_sec": 28.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-15.png",
+    "timestep_index": 30,
+    "time_sec": 30.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-16.png",
+    "timestep_index": 32,
+    "time_sec": 32.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-17.png",
+    "timestep_index": 34,
+    "time_sec": 34.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-18.png",
+    "timestep_index": 36,
+    "time_sec": 36.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-19.png",
+    "timestep_index": 38,
+    "time_sec": 38.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-20.png",
+    "timestep_index": 40,
+    "time_sec": 40.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-21.png",
+    "timestep_index": 42,
+    "time_sec": 42.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-22.png",
+    "timestep_index": 44,
+    "time_sec": 44.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-23.png",
+    "timestep_index": 46,
+    "time_sec": 46.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-24.png",
+    "timestep_index": 48,
+    "time_sec": 48.0
+  },
+  {
+    "src": "/assets/tribev2/brain-frame-25.png",
+    "timestep_index": 49,
+    "time_sec": 49.0
+  }
+]

@@ -1,0 +1,16 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+numpy==1.26.4
+pandas==2.2.2
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.4.1+cpu
+# TODO(deployer): tribev2 + neuralset are not on PyPI under these names. Replace
+# the next two lines with whatever the official facebook/tribev2 install is —
+# likely something like:
+#   git+https://github.com/facebookresearch/tribe.git
+#   git+https://github.com/facebookresearch/neuralset.git
+# (See DEPLOY_NOTES.md.)
+tribev2
+neuralset
+nilearn==0.10.4
+moviepy==2.1.1
