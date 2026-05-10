@@ -7,16 +7,22 @@ import uuid
 from pathlib import Path
 
 
-def download_to_tmp(url: str, suffix: str = ".mp4") -> Path:
+def download_to_tmp(url: str, suffix: str = ".mp4", auth_token: str | None = None) -> Path:
     """Stream ``url`` to /tmp/<uuid>.mp4 and return the local path.
 
     Uses urllib so we don't take a requests/httpx dependency. Raises on HTTP errors.
+    Optional ``auth_token`` is sent as ``Authorization: Bearer <token>`` so private
+    InsForge storage URLs can be fetched without making the bucket public.
     """
     tmp_dir = Path("/tmp")
     tmp_dir.mkdir(parents=True, exist_ok=True)
     out_path = tmp_dir / f"{uuid.uuid4().hex}{suffix}"
 
-    req = urllib.request.Request(url, headers={"User-Agent": "ant-tribe/0.1"})
+    headers = {"User-Agent": "ant-tribe/0.1"}
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token}"
+
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=300) as resp:
         if resp.status >= 400:
             raise RuntimeError(f"HTTP {resp.status} downloading {url}")

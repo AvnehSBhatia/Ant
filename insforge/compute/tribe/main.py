@@ -33,6 +33,7 @@ app = FastAPI(title="ant-tribe", version="0.1.0")
 
 class TribeAnalyzeRequest(BaseModel):
     video_url: str
+    auth_token: str | None = None
 
 
 @app.get("/health")
@@ -49,9 +50,9 @@ def tribe_analyze(req: TribeAnalyzeRequest) -> dict:
     from service.download import download_to_tmp
     from service.tribe_runner import run_video_to_payload
 
-    logger.info("Downloading video: %s", req.video_url)
+    logger.info("Downloading video: %s (auth=%s)", req.video_url, "yes" if req.auth_token else "no")
     try:
-        video_path: Path = download_to_tmp(req.video_url)
+        video_path: Path = download_to_tmp(req.video_url, auth_token=req.auth_token)
     except Exception as exc:  # noqa: BLE001
         logger.error("Download failed: %s\n%s", exc, traceback.format_exc())
         raise HTTPException(status_code=400, detail=f"download failed: {exc}") from exc

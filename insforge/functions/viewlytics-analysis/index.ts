@@ -88,11 +88,14 @@ async function runTribeBrain(videoUrl: string | null | undefined) {
   if (!TRIBE_SERVICE_URL || !videoUrl) return { ok: false, skipped: true } as const;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 110_000);
+  // Pass the InsForge anon/api key so tribe can fetch the storage URL on a
+  // private bucket. The tribe service forwards it as Bearer auth on its GET.
+  const storageToken = Deno.env.get("API_KEY") || Deno.env.get("INSFORGE_API_KEY") || Deno.env.get("ANON_KEY") || "";
   try {
     const res = await fetch(`${TRIBE_SERVICE_URL.replace(/\/$/, "")}/tribe-analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video_url: videoUrl }),
+      body: JSON.stringify({ video_url: videoUrl, auth_token: storageToken || null }),
       signal: controller.signal,
     });
     const payload = await res.json().catch(() => ({}));
