@@ -37,7 +37,7 @@ const navItems = [
   { id: "trends", label: "Trends", Icon: LineChart }
 ];
 
-const libraryVideos = [
+const fallbackLibraryVideos = [
   { title: "Summer Launch Reel", date: "May 8, 2026", views: "9.8K", duration: "01:24", thumb: 1, active: true },
   { title: "Product Teaser", date: "May 6, 2026", views: "7.1K", duration: "00:52", thumb: 2 },
   { title: "Founder Story", date: "May 3, 2026", views: "6.3K", duration: "02:15", thumb: 5 },
@@ -47,6 +47,31 @@ const libraryVideos = [
   { title: "Customer Stories", date: "Apr 20, 2026", views: "3.2K", duration: "02:03", thumb: 4 },
   { title: "Roadmap Update", date: "Apr 18, 2026", views: "2.8K", duration: "01:09", thumb: 3 }
 ];
+
+function formatCompact(value) {
+  if (value == null || Number.isNaN(Number(value))) return "--";
+  const num = Number(value);
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return String(Math.round(num));
+}
+
+function truncateTitle(title, max = 32) {
+  if (!title) return "Untitled video";
+  return title.length > max ? `${title.slice(0, max - 1)}…` : title;
+}
+
+function buildLibraryVideos(cloudVideos) {
+  if (!Array.isArray(cloudVideos) || cloudVideos.length === 0) return fallbackLibraryVideos;
+  return cloudVideos.slice(0, 8).map((video, index) => ({
+    title: truncateTitle(video?.title || video?.uploader || `Cloud clip ${index + 1}`),
+    date: video?.uploader ? `@${video.uploader}` : "Cloud corpus",
+    views: formatCompact(video?.views),
+    duration: video?.engagement_rate_pct != null ? `${Number(video.engagement_rate_pct).toFixed(1)}%` : "--",
+    thumb: index,
+    active: index === 0
+  }));
+}
 
 const previewPaths = [
   "M26 210 C92 160 152 186 214 132 C302 56 398 122 470 100 C552 76 616 42 696 82 C768 118 820 86 894 42",
@@ -69,13 +94,20 @@ const sceneRows = [
   { time: "1:05 - 1:24", title: "Call to action", copy: "Close strong.", focus: "High", thumb: 3 }
 ];
 
-const transcriptSignals = [
+const fallbackTranscriptSignals = [
   ["launch", 48],
   ["new", 41],
   ["solution", 38],
   ["build", 31],
   ["together", 27]
 ];
+
+function buildTranscriptSignals(terms) {
+  if (!Array.isArray(terms) || terms.length === 0) return fallbackTranscriptSignals;
+  const top = terms.slice(0, 5);
+  const max = Math.max(...top.map((t) => Number(t?.count) || 0), 1);
+  return top.map((t) => [String(t?.term || "term"), Math.max(8, Math.round(((Number(t?.count) || 0) / max) * 100))]);
+}
 
 const moments = [
   { time: "0:07", title: "Hook moment", lift: "+42%", Icon: Sparkles, thumb: 0 },
@@ -185,12 +217,12 @@ function Sidebar() {
   );
 }
 
-function LibraryPanel() {
+function LibraryPanel({ libraryVideos, totalCount }) {
   return (
     <section className="vx-card vx-library">
       <div className="vx-card-head">
         <h2>Video library</h2>
-        <span className="vx-count-pill">24 videos</span>
+        <span className="vx-count-pill">{totalCount != null ? `${totalCount} videos` : "24 videos"}</span>
       </div>
       <div className="vx-library-tools">
         <label className="vx-search-field">
@@ -394,7 +426,7 @@ function ScenePanel() {
   );
 }
 
-function TranscriptPanel() {
+function TranscriptPanel({ transcriptSignals }) {
   return (
     <section className="vx-card vx-transcript-panel">
       <div className="vx-card-title-inline">
@@ -459,7 +491,28 @@ function MetricCard({ metric, index }) {
   );
 }
 
-export default function VideosExact() {
+export default function VideosExact({ intelligence }) {
+  const cloudVideos = intelligence?.videos?.top || [];
+  const cloudTerms = intelligence?.videos?.terms || [];
+  const cloudHashtags = intelligence?.videos?.hashtags || [];
+  const totalCount = intelligence?.videos?.count;
+  const focusVideo = cloudVideos[0] || null;
+  const libraryVideos = useMemo(() => buildLibraryVideos(cloudVideos), [cloudVideos]);
+  const transcriptSignals = useMemo(
+    () => buildTranscriptSignals(cloudTerms.length ? cloudTerms : cloudHashtags),
+    [cloudTerms, cloudHashtags]
+  );
+  const focusTitle = focusVideo?.title ? truncateTitle(focusVideo.title, 56) : "Summer Launch Reel";
+  const focusUploader = focusVideo?.uploader ? `@${focusVideo.uploader}` : "Launch teaser";
+  const focusViews = focusVideo ? formatCompact(focusVideo.views) : "9.8K";
+  const focusEngagement = focusVideo?.engagement_rate_pct != null
+    ? `${Number(focusVideo.engagement_rate_pct).toFixed(1)}% engagement`
+    : "01:24 - Launch teaser";
+  const hookScore = focusVideo?.score != null ? Math.round(Number(focusVideo.score)) : 87;
+  const subtitle = focusVideo
+    ? `${focusTitle} analyzed by ${focusViews} viewers across the cloud corpus.`
+    : "Summer Launch Reel analyzed by 9,800 synthetic viewer ants.";
+
   return (
     <div className="videos-exact videos-clean">
       <div className="vx-shell">
@@ -470,13 +523,13 @@ export default function VideosExact() {
               <span><Film size={40} strokeWidth={2.1} /></span>
               <div>
                 <h1>Videos</h1>
-                <p>Summer Launch Reel analyzed by 9,800 synthetic viewer ants.</p>
+                <p>{subtitle}</p>
               </div>
             </div>
             <div className="vx-clean-actions">
               <span className="vx-clean-score">
                 <Sparkles size={17} />
-                87 hook score
+                {hookScore} hook score
               </span>
               <button className="vx-upload-button">
                 <Upload size={18} />
@@ -489,10 +542,10 @@ export default function VideosExact() {
             <article className="vx-card vx-focus-video-card">
               <div className="vx-focus-card-head">
                 <div>
-                  <h2>Summer Launch Reel</h2>
-                  <p>May 8, 2026 - 01:24 - Launch teaser</p>
+                  <h2>{focusTitle}</h2>
+                  <p>{focusUploader} - {focusEngagement}</p>
                 </div>
-                <strong>9.8K <span>ants</span></strong>
+                <strong>{focusViews} <span>views</span></strong>
               </div>
 
               <div className="vx-focus-player">
@@ -522,11 +575,18 @@ export default function VideosExact() {
               </div>
 
               <div className="vx-insight-list">
-                {[
-                  ["0:07", "Hook gets the strongest swarm response.", "+42%"],
-                  ["0:32", "Product reveal is the clearest retention peak.", "+68%"],
-                  ["1:05", "CTA loses casual viewers before the close.", "-18%"]
-                ].map(([time, title, lift], index) => (
+                {(cloudHashtags.length
+                  ? cloudHashtags.slice(0, 3).map((tag, idx) => [
+                      `#${idx + 1}`,
+                      `${tag?.term || "trend"} echoed across ${formatCompact(tag?.count)} clips.`,
+                      `${tag?.count != null ? `+${formatCompact(tag.count)}` : "+--"}`
+                    ])
+                  : [
+                      ["0:07", "Hook gets the strongest swarm response.", "+42%"],
+                      ["0:32", "Product reveal is the clearest retention peak.", "+68%"],
+                      ["1:05", "CTA loses casual viewers before the close.", "-18%"]
+                    ]
+                ).map(([time, title, lift], index) => (
                   <article className="vx-clean-insight" key={title}>
                     <span>{time}</span>
                     <div>

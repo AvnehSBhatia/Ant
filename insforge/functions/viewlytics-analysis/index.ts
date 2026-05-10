@@ -50,7 +50,11 @@ async function uploadVideo(file: File, key: string) {
   if (!response.ok) {
     throw new Error(payload.message || payload.error || `Storage upload failed (${response.status})`);
   }
-  return payload;
+  // InsForge storage GET on the same /api/storage/buckets/<bucket>/objects/<key> path
+  // returns the file. Construct a fetchable URL so downstream services (tribe service
+  // on the Vast box) can pull the video without needing the InsForge SDK.
+  const fallbackUrl = `${baseUrl}/api/storage/buckets/viewlytics-videos/objects/${encodeURIComponent(key)}`;
+  return { ...payload, url: payload?.url || fallbackUrl, key: payload?.key || key };
 }
 
 async function runAnalysis(videoMeta: { name: string; size: number; type: string; url?: string | null; key?: string | null }) {

@@ -21,7 +21,7 @@ import "./personas-exact.css";
 
 const ant = (index = 0) => `/assets/atomic/ants/ant-${String((index % 16) + 1).padStart(2, "0")}.png`;
 
-const personas = [
+const fallbackPersonas = [
   {
     name: "Creator peers",
     value: "2,136",
@@ -56,6 +56,52 @@ const personas = [
   }
 ];
 
+const personaTones = ["green", "purple", "orange", "blue"];
+const personaIcons = [4, 10, 12, 15];
+const personaSparks = fallbackPersonas.map((p) => p.spark);
+
+function pe_formatCount(value) {
+  if (value == null || Number.isNaN(Number(value))) return "--";
+  const num = Number(value);
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return num.toLocaleString();
+}
+
+function buildPersonas(cohorts) {
+  if (!Array.isArray(cohorts) || cohorts.length === 0) return fallbackPersonas;
+  const total = cohorts.reduce((acc, c) => acc + (Number(c?.personas) || 0), 0) || 1;
+  return cohorts.slice(0, 4).map((cohort, index) => ({
+    id: cohort?.id,
+    name: cohort?.label || `Cohort ${index + 1}`,
+    value: pe_formatCount(cohort?.personas),
+    share: `${(((Number(cohort?.personas) || 0) / total) * 100).toFixed(1)}%`,
+    tone: personaTones[index % personaTones.length],
+    icon: personaIcons[index % personaIcons.length],
+    spark: personaSparks[index % personaSparks.length],
+    keywords: Array.isArray(cohort?.keywords) ? cohort.keywords : [],
+    positive_rate_pct: cohort?.positive_rate_pct,
+    share_rate_pct: cohort?.share_rate_pct,
+    top_reaction: cohort?.top_reaction
+  }));
+}
+
+function buildClusterData(personasList) {
+  const positions = [
+    { x: 22, y: 22, count: 30 },
+    { x: 75, y: 21, count: 34 },
+    { x: 22.5, y: 70, count: 29 },
+    { x: 76, y: 70, count: 27 }
+  ];
+  return personasList.slice(0, 4).map((persona, index) => ({
+    label: persona.value,
+    name: persona.name,
+    tone: persona.tone,
+    icon: persona.icon,
+    ...positions[index]
+  }));
+}
+
 const navItems = [
   { id: "simulations", label: "Simulations", Icon: Gauge },
   { id: "videos", label: "Videos", Icon: Film },
@@ -63,7 +109,7 @@ const navItems = [
   { id: "trends", label: "Trends", Icon: LineChart }
 ];
 
-const clusterData = [
+const fallbackClusterData = [
   { label: "2.1K", name: "Creator peers", tone: "green", x: 22, y: 22, count: 30, icon: 4 },
   { label: "3.8K", name: "Skeptical scrollers", tone: "purple", x: 75, y: 21, count: 34, icon: 10 },
   { label: "2.0K", name: "Bargain hunters", tone: "orange", x: 22.5, y: 70, count: 29, icon: 12 },
@@ -215,42 +261,45 @@ function Cluster({ cluster }) {
   );
 }
 
-function SentimentPanel() {
+function SentimentPanel({ positivePct, neutralPct, negativePct, sentimentDrivers }) {
+  const pos = positivePct != null ? Math.round(positivePct) : 78;
+  const neu = neutralPct != null ? Math.round(neutralPct) : 15;
+  const neg = negativePct != null ? Math.round(negativePct) : 7;
   return (
     <section className="pe-card pe-sentiment-card">
       <h2>
         Positive sentiment <Info size={13} />
       </h2>
       <div className="pe-sentiment-top">
-        <div className="pe-donut" aria-label="78 percent positive sentiment">
+        <div className="pe-donut" aria-label={`${pos} percent positive sentiment`}>
           <Heart size={25} />
-          <strong>78%</strong>
+          <strong>{pos}%</strong>
         </div>
         <div className="pe-sentiment-bars">
           <div>
             <span className="pe-face pe-good">☺</span>
             <p>Positive</p>
-            <b>78%</b>
-            <i style={{ "--w": "78%" }} />
+            <b>{pos}%</b>
+            <i style={{ "--w": `${pos}%` }} />
           </div>
           <div>
             <span className="pe-face pe-neutral">◔</span>
             <p>Neutral</p>
-            <b>15%</b>
-            <i style={{ "--w": "15%" }} />
+            <b>{neu}%</b>
+            <i style={{ "--w": `${neu}%` }} />
           </div>
           <div>
             <span className="pe-face pe-bad">↯</span>
             <p>Negative</p>
-            <b>7%</b>
-            <i style={{ "--w": "7%" }} />
+            <b>{neg}%</b>
+            <i style={{ "--w": `${neg}%` }} />
           </div>
         </div>
       </div>
       <div className="pe-divider" />
       <h3>Sentiment drivers</h3>
       <div className="pe-driver-list">
-        {drivers.map((driver) => (
+        {sentimentDrivers.map((driver) => (
           <div className={`pe-driver ${driver.up ? "pe-up" : "pe-down"}`} key={driver.label}>
             <span>{driver.up ? <ArrowUp size={12} /> : <ArrowDown size={12} />}</span>
             <p>{driver.label}</p>
@@ -262,14 +311,14 @@ function SentimentPanel() {
   );
 }
 
-function ReactionsPanel() {
+function ReactionsPanel({ reactionPills, quoteList }) {
   return (
     <section className="pe-card pe-reactions-card">
       <h2>
         Top reactions <Info size={13} />
       </h2>
       <div className="pe-reaction-row">
-        {reactions.map(([emoji, amount]) => (
+        {reactionPills.map(([emoji, amount]) => (
           <button type="button" key={emoji} aria-label={`${amount} reactions`}>
             <span>{emoji}</span>
             {amount}
@@ -277,7 +326,7 @@ function ReactionsPanel() {
         ))}
       </div>
       <div className="pe-quotes">
-        {quotes.map((quote) => (
+        {quoteList.map((quote) => (
           <div className="pe-quote" key={quote.text}>
             <span className={`pe-quote-bug pe-${quote.tone}`}>
               <img src={ant(quote.icon)} alt="" />
@@ -291,7 +340,7 @@ function ReactionsPanel() {
   );
 }
 
-function ColonyMap() {
+function ColonyMap({ clusterData = fallbackClusterData }) {
   return (
     <section className="pe-card pe-map-card">
       <div className="pe-card-head">
@@ -379,50 +428,58 @@ function ColonyMap() {
   );
 }
 
-function ProfilePanel() {
+function ProfilePanel({ activePersona, simulation }) {
+  const persona = activePersona || {};
+  const keywords = persona.keywords && persona.keywords.length
+    ? persona.keywords.slice(0, 6)
+    : ["Create better content", "Workflow efficiency", "Gear optimization"];
+  const positive = persona.positive_rate_pct != null ? Math.round(persona.positive_rate_pct) : 92;
+  const sharePct = persona.share_rate_pct != null ? Math.round(persona.share_rate_pct) : 78;
+  const reactionRates = simulation?.reaction_rates_pct || {};
+  const stages = [
+    ["Hook", positive],
+    ["Value", Math.round(reactionRates.like ?? sharePct)],
+    ["Proof", Math.round(reactionRates.comment ?? Math.max(40, positive - 20))],
+    ["CTA", Math.round(reactionRates.share ?? Math.max(20, sharePct - 30))]
+  ];
   return (
     <section className="pe-card pe-profile-card">
       <div className="pe-profile-eyebrow">Active persona</div>
       <div className="pe-profile-title">
-        <h2>Creator peers</h2>
+        <h2>{persona.name || "Creator peers"}</h2>
         <span>Active</span>
       </div>
       <div className="pe-profile-bio">
         <div className="pe-profile-avatar">
-          <img src={ant(4)} alt="" />
+          <img src={ant(persona.icon ?? 4)} alt="" />
         </div>
-        <p>Tech-savvy creators who value specs, workflow fit, and creator-focused features.</p>
+        <p>{persona.value ? `${persona.value} simulated viewers in this cohort.` : "Tech-savvy creators who value specs, workflow fit, and creator-focused features."}</p>
       </div>
       <div className="pe-stats-grid">
         <div>
-          <span>Age</span>
-          <b>22-34</b>
+          <span>Positive</span>
+          <b>{persona.positive_rate_pct != null ? `${Math.round(persona.positive_rate_pct)}%` : "--"}</b>
         </div>
         <div>
-          <span>Gender</span>
-          <b>62% M / 38% F</b>
+          <span>Share</span>
+          <b>{persona.share_rate_pct != null ? `${Math.round(persona.share_rate_pct)}%` : "--"}</b>
         </div>
         <div>
-          <span>Location</span>
-          <b>Global</b>
+          <span>Top reaction</span>
+          <b>{persona.top_reaction || "--"}</b>
         </div>
       </div>
       <div className="pe-profile-section">
         <h3>Key motivations</h3>
         <div className="pe-chip-row">
-          <span>Create better content</span>
-          <span>Workflow efficiency</span>
-          <span>Gear optimization</span>
+          {keywords.map((kw) => (
+            <span key={kw}>{kw}</span>
+          ))}
         </div>
       </div>
       <div className="pe-profile-section">
         <h3>Top engagement stages</h3>
-        {[
-          ["Hook", 92],
-          ["Value", 78],
-          ["Proof", 64],
-          ["CTA", 48]
-        ].map(([label, value]) => (
+        {stages.map(([label, value]) => (
           <div className="pe-stage-row" key={label}>
             <span>{label}</span>
             <i>
@@ -539,7 +596,62 @@ function Sidebar() {
   );
 }
 
-export default function PersonasExact() {
+export default function PersonasExact({ intelligence }) {
+  const simulation = intelligence?.simulation;
+  const cohorts = simulation?.cohorts || [];
+  const topTraits = simulation?.top_traits || [];
+  const reactionRates = simulation?.reaction_rates_pct || {};
+
+  const personasList = buildPersonas(cohorts);
+  const clusterData = buildClusterData(personasList);
+  const activePersona = personasList[0];
+
+  // Sentiment drivers: use top traits if available, else fall back
+  const sentimentDrivers = topTraits.length
+    ? topTraits.slice(0, 5).map((trait) => ({
+        label: String(trait?.trait || "trait"),
+        value: trait?.share_rate_pct != null
+          ? `${trait.share_rate_pct >= 0 ? "+" : ""}${Math.round(Number(trait.share_rate_pct))}%`
+          : "--",
+        up: (Number(trait?.positive_rate_pct) || 0) >= 50
+      }))
+    : drivers;
+
+  // Reactions: derive from cohort top_reaction counts, else fall back
+  const reactionPills = (() => {
+    const tally = new Map();
+    cohorts.forEach((cohort) => {
+      const counts = cohort?.reaction_counts || {};
+      Object.entries(counts).forEach(([emoji, count]) => {
+        tally.set(emoji, (tally.get(emoji) || 0) + (Number(count) || 0));
+      });
+    });
+    const sorted = [...tally.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    return sorted.length ? sorted.map(([emoji, count]) => [emoji, pe_formatCount(count)]) : reactions;
+  })();
+
+  // Quotes: synthesize from cohort labels + top reaction
+  const quoteList = cohorts.length
+    ? cohorts.slice(0, 4).map((cohort, index) => ({
+        text: cohort?.keywords?.[0]
+          ? `"${cohort.keywords[0]}" resonates with ${cohort.label}.`
+          : `${cohort?.label || "Cohort"} engaged.`,
+        time: `${(index + 1) * 2}m ago`,
+        tone: personaTones[index % personaTones.length],
+        icon: personaIcons[index % personaIcons.length]
+      }))
+    : quotes;
+
+  // Sentiment pcts derived from simulation reaction rates
+  const positivePct = simulation?.positive_rate_pct ?? reactionRates.like;
+  const negativePct = reactionRates.neutral != null ? Math.max(0, 100 - (positivePct ?? 78) - (reactionRates.neutral ?? 15)) : null;
+  const neutralPct = reactionRates.neutral;
+
+  const personaCount = simulation?.persona_count;
+  const subtitle = personaCount != null
+    ? `Understand ${pe_formatCount(personaCount)} synthetic viewer cohorts and their behavior patterns.`
+    : "Understand synthetic viewer cohorts and their behavior patterns.";
+
   return (
     <main className="personas-exact">
       <Sidebar />
@@ -550,11 +662,11 @@ export default function PersonasExact() {
               <UserRound size={30} />
               <h1>Personas</h1>
             </div>
-            <p>Understand synthetic viewer cohorts and their behavior patterns.</p>
+            <p>{subtitle}</p>
           </div>
           <div className="pe-header-actions">
             <button type="button" className="pe-sim-select">
-              <i /> Simulation: Tech Unboxing Launch
+              <i /> Simulation: {intelligence?.brain?.summary?.simulation_label || "Cloud cohort run"}
             </button>
             <button type="button">
               <CalendarDays size={17} /> Last 7 days <ChevronDown size={15} />
@@ -566,20 +678,25 @@ export default function PersonasExact() {
         </header>
 
         <div className="pe-kpi-row">
-          {personas.map((persona, index) => (
+          {personasList.map((persona, index) => (
             <PersonaCard persona={persona} active={index === 0} key={persona.name} />
           ))}
         </div>
 
         <div className="pe-content-grid">
-          <ProfilePanel />
+          <ProfilePanel activePersona={activePersona} simulation={simulation} />
           <div className="pe-center-stack">
-            <ColonyMap />
+            <ColonyMap clusterData={clusterData} />
             <DemographicsPanel />
           </div>
           <div className="pe-right-rail">
-            <SentimentPanel />
-            <ReactionsPanel />
+            <SentimentPanel
+              positivePct={positivePct}
+              neutralPct={neutralPct}
+              negativePct={negativePct}
+              sentimentDrivers={sentimentDrivers}
+            />
+            <ReactionsPanel reactionPills={reactionPills} quoteList={quoteList} />
           </div>
         </div>
       </section>

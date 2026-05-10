@@ -5471,3 +5471,39 @@ svg {
     display: none;
   }
 }
+
+/* Auth additions: error/info messages, sign-out button */
+.auth-error {
+  margin-top: 4px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(220, 38, 38, 0.08);
+  color: #b1311e;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.auth-info {
+  margin-top: 4px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(34, 121, 70, 0.08);
+  color: #1e6c46;
+  border: 1px solid rgba(34, 121, 70, 0.18);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.logout-button {
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.1));
+  background: rgba(255, 255, 249, 0.92);
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+.logout-button:hover {
+  background: rgba(255, 255, 255, 1);
+}

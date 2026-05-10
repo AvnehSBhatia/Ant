@@ -47,7 +47,7 @@ const navItems = [
   { id: "trends", label: "Trends", Icon: LineChart, active: true }
 ];
 
-const kpis = [
+const fallbackKpis = [
   {
     label: "Hook velocity",
     value: "2.48x",
@@ -82,7 +82,52 @@ const kpis = [
   }
 ];
 
-const keywords = [
+function te_formatCount(value) {
+  if (value == null || Number.isNaN(Number(value))) return "--";
+  const num = Number(value);
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return String(Math.round(num));
+}
+
+function buildKpis(intelligence) {
+  const sim = intelligence?.simulation;
+  const videos = intelligence?.videos;
+  const trends = intelligence?.trends || [];
+  if (!sim && !videos && trends.length === 0) return fallbackKpis;
+  const trendCount = trends.length;
+  const positive = sim?.positive_rate_pct;
+  const sharePct = sim?.share_rate_pct;
+  const totalViews = (videos?.top || []).reduce((acc, v) => acc + (Number(v?.views) || 0), 0);
+  return [
+    {
+      ...fallbackKpis[0],
+      label: "Hook velocity",
+      value: positive != null ? `${(Number(positive) / 50).toFixed(2)}x` : fallbackKpis[0].value,
+      note: "positive rate index"
+    },
+    {
+      ...fallbackKpis[1],
+      label: "Swarm forecast",
+      value: totalViews ? te_formatCount(totalViews) : fallbackKpis[1].value,
+      note: "total cloud views"
+    },
+    {
+      ...fallbackKpis[2],
+      label: "Share rate",
+      value: sharePct != null ? `${Number(sharePct).toFixed(1)}%` : fallbackKpis[2].value,
+      note: "simulated shares"
+    },
+    {
+      ...fallbackKpis[3],
+      label: "Trending terms",
+      value: trendCount ? String(trendCount) : fallbackKpis[3].value,
+      note: "tracked across corpus"
+    }
+  ];
+}
+
+const fallbackKeywords = [
   ["shocking", "812"],
   ["insane", "672"],
   ["wait for it", "641"],
@@ -94,19 +139,37 @@ const keywords = [
   ["secret", "410"]
 ];
 
+function buildKeywords(trends) {
+  if (!Array.isArray(trends) || trends.length === 0) return fallbackKeywords;
+  return trends.slice(0, 9).map((t) => [String(t?.term || "trend"), te_formatCount(t?.count)]);
+}
+
 const competitors = [
   { name: "TrendLab", lift: "+23%", tone: "blue", spark: "M0 27 C18 24 25 28 40 21 S70 18 84 12 S108 21 122 9" },
   { name: "VidHive", lift: "+16%", tone: "gold", spark: "M0 28 C18 24 30 28 44 22 S69 24 84 15 S108 18 122 9" },
   { name: "ClipPulse", lift: "+9%", tone: "green", spark: "M0 26 C20 28 28 23 43 24 S68 14 83 18 S105 20 122 11" }
 ];
 
-const topics = [
+const fallbackTopics = [
   { label: "AI tools", count: "2.1K", marker: "wave", tone: "blue" },
   { label: "Productivity", count: "1.8K", marker: "cluster", tone: "green" },
   { label: "Finance tips", count: "1.6K", marker: "flag", tone: "green" },
   { label: "Travel hacks", count: "1.3K", marker: "spark", tone: "blue" },
   { label: "Health & wellness", count: "1.1K", marker: "smile", tone: "blue" }
 ];
+
+const topicMarkers = ["wave", "cluster", "flag", "spark", "smile"];
+const topicTones = ["blue", "green", "green", "blue", "blue"];
+
+function buildTopics(hashtags) {
+  if (!Array.isArray(hashtags) || hashtags.length === 0) return fallbackTopics;
+  return hashtags.slice(0, 5).map((h, idx) => ({
+    label: String(h?.term || `topic ${idx + 1}`),
+    count: te_formatCount(h?.count),
+    marker: topicMarkers[idx % topicMarkers.length],
+    tone: topicTones[idx % topicTones.length]
+  }));
+}
 
 const moves = [
   {
@@ -388,7 +451,7 @@ function RetentionChart() {
   );
 }
 
-function KeywordPanel() {
+function KeywordPanel({ keywords }) {
   return (
     <article className="te-card te-panel te-keywords-panel">
       <PanelTitle title="Hook keywords">
@@ -442,7 +505,7 @@ function CompetitorPanel() {
   );
 }
 
-function TopicsPanel() {
+function TopicsPanel({ topics }) {
   return (
     <article className="te-card te-panel te-topics-panel">
       <PanelTitle title="Emerging topics">
@@ -623,7 +686,13 @@ function ActivityFooter() {
   );
 }
 
-export default function TrendsExact() {
+export default function TrendsExact({ intelligence }) {
+  const trends = intelligence?.trends || [];
+  const hashtags = intelligence?.videos?.hashtags || [];
+  const kpis = useMemo(() => buildKpis(intelligence), [intelligence]);
+  const keywords = useMemo(() => buildKeywords(trends), [trends]);
+  const topics = useMemo(() => buildTopics(hashtags), [hashtags]);
+
   return (
     <section className="trends-exact" aria-label="Trends dashboard exact recreation">
       <Sidebar />
@@ -635,7 +704,7 @@ export default function TrendsExact() {
               <h1>Trends</h1>
             </div>
             <div className="te-subtitle">
-              <span>7-day intelligence</span>
+              <span>{intelligence ? `${trends.length} trending terms` : "7-day intelligence"}</span>
               <Info size={16} />
             </div>
           </div>
@@ -674,10 +743,10 @@ export default function TrendsExact() {
           </article>
 
           <aside className="te-side-rail">
-            <KeywordPanel />
+            <KeywordPanel keywords={keywords} />
           </aside>
 
-          <TopicsPanel />
+          <TopicsPanel topics={topics} />
           <ForecastPanel />
           <MovesPanel />
           <ActivityFooter />

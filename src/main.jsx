@@ -42,6 +42,13 @@ import {
   X
 } from "lucide-react";
 import "./styles.css";
+import {
+  signUp as authSignUp,
+  signIn as authSignIn,
+  signOut as authSignOut,
+  getCurrentUser as authGetCurrentUser,
+  hasStoredSession,
+} from "./auth.js";
 
 const INSFORGE_ANALYSIS_FUNCTION_URL =
   import.meta.env.VITE_INSFORGE_ANALYSIS_FUNCTION_URL ||
@@ -230,12 +237,68 @@ function useRoute() {
   return [route, go];
 }
 
+const PROTECTED_ROUTES = new Set(["dashboard", "simulations", "videos", "personas", "trends", "flow"]);
+
+function useAuthState() {
+  // null = unknown / loading, false = no user, object = user
+  const [user, setUser] = useState(hasStoredSession() ? null : false);
+  const [loading, setLoading] = useState(hasStoredSession());
+
+  useEffect(() => {
+    let alive = true;
+    if (!hasStoredSession()) {
+      setUser(false);
+      setLoading(false);
+      return () => {
+        alive = false;
+      };
+    }
+    setLoading(true);
+    authGetCurrentUser()
+      .then((u) => {
+        if (!alive) return;
+        setUser(u || false);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setUser(false);
+        setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return { user, loading, setUser };
+}
+
 function App() {
   const [route, go] = useRoute();
   const [menuOpen, setMenuOpen] = useState(false);
   const [displayRoute, setDisplayRoute] = useState(route);
   const [isExiting, setIsExiting] = useState(false);
   const intelligence = useIntelligenceData();
+  const { user, loading, setUser } = useAuthState();
+
+  // Gate protected routes
+  useEffect(() => {
+    if (loading) return;
+    if (!user && PROTECTED_ROUTES.has(route)) {
+      go("login");
+    }
+  }, [user, loading, route, go]);
+
+  const handleSignedIn = (nextUser) => {
+    setUser(nextUser || true);
+    go("dashboard");
+  };
+
+  const handleSignOut = async () => {
+    await authSignOut();
+    setUser(false);
+    go("landing");
+  };
 
   useEffect(() => {
     setMenuOpen(false);
@@ -268,6 +331,11 @@ function App() {
             </button>
           ))}
           <button onClick={() => window.open("/viz.html", "_blank", "noopener,noreferrer")}>Agent network</button>
+          {user ? (
+            <button className="logout-button" onClick={handleSignOut} title={user.email || "Sign out"}>
+              Sign out
+            </button>
+          ) : null}
         </nav>
         <button className="icon-button menu-toggle" onClick={() => setMenuOpen((next) => !next)} aria-label="Open navigation">
           {menuOpen ? <X size={18} /> : <Menu size={18} />}
@@ -276,12 +344,12 @@ function App() {
 
       <section className={`page-stage ${isExiting ? "is-exiting" : "is-entering"}`} key={displayRoute}>
         {displayRoute === "landing" && <LandingPage go={go} />}
-        {displayRoute === "login" && <LoginPage go={go} />}
+        {displayRoute === "login" && <LoginPage go={go} onSignedIn={handleSignedIn} />}
         {displayRoute === "dashboard" && <DashboardPage go={go} intelligence={intelligence} />}
         {displayRoute === "simulations" && <ExactPageShell active="simulations" go={go} intelligence={intelligence}><FlowPage go={go} embedded intelligence={intelligence} /></ExactPageShell>}
-        {displayRoute === "videos" && <ExactPageShell active="videos" go={go} intelligence={intelligence}><VideosExact /></ExactPageShell>}
-        {displayRoute === "personas" && <ExactPageShell active="personas" go={go} intelligence={intelligence}><PersonasExact /></ExactPageShell>}
-        {displayRoute === "trends" && <ExactPageShell active="trends" go={go} intelligence={intelligence}><TrendsExact /></ExactPageShell>}
+        {displayRoute === "videos" && <ExactPageShell active="videos" go={go} intelligence={intelligence}><VideosExact intelligence={intelligence} /></ExactPageShell>}
+        {displayRoute === "personas" && <ExactPageShell active="personas" go={go} intelligence={intelligence}><PersonasExact intelligence={intelligence} /></ExactPageShell>}
+        {displayRoute === "trends" && <ExactPageShell active="trends" go={go} intelligence={intelligence}><TrendsExact intelligence={intelligence} /></ExactPageShell>}
         {displayRoute === "flow" && <FlowPage go={go} intelligence={intelligence} />}
       </section>
     </main>
@@ -290,6 +358,36 @@ function App() {
 
 function useIntelligenceData() {
   const [data, setData] = useState(null);
+
+  // Listen for streaming-merged intelligence dispatched from FlowPage so dashboards
+  // see the freshly-merged tribev2 payload without a page reload.
+  useEffect(() => {
+    const handler = (event) => {
+      const payload = event?.detail;
+      if (!payload) return;
+      setData((prev) => {
+        const cloud = prev?.cloud || { connected: true, endpoint: INSFORGE_ANALYSIS_FUNCTION_URL };
+        return {
+          ...(prev || {}),
+          ...payload,
+          summary: { ...(prev?.summary || {}), ...(payload.summary || {}) },
+          videos: payload.videos || prev?.videos || { count: 0, top: [], terms: [], hashtags: [] },
+          keyword_sets: payload.keyword_sets || prev?.keyword_sets || [],
+          simulation: payload.simulation || prev?.simulation || {},
+          brain: payload.brain || prev?.brain || {},
+          insights: payload.insights || prev?.insights || [],
+          trends: payload.trends || prev?.trends || [],
+          model: payload.model || prev?.model || {},
+          nia: payload.nia || prev?.nia || {},
+          cloud: { ...cloud, latestRun: { ...(cloud.latestRun || {}), intelligence: payload } },
+          cloudRun: { ...(prev?.cloudRun || {}), intelligence: payload },
+          source: payload.source || "insforge-stream-merge",
+        };
+      });
+    };
+    window.addEventListener("cloud-intelligence-updated", handler);
+    return () => window.removeEventListener("cloud-intelligence-updated", handler);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -657,37 +755,106 @@ function HeroSimulationVisual() {
   );
 }
 
-function LoginPage({ go }) {
+function LoginPage({ go, onSignedIn }) {
   const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [infoMsg, setInfoMsg] = useState("");
+
+  const handleSubmit = async (event) => {
+    event?.preventDefault?.();
+    if (busy) return;
+    setErrorMsg("");
+    setInfoMsg("");
+    if (!email || !password) {
+      setErrorMsg("Email and password are required.");
+      return;
+    }
+    if (mode === "signup" && password.length < 8) {
+      setErrorMsg("Password must be at least 8 characters.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = mode === "signup"
+        ? await authSignUp({ email, password })
+        : await authSignIn({ email, password });
+      if (!result.ok) {
+        setErrorMsg(result.error?.message || "Authentication failed. Try again.");
+        return;
+      }
+      if (mode === "signup" && result.requireEmailVerification) {
+        setInfoMsg("Account created. Check your email to verify, then sign in.");
+        setMode("login");
+        setPassword("");
+        return;
+      }
+      if (onSignedIn) onSignedIn(result.user || true);
+      else go("dashboard");
+    } catch (err) {
+      setErrorMsg(err?.message || "Unexpected error.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="page login-page">
       <div className="auth-background"><img src={atomic.pattern} alt="" /></div>
       <section className="auth-panel">
         <Brand />
-        <div className="auth-card">
+        <form className="auth-card" onSubmit={handleSubmit}>
           <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-            <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Log in</button>
-            <button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")}>Sign up</button>
+            <button type="button" className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setErrorMsg(""); }}>Log in</button>
+            <button type="button" className={mode === "signup" ? "active" : ""} onClick={() => { setMode("signup"); setErrorMsg(""); }}>Sign up</button>
           </div>
           <h1>{mode === "login" ? "Welcome back" : "Create your creator lab"}</h1>
-          <p>{mode === "login" ? "Create your creator lab" : "Test ideas before you post"}</p>
+          <p>{mode === "login" ? "Sign in to your creator lab" : "Test ideas before you post"}</p>
 
           <label>
             <span>Email</span>
-            <div className="field"><Mail size={17} /><input type="email" placeholder="you@creatorlab.com" /></div>
+            <div className="field">
+              <Mail size={17} />
+              <input
+                type="email"
+                placeholder="you@creatorlab.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
+            </div>
           </label>
           <label>
             <span>Password</span>
-            <div className="field"><Lock size={17} /><input type="password" placeholder="Enter your password" /><Eye size={17} /></div>
+            <div className="field">
+              <Lock size={17} />
+              <input
+                type="password"
+                placeholder={mode === "signup" ? "At least 8 characters" : "Enter your password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                minLength={mode === "signup" ? 8 : undefined}
+                required
+              />
+              <Eye size={17} />
+            </div>
           </label>
 
+          {errorMsg ? <div className="auth-error" role="alert">{errorMsg}</div> : null}
+          {infoMsg ? <div className="auth-info">{infoMsg}</div> : null}
+
           <div className="auth-options">
-            <button>Forgot password?</button>
-            <label className="remember"><input type="checkbox" /><span>Remember me</span></label>
+            <button type="button" disabled>Forgot password?</button>
+            <label className="remember"><input type="checkbox" defaultChecked /><span>Remember me</span></label>
           </div>
 
-          <button className="primary-button wide" onClick={() => go("dashboard")}>Continue <ArrowRight size={17} /></button>
+          <button type="submit" className="primary-button wide" disabled={busy}>
+            {busy ? "Working..." : (mode === "signup" ? "Create account" : "Continue")} <ArrowRight size={17} />
+          </button>
           <div className="login-ant-route">
             <RouteAnts
               id="login"
@@ -698,10 +865,8 @@ function LoginPage({ go }) {
               viewBox="0 0 1000 100"
             />
           </div>
-          <div className="divider"><span>or continue with</span></div>
-          <button className="google-button"><span>G</span> Continue with Google</button>
           <small>By continuing, you agree to our Terms of Service and Privacy Policy.</small>
-        </div>
+        </form>
       </section>
 
       <aside className="auth-value">
@@ -1350,14 +1515,14 @@ function BrainActivityPanel({ data, compact = false, hero = false, phase = 0, pr
         <span><BrainCircuit size={18} /></span>
         <div>
           <h2>TribeV2 brain activity</h2>
-          <p>{brain?.summary?.brain_vertices?.toLocaleString?.() || "20,484"} TribeV2 cortical vertices - green is strong attention, red is drop risk</p>
+          <p>{brain?.summary?.brain_vertices != null ? Number(brain.summary.brain_vertices).toLocaleString() : "--"} TribeV2 cortical vertices - green is strong attention, red is drop risk</p>
         </div>
       </div>
       <div className="brain-card-grid">
         <TribeBrainModel brain={brain} phase={phase} progress={progress} isRunning={isRunning} />
         <div className="brain-readout">
           <div className="brain-score-row">
-            <strong>{formatPercent(brain?.summary?.mean_retention_proxy || 46.59)}</strong>
+            <strong>{brain?.summary?.mean_retention_proxy != null ? formatPercent(brain.summary.mean_retention_proxy) : "--"}</strong>
             <span>mean neural retention proxy</span>
           </div>
           <BrainRetentionTrace curve={brain?.retention_curve} />
@@ -1433,7 +1598,7 @@ function DashboardIntelligence({ data }) {
           <span><b>{formatCount(sim?.persona_count)}</b><small>personas</small></span>
           <span><b>{formatCount(sim?.total_shares)}</b><small>share edges</small></span>
           <span><b>{formatPercent(sim?.positive_rate_pct)}</b><small>positive</small></span>
-          <span><b>{sim?.virality_score || "--"}</b><small>virality</small></span>
+          <span><b>{sim?.virality_score ?? "--"}</b><small>virality</small></span>
         </div>
         <div className="real-insight-list">
           {data.insights?.map((insight) => (
@@ -1468,23 +1633,28 @@ function RealPageInsights({ active, data }) {
     simulations: {
       icon: Gauge,
       title: "Real simulation payload",
-      detail: `${formatCount(sim?.persona_count)} personas reacted locally across ${data.keyword_sets?.length || 50} noisy keyword cohorts.`,
+      detail: `${formatCount(sim?.persona_count)} personas reacted locally across ${data.keyword_sets?.length ?? 0} noisy keyword cohorts.`,
       statA: `${formatCount(sim?.total_shares)} share edges`,
-      statB: `${sim?.virality_score || "--"} virality`,
+      statB: `${sim?.virality_score ?? "--"} virality`,
       statC: `${formatPercent(sim?.viral_reaction_rate_pct)} viral reactions`
     },
     videos: {
       icon: Film,
       title: "TikTok corpus intake",
-      detail: `${data.videos?.count || 0} local video metadata files shaped into analysis docs; top reference: ${topVideo?.title || "local video"}.`,
-      statA: `${topVideo?.engagement_rate_pct || "--"}% engagement`,
+      detail: `${data.videos?.count ?? 0} local video metadata files shaped into analysis docs; top reference: ${topVideo?.title || "local video"}.`,
+      statA: `${topVideo?.engagement_rate_pct ?? "--"}% engagement`,
       statB: `${formatCount(topVideo?.views)} views`,
       statC: `${data.videos?.terms?.[0]?.term || "trend"} lead term`
     },
     personas: {
       icon: UsersRound,
       title: "Persona seeds",
-      detail: `50 sets of 8 noisy keywords were mapped into 100D persona vectors, then expanded into the full swarm.`,
+      detail: (() => {
+        const sets = data.keyword_sets?.length ?? 0;
+        const kwPerSet = data.keyword_sets?.[0]?.keywords?.length ?? 0;
+        const dims = data.model?.persona_dimensions ?? 0;
+        return `${sets} sets of ${kwPerSet} noisy keywords were mapped into ${dims}D persona vectors, then expanded into the full swarm.`;
+      })(),
       statA: topCohort?.label || "Top cohort",
       statB: `${formatPercent(topCohort?.positive_rate_pct)} positive`,
       statC: `${formatPercent(topCohort?.share_rate_pct)} share fit`
@@ -1516,7 +1686,9 @@ function RealPageInsights({ active, data }) {
         <strong>{activeCopy.statB}</strong>
         <strong>{activeCopy.statC}</strong>
       </div>
-      {active === "trends" && <BrainActivityPanel data={data} compact />}
+      {active === "trends" && data?.brain?.source === "tribev2-vast" && data?.brain?.retention_curve?.length > 0 && (
+        <BrainActivityPanel data={data} compact />
+      )}
     </section>
   );
 }
@@ -1535,7 +1707,7 @@ function DashboardPage({ go, intelligence }) {
           <div>
             <button className="back-link" onClick={() => go("flow")}><ChevronRight size={15} /> Back to simulations</button>
             <h1>{topVideo?.title || "Summer Launch Reel.mp4"}</h1>
-            <p>{intelligence ? `Local TikTok corpus - ${formatCount(sim?.persona_count ?? 200000)} simulated personas` : "May 18, 2024 - 10,000 simulated viewers"}</p>
+            <p>{intelligence ? `Local TikTok corpus - ${sim?.persona_count != null ? formatCount(sim.persona_count) : "--"} simulated personas` : "Awaiting cloud intelligence"}</p>
           </div>
           <div className="dash-actions">
             <span className="status-pill">Completed</span>
@@ -1545,23 +1717,27 @@ function DashboardPage({ go, intelligence }) {
           </div>
         </div>
 
-        <BrainActivityPanel data={intelligence} hero />
+        {intelligence?.brain?.source === "tribev2-vast" && intelligence?.brain?.retention_curve?.length > 0 && (
+          <BrainActivityPanel data={intelligence} hero />
+        )}
 
         <div className="metric-grid">
-          <MetricCard label="Virality Score" value={sim?.virality_score || "82"} suffix="/100" spark />
-          <MetricCard label="Brain Retention" value={brain?.summary?.mean_retention_proxy?.toFixed?.(1) || "67"} suffix="%" note="TribeV2 proxy" />
-          <MetricCard label="Positive Reactions" value={sim?.positive_rate_pct?.toFixed?.(1) || "A-"} suffix={sim ? "%" : ""} note="Full swarm" />
-          <MetricCard label="Drop-off Risk" value={sim?.dropoff_risk_pct || "18"} suffix="%" note="Modeled" />
-          <MetricCard label="Simulated Viewers" value={sim ? formatCount(sim.persona_count) : "10,000"} note={sim ? `${intelligence.keyword_sets?.length || 50} keyword cohorts` : "Across 4 cohorts"} />
+          <MetricCard label="Virality Score" value={sim?.virality_score ?? "--"} suffix={sim?.virality_score != null ? "/100" : ""} spark />
+          <MetricCard label="Brain Retention" value={brain?.summary?.mean_retention_proxy != null ? Number(brain.summary.mean_retention_proxy).toFixed(1) : "--"} suffix={brain?.summary?.mean_retention_proxy != null ? "%" : ""} note="TribeV2 proxy" />
+          <MetricCard label="Positive Reactions" value={sim?.positive_rate_pct != null ? Number(sim.positive_rate_pct).toFixed(1) : "--"} suffix={sim?.positive_rate_pct != null ? "%" : ""} note="Full swarm" />
+          <MetricCard label="Drop-off Risk" value={sim?.dropoff_risk_pct ?? "--"} suffix={sim?.dropoff_risk_pct != null ? "%" : ""} note="Modeled" />
+          <MetricCard label="Simulated Viewers" value={sim?.persona_count != null ? formatCount(sim.persona_count) : "--"} note={`${intelligence?.keyword_sets?.length ?? 0} keyword cohorts`} />
         </div>
 
         <DashboardIntelligence data={intelligence} />
 
         <div className="dashboard-grid">
-          <article className="analytics-panel retention-panel">
-            <div className="panel-heading"><h2>Retention over time</h2><span><i /> This video</span></div>
-            <RetentionChart curve={brain?.retention_curve} />
-          </article>
+          {intelligence?.brain?.source === "tribev2-vast" && intelligence?.brain?.retention_curve?.length > 0 && (
+            <article className="analytics-panel retention-panel">
+              <div className="panel-heading"><h2>Retention over time</h2><span><i /> This video</span></div>
+              <RetentionChart curve={brain?.retention_curve} />
+            </article>
+          )}
 
           <article className="analytics-panel stayed-panel">
             <h2>Why they stayed</h2>
@@ -1629,7 +1805,7 @@ function FlowPage({ intelligence: parentIntelligence }) {
 
   const isComplete = Boolean(video) && phase === stages.length - 1 && !isRunning;
   const progress = video ? Math.min(100, Math.round(((phase + (isRunning ? 0.55 : 1)) / stages.length) * 100)) : 0;
-  const simulatedPersonaCount = intelligence?.simulation?.persona_count || 10000;
+  const simulatedPersonaCount = intelligence?.simulation?.persona_count ?? 0;
   const activeCloudRun = cloudRun || intelligence?.cloud?.latestRun || null;
   const cloudSummary = activeCloudRun?.summary || null;
   const flowStages = useMemo(
@@ -1659,8 +1835,8 @@ function FlowPage({ intelligence: parentIntelligence }) {
   const activeTimeline = timeline.length
     ? timeline[Math.min(timeline.length - 1, Math.round((phase / Math.max(1, stages.length - 1)) * (timeline.length - 1)))]
     : null;
-  const retentionNow = activeRetentionPoint?.retention || intelligence?.brain?.summary?.mean_retention_proxy || 64 + phase;
-  const positiveNow = activeTimeline?.positive_rate_pct || intelligence?.simulation?.positive_rate_pct || 38 + phase;
+  const retentionNow = activeRetentionPoint?.retention ?? intelligence?.brain?.summary?.mean_retention_proxy ?? 0;
+  const positiveNow = activeTimeline?.positive_rate_pct ?? intelligence?.simulation?.positive_rate_pct ?? 0;
   const cloudLabel = {
     idle: intelligence?.cloud?.connected ? "Cloud ready" : "Cloud fallback",
     syncing: "Syncing to InsForge",
@@ -1728,7 +1904,13 @@ function FlowPage({ intelligence: parentIntelligence }) {
         }
       }
       if (finalPayload) {
-        setStreamedIntelligence({ ...finalPayload, source: "insforge-compute" });
+        const merged = { ...finalPayload, source: "insforge-compute" };
+        setStreamedIntelligence(merged);
+        // Notify the app-level useIntelligenceData hook so other pages (Dashboard,
+        // Trends, etc.) re-render with the freshly-merged tribev2 payload without a reload.
+        try {
+          window.dispatchEvent(new CustomEvent("cloud-intelligence-updated", { detail: merged }));
+        } catch (_) { /* ignore — older browsers */ }
         setLiveStage({ stage: "done", label: "Analysis complete", pct: 100 });
         setPhase(stages.length - 1);
         setIsRunning(false);
@@ -1988,13 +2170,30 @@ function FlowPage({ intelligence: parentIntelligence }) {
       </section>
 
       <section className="flow-live-analysis">
-        <BrainActivityPanel
-          data={intelligence}
-          compact
-          phase={phase}
-          progress={progress}
-          isRunning={Boolean(video && isRunning)}
-        />
+        {intelligence?.brain?.source === "tribev2-vast" && intelligence?.brain?.retention_curve?.length > 0 ? (
+          <BrainActivityPanel
+            data={intelligence}
+            compact
+            phase={phase}
+            progress={progress}
+            isRunning={Boolean(video && isRunning)}
+          />
+        ) : (video && isRunning) ? (
+          <div className="brain-scan-status" style={{
+            padding: "16px 20px",
+            borderRadius: 12,
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            fontSize: 13,
+            opacity: 0.85,
+          }}>
+            <BrainCircuit size={16} />
+            <span>Running brain scan on Vast Blackwell GPU&hellip;</span>
+          </div>
+        ) : null}
       </section>
 
       <section className="flow-visual-wrap">
@@ -2103,10 +2302,10 @@ function FlowPage({ intelligence: parentIntelligence }) {
       </section>
 
       <section className="live-metrics">
-        <LiveMetric title="Retention (TribeV2)" value={video ? `${Number(cloudSummary?.mean_retention_proxy || retentionNow).toFixed(1)}%` : "--"} delta={video ? `${activeRetentionPoint?.time_sec ?? 0}s brain frame` : "Awaiting video"} tone="green" />
-        <LiveMetric title="Positive reactions" value={video ? `${Number(cloudSummary?.positive_rate_pct || positiveNow).toFixed(1)}%` : "--"} delta={video ? `${formatCount(analysisCounts.ants)} personas sampled` : "Awaiting transcript"} tone="green" />
-        <LiveMetric title="Virality Score" value={video ? `${Math.round((cloudSummary?.virality_score || intelligence?.simulation?.virality_score || 79) * Math.max(0.34, progress / 100))}` : "--"} suffix={video ? "/100" : ""} delta={video ? `${formatCount(cloudSummary?.total_shares || intelligence?.simulation?.total_shares || 0)} share edges` : "Awaiting swarm"} tone="green" />
-        <LiveMetric title="Drop-off Risk" value={video ? `${Math.max(3, Number(intelligence?.simulation?.dropoff_risk_pct || 23) - phase).toFixed(1)}%` : "--"} delta={video ? "Updates with analysis phase" : "Awaiting retention"} tone="orange" />
+        <LiveMetric title="Retention (TribeV2)" value={video ? `${Number(cloudSummary?.mean_retention_proxy ?? retentionNow).toFixed(1)}%` : "--"} delta={video ? `${activeRetentionPoint?.time_sec ?? 0}s brain frame` : "Awaiting video"} tone="green" />
+        <LiveMetric title="Positive reactions" value={video ? `${Number(cloudSummary?.positive_rate_pct ?? positiveNow).toFixed(1)}%` : "--"} delta={video ? `${formatCount(analysisCounts.ants)} personas sampled` : "Awaiting transcript"} tone="green" />
+        <LiveMetric title="Virality Score" value={video ? `${Math.round((cloudSummary?.virality_score ?? intelligence?.simulation?.virality_score ?? 0) * Math.max(0.34, progress / 100))}` : "--"} suffix={video ? "/100" : ""} delta={video ? `${formatCount(cloudSummary?.total_shares ?? intelligence?.simulation?.total_shares ?? 0)} share edges` : "Awaiting swarm"} tone="green" />
+        <LiveMetric title="Drop-off Risk" value={video ? (intelligence?.simulation?.dropoff_risk_pct != null ? `${Math.max(3, Number(intelligence.simulation.dropoff_risk_pct) - phase).toFixed(1)}%` : "--") : "--"} delta={video ? "Updates with analysis phase" : "Awaiting retention"} tone="orange" />
       </section>
 
       <footer className="flow-footer">
@@ -2146,55 +2345,50 @@ function MiniSpark() {
 }
 
 function RetentionChart({ curve }) {
-  const fallbackLine = "M14 44 C86 62 104 134 156 126 C210 118 236 154 286 178 C340 202 374 238 438 224 C498 211 532 196 596 212 C668 234 716 250 786 238 C840 228 872 250 904 262";
-  const fallbackArea = "M14 44 C86 62 104 134 156 126 C210 118 236 154 286 178 C340 202 374 238 438 224 C498 211 532 196 596 212 C668 234 716 250 786 238 C840 228 872 250 904 262 L904 270 L14 270 Z";
-
-  let lineD = fallbackLine;
-  let areaD = fallbackArea;
-  let axisLabels = ["0s", "3s", "6s", "9s", "12s", "15s"];
-  let dropMarker = { label: "3s hold", value: "67%" };
-
-  if (Array.isArray(curve) && curve.length >= 2) {
-    const xs = curve.map((p) => Number(p.time_sec) || 0);
-    const ys = curve.map((p) => {
-      const r = Number(p.retention);
-      if (!Number.isFinite(r)) return 0;
-      return r <= 1 ? r : r / 100;
-    });
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const xRange = maxX - minX || 1;
-    const padX = 14;
-    const padTop = 20;
-    const padBottom = 20;
-    const W = 920;
-    const H = 270;
-    const points = curve.map((_, i) => {
-      const px = padX + ((xs[i] - minX) / xRange) * (W - padX * 2);
-      const py = padTop + (1 - Math.max(0, Math.min(1, ys[i]))) * (H - padTop - padBottom);
-      return [px, py];
-    });
-    lineD = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
-    const last = points[points.length - 1];
-    const first = points[0];
-    areaD = `${lineD} L${last[0].toFixed(1)} ${H} L${first[0].toFixed(1)} ${H} Z`;
-
-    // Axis labels: 6 evenly spaced ticks across observed time range
-    axisLabels = [0, 1, 2, 3, 4, 5].map((i) => {
-      const t = minX + (xRange * i) / 5;
-      return `${Math.round(t)}s`;
-    });
-
-    // Drop marker: lowest retention point in first half (or absolute lowest)
-    let dropIdx = 0;
-    for (let i = 1; i < ys.length; i++) {
-      if (ys[i] < ys[dropIdx]) dropIdx = i;
-    }
-    dropMarker = {
-      label: `${Math.round(xs[dropIdx])}s hold`,
-      value: `${Math.round(ys[dropIdx] * 100)}%`,
-    };
+  // No real cloud-derived curve yet — render nothing rather than a synthetic placeholder.
+  if (!Array.isArray(curve) || curve.length < 2) {
+    return null;
   }
+
+  const xs = curve.map((p) => Number(p.time_sec) || 0);
+  const ys = curve.map((p) => {
+    const r = Number(p.retention);
+    if (!Number.isFinite(r)) return 0;
+    return r <= 1 ? r : r / 100;
+  });
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const xRange = maxX - minX || 1;
+  const padX = 14;
+  const padTop = 20;
+  const padBottom = 20;
+  const W = 920;
+  const H = 270;
+  const points = curve.map((_, i) => {
+    const px = padX + ((xs[i] - minX) / xRange) * (W - padX * 2);
+    const py = padTop + (1 - Math.max(0, Math.min(1, ys[i]))) * (H - padTop - padBottom);
+    return [px, py];
+  });
+  const lineD = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const last = points[points.length - 1];
+  const first = points[0];
+  const areaD = `${lineD} L${last[0].toFixed(1)} ${H} L${first[0].toFixed(1)} ${H} Z`;
+
+  // Axis labels: 6 evenly spaced ticks across observed time range
+  const axisLabels = [0, 1, 2, 3, 4, 5].map((i) => {
+    const t = minX + (xRange * i) / 5;
+    return `${Math.round(t)}s`;
+  });
+
+  // Drop marker: lowest retention point in first half (or absolute lowest)
+  let dropIdx = 0;
+  for (let i = 1; i < ys.length; i++) {
+    if (ys[i] < ys[dropIdx]) dropIdx = i;
+  }
+  const dropMarker = {
+    label: `${Math.round(xs[dropIdx])}s hold`,
+    value: `${Math.round(ys[dropIdx] * 100)}%`,
+  };
 
   return (
     <div className="chart-box">
