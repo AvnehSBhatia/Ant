@@ -267,7 +267,7 @@ function App() {
               {item.label}
             </button>
           ))}
-          <a href="/viz.html" target="_blank" rel="noreferrer">Agent network</a>
+          <button onClick={() => window.open("/viz.html", "_blank", "noopener,noreferrer")}>Agent network</button>
         </nav>
         <button className="icon-button menu-toggle" onClick={() => setMenuOpen((next) => !next)} aria-label="Open navigation">
           {menuOpen ? <X size={18} /> : <Menu size={18} />}

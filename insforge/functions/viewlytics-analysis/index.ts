@@ -1,6 +1,7 @@
 import { createClient } from "npm:@insforge/sdk";
 
 const ANALYZE_SERVICE_URL = Deno.env.get("ANALYZE_SERVICE_URL") || "";
+const TRIBE_SERVICE_URL = Deno.env.get("TRIBE_SERVICE_URL") || "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -77,6 +78,76 @@ async function runAnalysis(videoMeta: { name: string; size: number; type: string
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function runTribeBrain(videoUrl: string | null | undefined) {
+  if (!TRIBE_SERVICE_URL || !videoUrl) return { ok: false, skipped: true } as const;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 110_000);
+  try {
+    const res = await fetch(`${TRIBE_SERVICE_URL.replace(/\/$/, "")}/tribe-analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ video_url: videoUrl }),
+      signal: controller.signal,
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: payload?.detail || payload?.error || `tribe ${res.status}` } as const;
+    return { ok: true, payload } as const;
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) } as const;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function mergeTribeIntoIntelligence(
+  intelligence: Record<string, unknown>,
+  summary: Record<string, unknown>,
+  t: any,
+): { intelligence: Record<string, unknown>; summary: Record<string, unknown>; brain: Record<string, unknown> } {
+  const existingBrain = ((intelligence as any).brain || {}) as Record<string, any>;
+  const merged: Record<string, any> = {
+    ...existingBrain,
+    source: "tribev2-vast",
+    peaks: t.peaks || existingBrain.peaks,
+    retention_curve: (t.retention?.points || []).map((p: any) => ({
+      time_sec: p.time_sec,
+      retention: p.engagement_proxy_0_to_100,
+      activity_l2: p.activity_l2,
+    })),
+    geometry_frames: (t.geometry?.timesteps || []).slice(0, 50).map((f: any) => ({
+      frame: f.timestep_index,
+      time_sec: f.time_window_start_sec,
+      points: [],
+    })),
+    highs: t.highs,
+    lows: t.lows,
+    peak_moments: (t.peak_moments || []).slice(0, 10).map((row: any) => ({
+      time_sec: row.time_window_start_sec,
+      retention: 0,
+      activation_l2: row.activation_l2_across_vertices,
+      region: row.strongest_vertex?.destrieux_parcel_name || "Unmapped cortex",
+      hemisphere: row.strongest_vertex?.hemisphere || "unknown",
+      tone: "good",
+    })),
+    summary: {
+      ...(existingBrain.summary || {}),
+      mean_retention_proxy:
+        t.retention?.engagement_summary?.mean_engagement_proxy_0_to_100 ?? existingBrain.summary?.mean_retention_proxy,
+      max_retention_proxy:
+        t.retention?.engagement_summary?.max_engagement_proxy_0_to_100 ?? existingBrain.summary?.max_retention_proxy,
+      min_retention_proxy:
+        t.retention?.engagement_summary?.min_engagement_proxy_0_to_100 ?? existingBrain.summary?.min_retention_proxy,
+      timesteps: t.retention?.timesteps ?? existingBrain.summary?.timesteps,
+      brain_vertices: t.peaks?.shape_timesteps_vertices?.[1] ?? existingBrain.summary?.brain_vertices,
+    },
+  };
+  (intelligence as any).brain = merged;
+  (summary as any).brain_source = "tribev2-vast";
+  (summary as any).mean_retention_proxy =
+    (merged.summary as any).mean_retention_proxy ?? (summary as any).mean_retention_proxy;
+  return { intelligence, summary, brain: merged };
 }
 
 function buildSummary(file: { name?: string; size?: number; type?: string } = {}) {
@@ -218,88 +289,97 @@ async function createRunStream(req: Request) {
     return json({ ok: false, stage: "compute.stream", error: text || `compute ${upstream.status}` }, 502);
   }
 
-  // 4. Tee the body: one branch streams to client, other consumes for DB update.
-  const [toClient, toBackground] = upstream.body.tee();
-
-  // Background consumer: parses SSE, on 'result' writes final intelligence to DB.
-  (async () => {
-    const reader = toBackground.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    let lastStage = { stage: "queued", label: "Queued", pct: 1 };
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const blocks = buf.split("\n\n");
-        buf = blocks.pop() || "";
-        for (const block of blocks) {
-          const evMatch = block.match(/^event: (.+)$/m);
-          const dataMatch = block.match(/^data: (.+)$/m);
-          if (!evMatch || !dataMatch) continue;
-          const ev = evMatch[1].trim();
-          let data: any = null;
-          try { data = JSON.parse(dataMatch[1]); } catch { continue; }
-          if (ev === "stage" && data) {
-            lastStage = data;
-            if (runId !== null) {
-              client.database
-                .from("viewlytics_analysis_runs")
-                .update({ current_stage: data.label || data.stage, progress: Math.round(data.pct || 0) })
-                .eq("id", runId)
-                .then(() => {}, () => {});
-            }
-          } else if (ev === "result" && data) {
-            const { summary, intelligence } = buildIntelligenceFromPayload(data, fileMeta);
-            if (runId !== null) {
-              await client.database
-                .from("viewlytics_analysis_runs")
-                .update({
-                  status: "completed",
-                  phase: STAGES.length - 1,
-                  progress: 100,
-                  current_stage: STAGES[STAGES.length - 1],
-                  summary,
-                  intelligence,
-                })
-                .eq("id", runId);
-            }
-          } else if (ev === "error" && data) {
-            if (runId !== null) {
-              await client.database
-                .from("viewlytics_analysis_runs")
-                .update({
-                  status: "failed",
-                  current_stage: `Error: ${String(data.error || "compute error").slice(0, 80)}`,
-                })
-                .eq("id", runId);
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.warn("background SSE consumer crashed:", e);
-    }
-  })();
-
-  // 5. Stream to client. Inject a leading 'run' event with the runId for frontend reference.
+  // 4. Single-reader pump: forward upstream bytes to client AND parse SSE for DB writes
+  //    + tribe merge. This lets us inject an extra 'tribe' event mid-stream.
   const enc = new TextEncoder();
-  const prelude = enc.encode(
-    `event: run\ndata: ${JSON.stringify({ run_id: runId, video_url: uploaded.url || null, video_key: uploaded.key || null })}\n\n`
-  );
   const merged = new ReadableStream({
     async start(controller) {
-      controller.enqueue(prelude);
-      const reader = toClient.getReader();
+      // Inject leading 'run' event with the runId for frontend reference.
+      controller.enqueue(
+        enc.encode(
+          `event: run\ndata: ${JSON.stringify({ run_id: runId, video_url: uploaded.url || null, video_key: uploaded.key || null })}\n\n`,
+        ),
+      );
+      const reader = upstream.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
+          // Forward raw bytes to client immediately.
           controller.enqueue(value);
+          // Parallel parse for DB writes.
+          buf += decoder.decode(value, { stream: true });
+          const blocks = buf.split("\n\n");
+          buf = blocks.pop() || "";
+          for (const block of blocks) {
+            const evMatch = block.match(/^event: (.+)$/m);
+            const dataMatch = block.match(/^data: (.+)$/m);
+            if (!evMatch || !dataMatch) continue;
+            const ev = evMatch[1].trim();
+            let data: any = null;
+            try { data = JSON.parse(dataMatch[1]); } catch { continue; }
+            if (ev === "stage" && data) {
+              if (runId !== null) {
+                client.database
+                  .from("viewlytics_analysis_runs")
+                  .update({ current_stage: data.label || data.stage, progress: Math.round(data.pct || 0) })
+                  .eq("id", runId)
+                  .then(() => {}, () => {});
+              }
+            } else if (ev === "result" && data) {
+              const built = buildIntelligenceFromPayload(data, fileMeta);
+              let summary = built.summary as Record<string, unknown>;
+              let intelligence = built.intelligence as Record<string, unknown>;
+              // Best-effort tribe merge before persisting.
+              try {
+                const tribe = await runTribeBrain(uploaded.url || null);
+                if (tribe.ok && (tribe as any).payload) {
+                  const { brain } = mergeTribeIntoIntelligence(intelligence, summary, (tribe as any).payload);
+                  // Forward an extra SSE 'tribe' event to the client with the brain summary.
+                  try {
+                    controller.enqueue(
+                      enc.encode(
+                        `event: tribe\ndata: ${JSON.stringify({ source: "tribev2-vast", summary: brain.summary, peak_moments: brain.peak_moments })}\n\n`,
+                      ),
+                    );
+                  } catch { /* ignore enqueue errors */ }
+                } else if (tribe.ok === false && !(tribe as any).skipped) {
+                  (intelligence as any).tribe_error = (tribe as any).error;
+                }
+              } catch (e) {
+                console.warn("tribe merge in stream failed (non-fatal):", e);
+              }
+              if (runId !== null) {
+                await client.database
+                  .from("viewlytics_analysis_runs")
+                  .update({
+                    status: "completed",
+                    phase: STAGES.length - 1,
+                    progress: 100,
+                    current_stage: STAGES[STAGES.length - 1],
+                    summary,
+                    intelligence,
+                  })
+                  .eq("id", runId);
+              }
+            } else if (ev === "error" && data) {
+              if (runId !== null) {
+                await client.database
+                  .from("viewlytics_analysis_runs")
+                  .update({
+                    status: "failed",
+                    current_stage: `Error: ${String(data.error || "compute error").slice(0, 80)}`,
+                  })
+                  .eq("id", runId);
+              }
+            }
+          }
         }
       } catch (e) {
-        controller.error(e);
+        console.warn("SSE pump crashed:", e);
+        try { controller.error(e); } catch { /* already closed */ }
         return;
       }
       controller.close();
@@ -347,6 +427,12 @@ async function createRun(req: Request) {
     const built = buildIntelligenceFromPayload(analysis.payload, fileMeta);
     summary = built.summary;
     intelligence = built.intelligence;
+    const tribe = await runTribeBrain(uploaded.url || null);
+    if (tribe.ok && (tribe as any).payload) {
+      mergeTribeIntoIntelligence(intelligence, summary, (tribe as any).payload);
+    } else if (tribe.ok === false && !(tribe as any).skipped) {
+      (intelligence as any).tribe_error = (tribe as any).error;
+    }
   } else {
     console.error("runAnalysis failed:", analysis.error);
     errorMessage = analysis.error || "analysis failed";
