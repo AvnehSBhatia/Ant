@@ -5,11 +5,11 @@ rather than InsForge/Fly compute (no GPU SKU).
 
 ## Live deployment
 
-- **Public URL**: `http://174.78.228.101:40894`
+- **Public URL**: `http://72.19.32.135:51980` (older host 174.78.228.101:40894 went offline; re-provisioned)
 - **Health**: `GET /health` → `{"ok":true,"device":"cuda"}`
 - **Inference**: `POST /tribe-analyze` with `{"video_url": "<publicly downloadable mp4>"}`
 - **GPU**: NVIDIA RTX PRO 6000 Blackwell Server Edition (96 GB VRAM)
-- **Vast contract**: `36433520` (machine 47131, Oklahoma)
+- **Vast contract**: `36435548` (machine 45156, Nevada). Prior contracts: `36433520` (offline), `36433178` (destroyed).
 - **Cost**: ~$0.87/hr while running. `vastai stop instance 36433520` when idle.
 
 The URL is also stored as the InsForge secret `TRIBE_SERVICE_URL` so edge
