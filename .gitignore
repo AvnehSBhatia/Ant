@@ -40,3 +40,6 @@ venv/
 
 # qa screenshots (regenerated locally)
 .qa/
+
+# verification scratch (regenerated on demand)
+_scan/
