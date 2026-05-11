@@ -54,6 +54,10 @@ const INSFORGE_ANALYSIS_FUNCTION_URL =
   import.meta.env.VITE_INSFORGE_ANALYSIS_FUNCTION_URL ||
   "https://g9jy59jq.functions.insforge.app/viewlytics-analysis";
 
+const ANT_SERVICE_URL =
+  import.meta.env.VITE_ANT_SERVICE_URL ||
+  "http://72.19.32.135:51980";
+
 const navItems = [
   { id: "landing", label: "Landing" },
   { id: "login", label: "Login" },
@@ -1369,7 +1373,7 @@ function TribeBrainModel({ brain, phase = 0, progress = 0, isRunning = false }) 
 
   useEffect(() => {
     if (!frames.length) return undefined;
-    const timer = window.setInterval(() => setTick((current) => current + 1), isRunning ? 120 : 220);
+    const timer = window.setInterval(() => setTick((current) => current + 1), isRunning ? 60 : 110);
     return () => window.clearInterval(timer);
   }, [frames.length, isRunning]);
 
@@ -1449,7 +1453,11 @@ function TribeBrainModel({ brain, phase = 0, progress = 0, isRunning = false }) 
             {activePoints.map((point, index) => {
               const x = 360 + Number(point.x || 0) * 322 + Number(point.z || 0) * 28;
               const y = 211 + Number(point.y || 0) * 154 - Number(point.z || 0) * 16;
-              const radius = 2.4 + Number(point.norm || 0.3) * 5.2;
+              // Boost: contrast-curve the norm so weak vertices still register,
+              // then enlarge radius/opacity to match the upstream fast-PlotBrain look.
+              const rawNorm = Number(point.norm || 0.3);
+              const boostedNorm = Math.max(0, Math.min(1, (rawNorm * 1.85) ** 0.62));
+              const radius = 3.6 + boostedNorm * 8.4;
               return (
                 <circle
                   className={`tribe-brain-node ${Number(point.signed || 0) < 0 ? "is-risk" : "is-strong"}`}
@@ -1459,7 +1467,7 @@ function TribeBrainModel({ brain, phase = 0, progress = 0, isRunning = false }) 
                   key={`${frame.frame}-${point.vertex}-${index}`}
                   style={{
                     "--delay": `${-(index % 12) * 0.06}s`,
-                    opacity: 0.28 + Number(point.norm || 0.3) * 0.68
+                    opacity: 0.4 + boostedNorm * 0.6
                   }}
                 >
                   <title>{`${point.region || "TribeV2 vertex"} - vertex ${point.vertex}`}</title>
@@ -1686,7 +1694,7 @@ function RealPageInsights({ active, data }) {
         <strong>{activeCopy.statB}</strong>
         <strong>{activeCopy.statC}</strong>
       </div>
-      {active === "trends" && data?.brain?.source === "tribev2-vast" && data?.brain?.retention_curve?.length > 0 && (
+      {active === "trends" && data?.brain?.retention_curve?.length > 0 && (
         <BrainActivityPanel data={data} compact />
       )}
     </section>
@@ -1717,7 +1725,7 @@ function DashboardPage({ go, intelligence }) {
           </div>
         </div>
 
-        {intelligence?.brain?.source === "tribev2-vast" && intelligence?.brain?.retention_curve?.length > 0 && (
+        {intelligence?.brain?.retention_curve?.length > 0 && (
           <BrainActivityPanel data={intelligence} hero />
         )}
 
@@ -1732,7 +1740,7 @@ function DashboardPage({ go, intelligence }) {
         <DashboardIntelligence data={intelligence} />
 
         <div className="dashboard-grid">
-          {intelligence?.brain?.source === "tribev2-vast" && intelligence?.brain?.retention_curve?.length > 0 && (
+          {intelligence?.brain?.retention_curve?.length > 0 && (
             <article className="analytics-panel retention-panel">
               <div className="panel-heading"><h2>Retention over time</h2><span><i /> This video</span></div>
               <RetentionChart curve={brain?.retention_curve} />
@@ -1844,107 +1852,174 @@ function FlowPage({ intelligence: parentIntelligence }) {
     error: "Cloud sync failed"
   }[cloudStatus] || "Cloud ready";
 
+  // Apply a result payload + propagate to other pages + persist cloudRun summary.
+  const applyAnalysisPayload = (finalPayload, { metadata, runRecord = null, source = "ant-local-pipeline" }) => {
+    const merged = { ...finalPayload, source };
+    setStreamedIntelligence(merged);
+    // Notify the app-level useIntelligenceData hook so other pages (Dashboard,
+    // Trends, etc.) re-render with the freshly-merged tribev2 payload without a reload.
+    try {
+      window.dispatchEvent(new CustomEvent("cloud-intelligence-updated", { detail: merged }));
+    } catch (_) { /* ignore — older browsers */ }
+    setLiveStage({ stage: "done", label: "Analysis complete", pct: 100 });
+    setPhase(stages.length - 1);
+    setIsRunning(false);
+    const sim = finalPayload.simulation || {};
+    const brainSummary = finalPayload.brain?.summary || {};
+    setCloudRun({
+      id: runRecord?.run_id || null,
+      video_name: metadata.name,
+      video_url: runRecord?.video_url || null,
+      video_key: runRecord?.video_key || null,
+      summary: {
+        video_name: metadata.name,
+        video_size: metadata.rawSize || metadata.size,
+        video_type: metadata.type,
+        persona_count: sim.persona_count || 0,
+        keyword_sets: (finalPayload.keyword_sets || []).length,
+        scenes: brainSummary.timesteps || 0,
+        transcript_tokens: (finalPayload.videos?.terms || []).length,
+        virality_score: sim.virality_score || 0,
+        positive_rate_pct: sim.positive_rate_pct || 0,
+        total_shares: sim.total_shares || 0,
+        mean_retention_proxy: brainSummary.mean_retention_proxy || 0,
+        brain_source: finalPayload.brain?.source || "cloud-compute",
+        completed_at: new Date().toISOString(),
+      },
+      intelligence: merged,
+    });
+    setCloudStatus("synced");
+  };
+
+  // Helper that maps the synthetic SSE pct to a phase index for legacy UI.
+  const advancePhaseFromPct = (pct) => {
+    const phaseIdx = Math.min(
+      stages.length - 1,
+      Math.max(0, Math.floor((Number(pct) || 0) / 100 * stages.length))
+    );
+    setPhase(phaseIdx);
+  };
+
+  // PRIMARY path: direct multipart POST to the self-contained Ant server.
+  // Streams typed `data: {type, ...}` events.
+  const runAntServerStream = async ({ file, metadata }) => {
+    if (!file) throw new Error("Ant server requires a video file");
+    const form = new FormData();
+    form.append("video", file);
+    // No Content-Type header — browser sets multipart boundary.
+    const response = await fetch(`${ANT_SERVICE_URL}/api/analyze`, {
+      method: "POST",
+      body: form,
+    });
+    if (!response.ok || !response.body) {
+      throw new Error(`Ant server returned ${response.status}`);
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let finalPayload = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const blocks = buf.split("\n\n");
+      buf = blocks.pop() || "";
+      for (const block of blocks) {
+        const m = block.match(/^data:\s*(.+)$/m);
+        if (!m) continue;
+        let ev;
+        try { ev = JSON.parse(m[1]); } catch { continue; }
+        if (ev.type === "progress") {
+          setLiveStage({ stage: ev.stage, label: ev.label, pct: ev.pct });
+          advancePhaseFromPct(ev.pct);
+        } else if (ev.type === "result") {
+          finalPayload = ev.payload;
+        } else if (ev.type === "error") {
+          throw new Error(ev.error || "ant compute error");
+        }
+      }
+    }
+    if (!finalPayload) throw new Error("Ant stream ended without result event");
+    applyAnalysisPayload(finalPayload, { metadata, source: "ant-local-pipeline" });
+  };
+
+  // FALLBACK path: InsForge edge function with the old `event: <name>\ndata: ...`
+  // SSE shape. Used when (a) there is no file (e.g. demo-video runs from the
+  // dashboard) or (b) the direct Ant call fails (CORS, network, server down).
+  const runInsForgeStream = async ({ file, metadata }) => {
+    const requestMetadata = {
+      video_name: metadata.name,
+      video_size: metadata.rawSize || metadata.size,
+      video_type: metadata.type,
+    };
+    const url = `${INSFORGE_ANALYSIS_FUNCTION_URL}${INSFORGE_ANALYSIS_FUNCTION_URL.includes("?") ? "&" : "?"}stream=1`;
+    const options = { method: "POST", headers: { Accept: "text/event-stream" } };
+    if (file) {
+      const form = new FormData();
+      form.append("metadata", JSON.stringify(requestMetadata));
+      form.append("video", file);
+      options.body = form;
+    } else {
+      options.headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(requestMetadata);
+    }
+    const response = await fetch(url, options);
+    if (!response.ok || !response.body) {
+      throw new Error(`InsForge returned ${response.status}`);
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let finalPayload = null;
+    let runRecord = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const blocks = buf.split("\n\n");
+      buf = blocks.pop() || "";
+      for (const block of blocks) {
+        const ev = block.match(/^event: (.+)$/m)?.[1]?.trim();
+        const dataRaw = block.match(/^data: (.+)$/m)?.[1];
+        if (!ev || !dataRaw) continue;
+        let data;
+        try { data = JSON.parse(dataRaw); } catch { continue; }
+        if (ev === "run") {
+          runRecord = data;
+        } else if (ev === "stage") {
+          setLiveStage(data);
+          advancePhaseFromPct(data.pct);
+        } else if (ev === "result") {
+          finalPayload = data;
+        } else if (ev === "error") {
+          throw new Error(data?.error || "compute error");
+        }
+      }
+    }
+    if (!finalPayload) throw new Error("stream ended without result event");
+    applyAnalysisPayload(finalPayload, { metadata, runRecord, source: "insforge-compute" });
+  };
+
   const syncCloudRun = async ({ file, metadata }) => {
     setCloudStatus("syncing");
     setStreamActive(true);
     setLiveStage({ stage: "uploading", label: "Uploading video", pct: 2 });
     try {
-      const requestMetadata = {
-        video_name: metadata.name,
-        video_size: metadata.rawSize || metadata.size,
-        video_type: metadata.type,
-      };
-      const url = `${INSFORGE_ANALYSIS_FUNCTION_URL}${INSFORGE_ANALYSIS_FUNCTION_URL.includes("?") ? "&" : "?"}stream=1`;
-      const options = { method: "POST", headers: { Accept: "text/event-stream" } };
       if (file) {
-        const form = new FormData();
-        form.append("metadata", JSON.stringify(requestMetadata));
-        form.append("video", file);
-        options.body = form;
-      } else {
-        options.headers["Content-Type"] = "application/json";
-        options.body = JSON.stringify(requestMetadata);
-      }
-      const response = await fetch(url, options);
-      if (!response.ok || !response.body) {
-        throw new Error(`InsForge returned ${response.status}`);
-      }
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      let finalPayload = null;
-      let runRecord = null;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const blocks = buf.split("\n\n");
-        buf = blocks.pop() || "";
-        for (const block of blocks) {
-          const ev = block.match(/^event: (.+)$/m)?.[1]?.trim();
-          const dataRaw = block.match(/^data: (.+)$/m)?.[1];
-          if (!ev || !dataRaw) continue;
-          let data;
-          try { data = JSON.parse(dataRaw); } catch { continue; }
-          if (ev === "run") {
-            runRecord = data;
-          } else if (ev === "stage") {
-            setLiveStage(data);
-            // Map pct → 0..stages.length-1 phase index so the existing UI lights up correctly.
-            const phaseIdx = Math.min(
-              stages.length - 1,
-              Math.max(0, Math.floor((Number(data.pct) || 0) / 100 * stages.length))
-            );
-            setPhase(phaseIdx);
-          } else if (ev === "result") {
-            finalPayload = data;
-          } else if (ev === "error") {
-            throw new Error(data?.error || "compute error");
-          }
+        // Primary: direct call to the self-contained Ant server.
+        try {
+          await runAntServerStream({ file, metadata });
+          return;
+        } catch (antError) {
+          console.warn("Ant server stream failed, falling back to InsForge", antError);
+          // Reset stage before fallback so the UI doesn't show a stale error.
+          setLiveStage({ stage: "uploading", label: "Retrying via InsForge", pct: 2 });
         }
       }
-      if (finalPayload) {
-        const merged = { ...finalPayload, source: "insforge-compute" };
-        setStreamedIntelligence(merged);
-        // Notify the app-level useIntelligenceData hook so other pages (Dashboard,
-        // Trends, etc.) re-render with the freshly-merged tribev2 payload without a reload.
-        try {
-          window.dispatchEvent(new CustomEvent("cloud-intelligence-updated", { detail: merged }));
-        } catch (_) { /* ignore — older browsers */ }
-        setLiveStage({ stage: "done", label: "Analysis complete", pct: 100 });
-        setPhase(stages.length - 1);
-        setIsRunning(false);
-        // Mirror the non-streaming path's cloudRun shape just enough for the summary panels.
-        const sim = finalPayload.simulation || {};
-        const brainSummary = finalPayload.brain?.summary || {};
-        setCloudRun({
-          id: runRecord?.run_id || null,
-          video_name: metadata.name,
-          video_url: runRecord?.video_url || null,
-          video_key: runRecord?.video_key || null,
-          summary: {
-            video_name: metadata.name,
-            video_size: metadata.rawSize || metadata.size,
-            video_type: metadata.type,
-            persona_count: sim.persona_count || 0,
-            keyword_sets: (finalPayload.keyword_sets || []).length,
-            scenes: brainSummary.timesteps || 0,
-            transcript_tokens: (finalPayload.videos?.terms || []).length,
-            virality_score: sim.virality_score || 0,
-            positive_rate_pct: sim.positive_rate_pct || 0,
-            total_shares: sim.total_shares || 0,
-            mean_retention_proxy: brainSummary.mean_retention_proxy || 0,
-            brain_source: finalPayload.brain?.source || "cloud-compute",
-            completed_at: new Date().toISOString(),
-          },
-          intelligence: { ...finalPayload, source: "insforge-compute" },
-        });
-        setCloudStatus("synced");
-      } else {
-        throw new Error("stream ended without result event");
-      }
+      // Fallback (or no file path): InsForge edge function.
+      await runInsForgeStream({ file, metadata });
     } catch (error) {
-      console.warn("InsForge stream failed", error);
+      console.warn("Cloud stream failed", error);
       setCloudStatus("error");
       setLiveStage({ stage: "error", label: error?.message || "Stream failed", pct: 0 });
     } finally {
@@ -2170,7 +2245,7 @@ function FlowPage({ intelligence: parentIntelligence }) {
       </section>
 
       <section className="flow-live-analysis">
-        {intelligence?.brain?.source === "tribev2-vast" && intelligence?.brain?.retention_curve?.length > 0 ? (
+        {intelligence?.brain?.retention_curve?.length > 0 ? (
           <BrainActivityPanel
             data={intelligence}
             compact
