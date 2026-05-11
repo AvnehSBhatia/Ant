@@ -43,3 +43,4 @@ venv/
 
 # verification scratch (regenerated on demand)
 _scan/
+_remote/
