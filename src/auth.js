@@ -71,9 +71,111 @@ export async function signUp({ email, password, name }) {
   return {
     ok: true,
     requireEmailVerification: Boolean(data?.requireEmailVerification),
+    verifyEmailMethod: data?.verifyEmailMethod || null,
     user: data?.user || null,
     token,
   };
+}
+
+// Verify an emailed 6-digit signup code. Returns { ok, user, token } on
+// success and { ok:false, error } otherwise. On success the access token is
+// persisted exactly as in signIn so the rest of the app can continue.
+export async function verifyEmailCode({ email, code }) {
+  const client = getInsforgeClient();
+  // Probe the SDK shape — the @insforge/sdk version in package.json exposes
+  // `verifyEmail({ email, otp })` but we fall back to a few plausible
+  // alternates and finally a raw REST POST so we don't break on minor
+  // version bumps.
+  const candidates = [
+    () => client.auth.verifyEmail?.({ email, otp: code }),
+    () => client.auth.verifyEmailWithCode?.({ email, code }),
+    () => client.auth.verifyOtp?.({ email, token: code, type: "signup" }),
+    () => client.auth.verifyCode?.({ email, code }),
+  ];
+  let lastErr = null;
+  for (const call of candidates) {
+    try {
+      const result = call();
+      if (!result) continue;
+      const { data, error } = await result;
+      if (error) {
+        lastErr = error;
+        // Likely "wrong code" — bail out without trying other names.
+        if (error.code || error.status >= 400) break;
+        continue;
+      }
+      const token = extractToken(data);
+      if (token) {
+        writeStoredToken(token);
+        resetClient();
+      }
+      return { ok: true, user: data?.user || null, token };
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  // Final fallback: hit the documented REST endpoint directly.
+  try {
+    const response = await fetch(`${baseUrl}/api/auth/email/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": anonKey,
+      },
+      body: JSON.stringify({ email, otp: code }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      return { ok: false, error: payload?.error || { message: payload?.message || "Verification failed." } };
+    }
+    const token = extractToken(payload);
+    if (token) {
+      writeStoredToken(token);
+      resetClient();
+    }
+    return { ok: true, user: payload?.user || null, token };
+  } catch (e) {
+    return { ok: false, error: lastErr || { message: e?.message || "Verification failed." } };
+  }
+}
+
+// Re-send a verification email/code. Falls back across SDK shapes.
+export async function resendVerificationCode({ email }) {
+  const client = getInsforgeClient();
+  const candidates = [
+    () => client.auth.resendVerificationEmail?.({ email }),
+    () => client.auth.resendVerificationCode?.({ email }),
+    () => client.auth.sendVerificationEmail?.({ email }),
+  ];
+  for (const call of candidates) {
+    try {
+      const result = call();
+      if (!result) continue;
+      const { error } = await result;
+      if (error) return { ok: false, error };
+      return { ok: true };
+    } catch {
+      /* try the next candidate */
+    }
+  }
+  // REST fallback
+  try {
+    const response = await fetch(`${baseUrl}/api/auth/email/send-verification`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": anonKey,
+      },
+      body: JSON.stringify({ email }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      return { ok: false, error: payload?.error || { message: "Could not resend code." } };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: { message: e?.message || "Could not resend code." } };
+  }
 }
 
 export async function signIn({ email, password }) {

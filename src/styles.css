@@ -5507,3 +5507,41 @@ svg {
 .logout-button:hover {
   background: rgba(255, 255, 255, 1);
 }
+
+.logout-button.floating-signout {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 60;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(6px);
+}
+
+.auth-step-verify {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.otp-field input {
+  letter-spacing: 0.5em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.auth-link-button {
+  background: none;
+  border: none;
+  color: #1e6c46;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
+}
+.auth-link-button:disabled {
+  color: rgba(0, 0, 0, 0.3);
+  cursor: default;
+  text-decoration: none;
+}

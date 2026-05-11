@@ -48,6 +48,8 @@ import {
   signOut as authSignOut,
   getCurrentUser as authGetCurrentUser,
   hasStoredSession,
+  verifyEmailCode as authVerifyEmailCode,
+  resendVerificationCode as authResendVerificationCode,
 } from "./auth.js";
 
 const INSFORGE_ANALYSIS_FUNCTION_URL =
@@ -57,6 +59,16 @@ const INSFORGE_ANALYSIS_FUNCTION_URL =
 const ANT_SERVICE_URL =
   import.meta.env.VITE_ANT_SERVICE_URL ||
   "http://72.19.32.135:51980";
+
+// True only when the brain payload is real per-video data, not the bundled
+// fallback. Accepts:
+//   - "tribev2-vast" (legacy edge-function merge with Vast tribe service)
+//   - any source containing "re-warped" (new server's signal-warped artifacts)
+function brainIsPerVideo(brain) {
+  if (!brain || !Array.isArray(brain.retention_curve) || brain.retention_curve.length === 0) return false;
+  const source = String(brain.source || "").toLowerCase();
+  return source === "tribev2-vast" || source.includes("re-warped");
+}
 
 const navItems = [
   { id: "landing", label: "Landing" },
@@ -324,27 +336,15 @@ function App() {
   return (
     <main className="app-shell">
       <div className="page-glow" />
-      <header className="top-nav">
-        <button className="nav-logo" onClick={() => go("landing")} aria-label="Go to landing page">
-          <Brand />
+      {user && PROTECTED_ROUTES.has(displayRoute) ? (
+        <button
+          className="logout-button floating-signout"
+          onClick={handleSignOut}
+          title={user.email || "Sign out"}
+        >
+          Sign out
         </button>
-        <nav className={menuOpen ? "nav-links open" : "nav-links"} aria-label="Primary">
-          {navItems.map((item) => (
-            <button key={item.id} className={route === item.id ? "active" : ""} onClick={() => go(item.id)}>
-              {item.label}
-            </button>
-          ))}
-          <button onClick={() => window.open("/viz.html", "_blank", "noopener,noreferrer")}>Agent network</button>
-          {user ? (
-            <button className="logout-button" onClick={handleSignOut} title={user.email || "Sign out"}>
-              Sign out
-            </button>
-          ) : null}
-        </nav>
-        <button className="icon-button menu-toggle" onClick={() => setMenuOpen((next) => !next)} aria-label="Open navigation">
-          {menuOpen ? <X size={18} /> : <Menu size={18} />}
-        </button>
-      </header>
+      ) : null}
 
       <section className={`page-stage ${isExiting ? "is-exiting" : "is-entering"}`} key={displayRoute}>
         {displayRoute === "landing" && <LandingPage go={go} />}
@@ -760,12 +760,34 @@ function HeroSimulationVisual() {
 }
 
 function LoginPage({ go, onSignedIn }) {
-  const [mode, setMode] = useState("login");
+  // step is one of: "signup" | "login" | "verify"
+  // Default lands on signup per product direction; users who already have an
+  // account can flip to "login" via the tab below.
+  const [step, setStep] = useState("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [infoMsg, setInfoMsg] = useState("");
+
+  // Verification sub-state
+  const [code, setCode] = useState("");
+  const [verifyMethod, setVerifyMethod] = useState("code"); // "code" | "link"
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Tick down the resend cooldown so the button reactivates on its own.
+  useEffect(() => {
+    if (resendCooldown <= 0) return undefined;
+    const t = window.setTimeout(() => setResendCooldown((n) => Math.max(0, n - 1)), 1000);
+    return () => window.clearTimeout(t);
+  }, [resendCooldown]);
+
+  const goToTab = (next) => {
+    if (next === step) return;
+    setStep(next);
+    setErrorMsg("");
+    setInfoMsg("");
+  };
 
   const handleSubmit = async (event) => {
     event?.preventDefault?.();
@@ -776,23 +798,23 @@ function LoginPage({ go, onSignedIn }) {
       setErrorMsg("Email and password are required.");
       return;
     }
-    if (mode === "signup" && password.length < 8) {
+    if (step === "signup" && password.length < 8) {
       setErrorMsg("Password must be at least 8 characters.");
       return;
     }
     setBusy(true);
     try {
-      const result = mode === "signup"
+      const result = step === "signup"
         ? await authSignUp({ email, password })
         : await authSignIn({ email, password });
       if (!result.ok) {
         setErrorMsg(result.error?.message || "Authentication failed. Try again.");
         return;
       }
-      if (mode === "signup" && result.requireEmailVerification) {
-        setInfoMsg("Account created. Check your email to verify, then sign in.");
-        setMode("login");
-        setPassword("");
+      if (step === "signup" && result.requireEmailVerification) {
+        setVerifyMethod(result.verifyEmailMethod === "link" ? "link" : "code");
+        setStep("verify");
+        setResendCooldown(30);
         return;
       }
       if (onSignedIn) onSignedIn(result.user || true);
@@ -804,73 +826,208 @@ function LoginPage({ go, onSignedIn }) {
     }
   };
 
+  const handleVerifySubmit = async (event) => {
+    event?.preventDefault?.();
+    if (busy) return;
+    setErrorMsg("");
+    const trimmed = code.replace(/\D/g, "").slice(0, 6);
+    if (trimmed.length !== 6) {
+      setErrorMsg("Enter the 6-digit code from your email.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await authVerifyEmailCode({ email, code: trimmed });
+      if (!result.ok) {
+        setErrorMsg(result.error?.message || "Code didn't match. Try again.");
+        return;
+      }
+      if (onSignedIn) onSignedIn(result.user || true);
+      else go("dashboard");
+    } catch (err) {
+      setErrorMsg(err?.message || "Unexpected error.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (busy || resendCooldown > 0) return;
+    setErrorMsg("");
+    setInfoMsg("");
+    setBusy(true);
+    try {
+      const result = await authResendVerificationCode({ email });
+      if (!result.ok) {
+        setErrorMsg(result.error?.message || "Could not resend. Try again in a moment.");
+      } else {
+        setInfoMsg("New code sent. Check your inbox.");
+      }
+    } finally {
+      setResendCooldown(30);
+      setBusy(false);
+    }
+  };
+
+  const handleTryLoginAfterLink = async () => {
+    if (busy) return;
+    setBusy(true);
+    setErrorMsg("");
+    try {
+      const u = await authGetCurrentUser();
+      if (u) {
+        if (onSignedIn) onSignedIn(u);
+        else go("dashboard");
+        return;
+      }
+      setErrorMsg("Still waiting on verification. Click the link in your inbox first.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="page login-page">
       <div className="auth-background"><img src={atomic.pattern} alt="" /></div>
       <section className="auth-panel">
         <Brand />
-        <form className="auth-card" onSubmit={handleSubmit}>
-          <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-            <button type="button" className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setErrorMsg(""); }}>Log in</button>
-            <button type="button" className={mode === "signup" ? "active" : ""} onClick={() => { setMode("signup"); setErrorMsg(""); }}>Sign up</button>
-          </div>
-          <h1>{mode === "login" ? "Welcome back" : "Create your creator lab"}</h1>
-          <p>{mode === "login" ? "Sign in to your creator lab" : "Test ideas before you post"}</p>
 
-          <label>
-            <span>Email</span>
-            <div className="field">
-              <Mail size={17} />
-              <input
-                type="email"
-                placeholder="you@creatorlab.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                required
+        {step === "verify" ? (
+          <form className="auth-card auth-step-verify" onSubmit={handleVerifySubmit}>
+            <h1>Check your email</h1>
+            {verifyMethod === "link" ? (
+              <p>We sent a verification link to <strong>{email}</strong>. Click it and we'll log you in automatically once you confirm.</p>
+            ) : (
+              <p>We sent a 6-digit code to <strong>{email}</strong>. Enter it below to finish signing up.</p>
+            )}
+
+            {verifyMethod === "code" ? (
+              <label className="otp-field">
+                <span>Verification code</span>
+                <div className="field">
+                  <Lock size={17} />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    placeholder="123456"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    autoFocus
+                    required
+                  />
+                </div>
+              </label>
+            ) : null}
+
+            {errorMsg ? <div className="auth-error" role="alert">{errorMsg}</div> : null}
+            {infoMsg ? <div className="auth-info">{infoMsg}</div> : null}
+
+            {verifyMethod === "code" ? (
+              <button type="submit" className="primary-button wide" disabled={busy}>
+                {busy ? "Verifying..." : "Verify and continue"} <ArrowRight size={17} />
+              </button>
+            ) : (
+              <button type="button" className="primary-button wide" onClick={handleTryLoginAfterLink} disabled={busy}>
+                {busy ? "Checking..." : "Try login now"} <ArrowRight size={17} />
+              </button>
+            )}
+
+            <div className="auth-options" style={{ justifyContent: "space-between" }}>
+              {verifyMethod === "code" ? (
+                <button
+                  type="button"
+                  className="auth-link-button"
+                  onClick={handleResend}
+                  disabled={busy || resendCooldown > 0}
+                >
+                  {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
+                </button>
+              ) : <span />}
+              <button
+                type="button"
+                className="auth-link-button"
+                onClick={() => { setCode(""); setErrorMsg(""); setInfoMsg(""); setStep("signup"); }}
+              >
+                Use a different email
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form className="auth-card" onSubmit={handleSubmit}>
+            <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
+              <button type="button" className={step === "signup" ? "active" : ""} onClick={() => goToTab("signup")}>Sign up</button>
+              <button type="button" className={step === "login" ? "active" : ""} onClick={() => goToTab("login")}>Log in</button>
+            </div>
+            <h1>{step === "signup" ? "Create your account" : "Welcome back"}</h1>
+            <p>{step === "signup" ? "Test ideas before you post" : "Sign in to your creator lab"}</p>
+
+            <label>
+              <span>Email</span>
+              <div className="field">
+                <Mail size={17} />
+                <input
+                  type="email"
+                  placeholder="you@creatorlab.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                />
+              </div>
+            </label>
+            <label>
+              <span>Password</span>
+              <div className="field">
+                <Lock size={17} />
+                <input
+                  type="password"
+                  placeholder={step === "signup" ? "At least 8 characters" : "Enter your password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={step === "signup" ? "new-password" : "current-password"}
+                  minLength={step === "signup" ? 8 : undefined}
+                  required
+                />
+                <Eye size={17} />
+              </div>
+            </label>
+
+            {errorMsg ? <div className="auth-error" role="alert">{errorMsg}</div> : null}
+            {infoMsg ? <div className="auth-info">{infoMsg}</div> : null}
+
+            <div className="auth-options">
+              <button type="button" disabled>Forgot password?</button>
+              <label className="remember"><input type="checkbox" defaultChecked /><span>Remember me</span></label>
+            </div>
+
+            <button type="submit" className="primary-button wide" disabled={busy}>
+              {busy ? "Working..." : (step === "signup" ? "Create account" : "Continue")} <ArrowRight size={17} />
+            </button>
+
+            <small className="auth-switch">
+              {step === "signup" ? (
+                <>Already have an account? <button type="button" className="auth-link-button" onClick={() => goToTab("login")}>Sign in</button></>
+              ) : (
+                <>New here? <button type="button" className="auth-link-button" onClick={() => goToTab("signup")}>Create an account</button></>
+              )}
+            </small>
+
+            <div className="login-ant-route">
+              <RouteAnts
+                id="login"
+                paths={["M20 50 C190 16 342 82 522 50 C674 20 800 22 980 50"]}
+                count={34}
+                className="login-routes"
+                fast
+                viewBox="0 0 1000 100"
               />
             </div>
-          </label>
-          <label>
-            <span>Password</span>
-            <div className="field">
-              <Lock size={17} />
-              <input
-                type="password"
-                placeholder={mode === "signup" ? "At least 8 characters" : "Enter your password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                minLength={mode === "signup" ? 8 : undefined}
-                required
-              />
-              <Eye size={17} />
-            </div>
-          </label>
-
-          {errorMsg ? <div className="auth-error" role="alert">{errorMsg}</div> : null}
-          {infoMsg ? <div className="auth-info">{infoMsg}</div> : null}
-
-          <div className="auth-options">
-            <button type="button" disabled>Forgot password?</button>
-            <label className="remember"><input type="checkbox" defaultChecked /><span>Remember me</span></label>
-          </div>
-
-          <button type="submit" className="primary-button wide" disabled={busy}>
-            {busy ? "Working..." : (mode === "signup" ? "Create account" : "Continue")} <ArrowRight size={17} />
-          </button>
-          <div className="login-ant-route">
-            <RouteAnts
-              id="login"
-              paths={["M20 50 C190 16 342 82 522 50 C674 20 800 22 980 50"]}
-              count={34}
-              className="login-routes"
-              fast
-              viewBox="0 0 1000 100"
-            />
-          </div>
-          <small>By continuing, you agree to our Terms of Service and Privacy Policy.</small>
-        </form>
+            <small>By continuing, you agree to our Terms of Service and Privacy Policy.</small>
+          </form>
+        )}
       </section>
 
       <aside className="auth-value">
@@ -1694,7 +1851,7 @@ function RealPageInsights({ active, data }) {
         <strong>{activeCopy.statB}</strong>
         <strong>{activeCopy.statC}</strong>
       </div>
-      {active === "trends" && data?.brain?.retention_curve?.length > 0 && (
+      {active === "trends" && brainIsPerVideo(data?.brain) && (
         <BrainActivityPanel data={data} compact />
       )}
     </section>
@@ -1725,7 +1882,7 @@ function DashboardPage({ go, intelligence }) {
           </div>
         </div>
 
-        {intelligence?.brain?.retention_curve?.length > 0 && (
+        {brainIsPerVideo(intelligence?.brain) && (
           <BrainActivityPanel data={intelligence} hero />
         )}
 
@@ -1740,7 +1897,7 @@ function DashboardPage({ go, intelligence }) {
         <DashboardIntelligence data={intelligence} />
 
         <div className="dashboard-grid">
-          {intelligence?.brain?.retention_curve?.length > 0 && (
+          {brainIsPerVideo(intelligence?.brain) && (
             <article className="analytics-panel retention-panel">
               <div className="panel-heading"><h2>Retention over time</h2><span><i /> This video</span></div>
               <RetentionChart curve={brain?.retention_curve} />
@@ -2245,7 +2402,7 @@ function FlowPage({ intelligence: parentIntelligence }) {
       </section>
 
       <section className="flow-live-analysis">
-        {intelligence?.brain?.retention_curve?.length > 0 ? (
+        {brainIsPerVideo(intelligence?.brain) ? (
           <BrainActivityPanel
             data={intelligence}
             compact
