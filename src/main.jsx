@@ -1064,74 +1064,22 @@ const TECH_INVESTMENT_ACTIONS = {
   neutral: "Watchlist",
 };
 
-function strHash(s) {
-  let h = 2166136261;
-  const t = String(s);
-  for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
-  return Math.abs(h);
-}
-
 function presentTraitAffinity(traits) {
   if (!traits?.length) return [];
-  const n = traits.length;
-  const meanPos = traits.reduce((a, t) => a + Number(t.positive_rate_pct || 0), 0) / n;
-  const meanShare = traits.reduce((a, t) => a + Number(t.share_rate_pct || 0), 0) / n;
-  const topCycle = ["strong_like", "like", "comment", "share", "saves", "neutral"];
-  return traits.map((t, i) => {
-    const h = strHash(String(t.trait || `trait-${i}`));
-    const tier = n - 1 - i;
-    let pos = meanPos + tier * 4.15 + Math.sin((i + 1) * 0.74) * 2.4 + ((h % 41) - 20) * 0.09;
-    let share = meanShare + tier * -0.62 + Math.cos(i * 1.06) * 4.1 + ((h >> 6) % 29) * 0.11;
-    pos = Math.round(Math.max(30, Math.min(79, pos)) * 10) / 10;
-    share = Math.round(Math.max(6, Math.min(38, share)) * 10) / 10;
-    let top = topCycle[(i * 5 + (h % topCycle.length)) % topCycle.length];
-    if (share >= 24 && (h & 1) === 0) top = "share";
-    else if (pos >= 66 && top === "neutral") top = h % 2 ? "strong_like" : "like";
-    else if (pos <= 42 && top === "strong_like") top = "neutral";
-    return {
-      ...t,
-      display_trait: TECH_INVESTMENT_TRAITS[t.trait] || `${String(t.trait || "").replace(/_/g, " ")} Capital`,
-      positive_rate_pct: pos,
-      share_rate_pct: share,
-      top_reaction: top,
-    };
-  });
+  return traits.map((t) => ({
+    ...t,
+    display_trait:
+      TECH_INVESTMENT_TRAITS[t.trait] || `${String(t.trait || "").replace(/_/g, " ")} Capital`,
+  }));
 }
 
 function presentReactionTimeline(timeline) {
   if (!timeline?.length) return [];
-  const n = timeline.length;
-  const meanPos = timeline.reduce((a, b) => a + Number(b.positive_rate_pct || 0), 0) / n;
-  const meanShare = timeline.reduce((a, b) => a + Number(b.share_rate_pct || 0), 0) / n;
-  const tMax = Math.max(n - 1, 1);
-  return timeline.map((b, i) => {
-    const u = i / tMax;
-    const h = strHash(`tl-${i}-${b.count ?? 0}`);
-    const burst = Math.sin(u * Math.PI) * 12;
-    const ripple = Math.sin(u * Math.PI * 4.2 + 0.35) * 4.8;
-    const fade = u > 0.62 ? -(u - 0.62) * 23 : 0;
-    const pos = Math.round(
-      Math.max(14, Math.min(88, meanPos + burst + ripple + fade + ((h % 23) - 11) * 0.12)) * 10,
-    ) / 10;
-    const share = Math.round(
-      Math.max(
-        4,
-        Math.min(
-          52,
-          meanShare + Math.sin(u * Math.PI * 3.05 + 1.05) * 8.2 + u * -5.5 + ((h >> 5) % 19) * 0.1,
-        ),
-      ) * 10,
-    ) / 10;
-    return { ...b, positive_rate_pct: pos, share_rate_pct: share };
-  });
+  return timeline.map((b) => ({ ...b }));
 }
 
 function presentReactionBreakdown(counts) {
   const shown = { ...(counts || {}) };
-  const likeCount = Number(shown.like || 0);
-  const seed = strHash(`follow-rate:${Object.entries(shown).map(([k, v]) => `${k}:${v}`).join("|")}`);
-  const followRatio = 0.01 + (seed % 701) / 10000;
-  shown.follow = likeCount > 0 ? Math.max(1, Math.round(likeCount * followRatio)) : 0;
   const total = Math.max(1, Object.keys(REACTION_LABELS).reduce((sum, key) => sum + Number(shown[key] || 0), 0));
   const shownRates = Object.fromEntries(
     Object.keys(REACTION_LABELS).map((key) => [key, (Number(shown[key] || 0) / total) * 100]),
