@@ -977,6 +977,7 @@ function ColonyBackdrop({ id }) {
 function LandingPage({ go, user, runner }) {
   const landingRef = useRef(null);
   const inputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
   const moveBackdrop = (event) => {
     const target = landingRef.current;
     if (!target) return;
@@ -988,6 +989,11 @@ function LandingPage({ go, user, runner }) {
     if (!file) return;
     const started = runner?.analyzeFile?.(file);
     if (started) go(user ? "share-info" : "login");
+  };
+  const handleDrop = (event) => {
+    event.preventDefault();
+    setIsDragging(false);
+    continueAfterUpload(event.dataTransfer.files?.[0]);
   };
 
   return (
@@ -1016,11 +1022,42 @@ function LandingPage({ go, user, runner }) {
           </div>
           <h1>Predict the post before you post.</h1>
           <p>Synthetic viewer swarms test your video for retention, sentiment, and virality in under 60 seconds.</p>
-          <div className="hero-actions">
-            <button className="primary-button" onClick={() => inputRef.current?.click()}>
-              Upload video
-              <MiniAnt index={2} />
-            </button>
+          <div className={`landing-upload-card ${isDragging ? "is-dragging" : ""}`}>
+            <div
+              className="flow-drop-zone landing-drop-zone"
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+            >
+              <span className="flow-upload-orb"><Upload size={25} /></span>
+              <div>
+                <h2>{runner?.video ? runner.video.name : "Upload or drop video"}</h2>
+                <p>
+                  {runner?.video
+                    ? `${runner.video.source} · ${runner.video.size} · ${runner.liveStage?.label || "Processing started"}`
+                    : "MP4, MOV, or WebM. Processing starts immediately."}
+                </p>
+              </div>
+              <button className="secondary-button compact" type="button" onClick={() => inputRef.current?.click()}>
+                {runner?.video ? "Replace" : "Choose file"}
+              </button>
+            </div>
+            {runner?.video ? (
+              <div className="landing-upload-status">
+                <span className={`cloud-sync-pill ${runner.cloudStatus}`}>
+                  <i />
+                  {runner.liveStage?.label || "Processing"}
+                </span>
+                <button className="auth-link-button" type="button" onClick={() => go(user ? "share-info" : "login")}>
+                  Continue <ArrowRight size={15} />
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <div className="hero-actions hero-actions-secondary">
             <button className="secondary-button" onClick={() => go(user ? "share-info" : "login")}>
               {runner?.video ? "Continue setup" : "Sign in"}
               <ArrowRight size={17} />
