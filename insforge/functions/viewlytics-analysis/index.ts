@@ -69,11 +69,41 @@ function safeName(name = "video.mp4"): string {
   return name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 90) || "video.mp4";
 }
 
-function getClient() {
+function bearerToken(req: Request): string {
+  const header = req.headers.get("authorization") || "";
+  return header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
+}
+
+function getClient(req?: Request) {
+  const token = req ? bearerToken(req) : "";
   return createClient({
     baseUrl: Deno.env.get("INSFORGE_BASE_URL") || "https://g9jy59jq.us-west.insforge.app",
     anonKey: Deno.env.get("API_KEY") || Deno.env.get("INSFORGE_API_KEY") || Deno.env.get("ANON_KEY") || Deno.env.get("INSFORGE_ANON_KEY") || "",
+    ...(token ? { edgeFunctionToken: token } : {}),
   });
+}
+
+async function getAuthedUser(req: Request): Promise<any | null> {
+  const token = bearerToken(req);
+  if (!token) return null;
+  try {
+    const client = getClient(req);
+    const { data, error } = await client.auth.getCurrentUser();
+    if (error || !data?.user) return null;
+    return data.user;
+  } catch {
+    return null;
+  }
+}
+
+function randomClaimToken(): string {
+  return `${crypto.randomUUID()}.${crypto.randomUUID()}`;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 async function uploadVideo(file: File, key: string) {
@@ -291,7 +321,7 @@ function buildIntelligenceFromPayload(payload: any, fileMeta: { name: string; si
 async function proxyAntServerStream(req: Request): Promise<Response> {
   const contentType = req.headers.get("content-type") || "";
   if (!contentType.includes("multipart/form-data")) {
-    return json({ ok: false, error: "proxy requires multipart/form-data with video field" }, 400);
+    return json({ ok: false, error: "proxy requires multipart/form-data with video field" }, 400, req);
   }
   // Re-parse and rebuild the multipart so we only forward the `video` field
   // (drops `metadata` and any other fields Vast doesn't accept) and so Deno
@@ -302,13 +332,42 @@ async function proxyAntServerStream(req: Request): Promise<Response> {
     const maybe = form.get("video");
     if (maybe instanceof File) videoFile = maybe;
   } catch (e) {
-    return json({ ok: false, error: `multipart parse failed: ${e instanceof Error ? e.message : String(e)}` }, 400);
+    return json({ ok: false, error: `multipart parse failed: ${e instanceof Error ? e.message : String(e)}` }, 400, req);
   }
   if (!videoFile) {
-    return json({ ok: false, error: "missing 'video' file field" }, 400);
+    return json({ ok: false, error: "missing 'video' file field" }, 400, req);
   }
   const outForm = new FormData();
   outForm.append("video", videoFile, videoFile.name || "video.mp4");
+  const client = getClient();
+  const claimToken = randomClaimToken();
+  const claimTokenHash = await sha256Hex(claimToken);
+  let runId: string | number | null = null;
+  const fileMeta = {
+    name: videoFile.name || "Uploaded source video",
+    size: videoFile.size || 0,
+    type: videoFile.type || "video",
+  };
+  try {
+    const { data, error } = await client.database
+      .from("viewlytics_analysis_runs")
+      .insert({
+        status: "uploading",
+        video_name: fileMeta.name,
+        video_type: fileMeta.type,
+        video_size: fileMeta.size,
+        video_bucket: "viewlytics-videos",
+        phase: 0,
+        progress: 0,
+        current_stage: "Uploading",
+        claim_token_hash: claimTokenHash,
+      })
+      .select()
+      .single();
+    if (!error && data) runId = (data as any).id ?? null;
+  } catch (e) {
+    console.warn("ant placeholder insert failed (non-fatal):", e);
+  }
 
   let upstream: Response;
   try {
@@ -321,18 +380,85 @@ async function proxyAntServerStream(req: Request): Promise<Response> {
       body: outForm,
     });
   } catch (e) {
-    return json({ ok: false, stage: "proxy.fetch", error: e instanceof Error ? e.message : String(e) }, 502);
+    return json({ ok: false, stage: "proxy.fetch", error: e instanceof Error ? e.message : String(e) }, 502, req);
   }
 
   if (!upstream.ok || !upstream.body) {
     const text = await upstream.text().catch(() => "");
-    return json({ ok: false, stage: "proxy.upstream", status: upstream.status, error: text || `ant ${upstream.status}` }, 502);
+    return json({ ok: false, stage: "proxy.upstream", status: upstream.status, error: text || `ant ${upstream.status}` }, 502, req);
   }
 
-  return new Response(upstream.body, {
+  const enc = new TextEncoder();
+  const merged = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(
+        enc.encode(`data: ${JSON.stringify({ type: "run", run_id: runId, claim_token: claimToken })}\n\n`),
+      );
+      const reader = upstream.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          controller.enqueue(value);
+          buf += decoder.decode(value, { stream: true });
+          const blocks = buf.split("\n\n");
+          buf = blocks.pop() || "";
+          for (const block of blocks) {
+            const m = block.match(/^data:\s*(.+)$/m);
+            if (!m) continue;
+            let ev: any;
+            try { ev = JSON.parse(m[1]); } catch { continue; }
+            if (ev.type === "progress" && runId !== null) {
+              client.database
+                .from("viewlytics_analysis_runs")
+                .update({
+                  status: ev.pct >= 8 ? "analyzing" : "uploading",
+                  current_stage: ev.label || ev.stage || "Analyzing",
+                  progress: Math.max(0, Math.min(100, Math.round(Number(ev.pct) || 0))),
+                })
+                .eq("id", runId)
+                .then(() => {}, () => {});
+            } else if (ev.type === "result" && runId !== null) {
+              const finalPayload = ev.payload || {};
+              const built = buildIntelligenceFromPayload(finalPayload, fileMeta);
+              await client.database
+                .from("viewlytics_analysis_runs")
+                .update({
+                  status: "completed",
+                  phase: STAGES.length - 1,
+                  progress: 100,
+                  current_stage: STAGES[STAGES.length - 1],
+                  summary: built.summary,
+                  intelligence: { ...built.intelligence, source: "ant-local-pipeline" },
+                })
+                .eq("id", runId);
+            } else if (ev.type === "error" && runId !== null) {
+              await client.database
+                .from("viewlytics_analysis_runs")
+                .update({
+                  status: "failed",
+                  current_stage: `Error: ${String(ev.error || "compute error").slice(0, 80)}`,
+                  error: String(ev.error || "compute error"),
+                })
+                .eq("id", runId);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("ant SSE pump crashed:", e);
+        try { controller.error(e); } catch { /* already closed */ }
+        return;
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(merged, {
     status: 200,
     headers: {
-      ...corsHeaders,
+      ...corsFor(req),
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
@@ -360,11 +486,13 @@ async function createRunStream(req: Request) {
 
   // 2. Insert placeholder row immediately so frontend has a run id even before compute finishes.
   let runId: string | number | null = null;
+  const claimToken = randomClaimToken();
+  const claimTokenHash = await sha256Hex(claimToken);
   try {
     const { data, error } = await client.database
       .from("viewlytics_analysis_runs")
       .insert({
-        status: "running",
+        status: file ? "uploading" : "analyzing",
         video_name: fileMeta.name,
         video_type: fileMeta.type,
         video_size: fileMeta.size,
@@ -374,6 +502,7 @@ async function createRunStream(req: Request) {
         phase: 0,
         progress: 0,
         current_stage: "Uploading",
+        claim_token_hash: claimTokenHash,
       })
       .select()
       .single();
@@ -412,7 +541,7 @@ async function createRunStream(req: Request) {
       // Inject leading 'run' event with the runId for frontend reference.
       controller.enqueue(
         enc.encode(
-          `event: run\ndata: ${JSON.stringify({ run_id: runId, video_url: uploaded.url || null, video_key: uploaded.key || null })}\n\n`,
+          `event: run\ndata: ${JSON.stringify({ run_id: runId, claim_token: claimToken, video_url: uploaded.url || null, video_key: uploaded.key || null })}\n\n`,
         ),
       );
       const reader = upstream.body!.getReader();
@@ -439,7 +568,11 @@ async function createRunStream(req: Request) {
               if (runId !== null) {
                 client.database
                   .from("viewlytics_analysis_runs")
-                  .update({ current_stage: data.label || data.stage, progress: Math.round(data.pct || 0) })
+                  .update({
+                    status: "analyzing",
+                    current_stage: data.label || data.stage,
+                    progress: Math.round(data.pct || 0),
+                  })
                   .eq("id", runId)
                   .then(() => {}, () => {});
               }
@@ -601,6 +734,52 @@ async function createRun(req: Request) {
   return json({ ok: true, run: data, stages: STAGES });
 }
 
+async function claimRun(req: Request) {
+  const user = await getAuthedUser(req);
+  if (!user?.id) {
+    return json({ ok: false, error: { message: "Authentication required." } }, 401, req);
+  }
+  const body = await req.json().catch(() => ({}));
+  const runId = body?.run_id;
+  const claimToken = String(body?.claim_token || "");
+  if (!runId || !claimToken) {
+    return json({ ok: false, error: { message: "run_id and claim_token are required." } }, 400, req);
+  }
+  const claimTokenHash = await sha256Hex(claimToken);
+  const client = getClient(req);
+  const { data: rows, error: selectError } = await client.database
+    .from("viewlytics_analysis_runs")
+    .select("id,user_id,claim_token_hash")
+    .eq("id", runId)
+    .limit(1);
+  if (selectError) {
+    return json({ ok: false, stage: "database.select", error: selectError.message || String(selectError) }, 500, req);
+  }
+  const row = Array.isArray(rows) ? rows[0] : null;
+  if (!row || (row as any).claim_token_hash !== claimTokenHash) {
+    return json({ ok: false, error: { message: "Invalid or expired claim token." } }, 403, req);
+  }
+  if ((row as any).user_id && (row as any).user_id !== user.id) {
+    return json({ ok: false, error: { message: "This analysis is already attached to another account." } }, 409, req);
+  }
+  const claimedAt = new Date().toISOString();
+  const { data, error } = await client.database
+    .from("viewlytics_analysis_runs")
+    .update({
+      user_id: user.id,
+      claimed_at: claimedAt,
+      profile_snapshot: body?.profile_snapshot && typeof body.profile_snapshot === "object" ? body.profile_snapshot : {},
+      claim_token_hash: null,
+    })
+    .eq("id", runId)
+    .select()
+    .single();
+  if (error) {
+    return json({ ok: false, stage: "database.update", error: error.message || String(error) }, 500, req);
+  }
+  return json({ ok: true, user_id: user.id, claimed_at: claimedAt, run: data }, 200, req);
+}
+
 // Public anon-readable GET. Previously returned the full `latestRun` row
 // including the entire `intelligence` blob (transcript text, NIA analysis,
 // persona analytics, video filename). Anyone who hit the URL got the most
@@ -618,7 +797,34 @@ async function createRun(req: Request) {
 // localStorage path (useIntelligenceData) ignores this response now that
 // `intelligence` is null, so cross-user contamination is impossible.
 async function latestRun(req: Request) {
-  const client = getClient();
+  const user = await getAuthedUser(req);
+  const client = getClient(req);
+  if (user?.id) {
+    const { data, error } = await client.database
+      .from("viewlytics_analysis_runs")
+      .select("id,status,phase,progress,current_stage,created_at,updated_at,summary,intelligence,video_name,video_type,video_size,video_url,video_key,claimed_at,profile_snapshot")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      return json({ ok: false, stage: "database.select", error: error.message || String(error) }, 500, req);
+    }
+
+    const row = Array.isArray(data) ? data[0] || null : null;
+    return json(
+      {
+        ok: true,
+        backend: "insforge",
+        latestRun: row,
+        stages: STAGES,
+        anonymous: false,
+      },
+      200,
+      req,
+    );
+  }
+
   const { data, error } = await client.database
     .from("viewlytics_analysis_runs")
     .select("id, status, phase, progress, current_stage, created_at, updated_at, summary")
@@ -741,6 +947,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === "GET") return latestRun(req);
   if (req.method === "POST") {
     const url = new URL(req.url);
+    if (url.pathname.endsWith("/claim")) return claimRun(req);
     const wantsStream =
       url.searchParams.get("stream") === "1" ||
       (req.headers.get("accept") || "").includes("text/event-stream");
