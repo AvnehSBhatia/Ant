@@ -25,6 +25,10 @@ function readStoredToken() {
   }
 }
 
+export function getStoredAccessToken() {
+  return readStoredToken();
+}
+
 function writeStoredToken(token) {
   try {
     if (token) window.localStorage.setItem(SESSION_KEY, token);
@@ -223,4 +227,32 @@ export async function getCurrentUser() {
 
 export function hasStoredSession() {
   return Boolean(readStoredToken());
+}
+
+export async function getCreatorProfile() {
+  const client = getInsforgeClient();
+  try {
+    const { data, error } = await client.auth.getCurrentUser();
+    if (error || !data?.user) return { ok: false, error: error || { message: "Not signed in." } };
+    return { ok: true, profile: data.user.profile || {}, user: data.user };
+  } catch (e) {
+    return { ok: false, error: { message: e?.message || "Could not load profile." } };
+  }
+}
+
+export async function saveCreatorProfile(profile) {
+  const client = getInsforgeClient();
+  const payload = {
+    tiktok_url: String(profile?.tiktok_url || "").trim(),
+    instagram_url: String(profile?.instagram_url || "").trim(),
+    company_site_url: String(profile?.company_site_url || "").trim(),
+    creator_info_confirmed_at: profile?.creator_info_confirmed_at || new Date().toISOString(),
+  };
+  try {
+    const { data, error } = await client.auth.setProfile(payload);
+    if (error) return { ok: false, error };
+    return { ok: true, profile: data || payload };
+  } catch (e) {
+    return { ok: false, error: { message: e?.message || "Could not save creator info." } };
+  }
 }

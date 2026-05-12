@@ -6,13 +6,13 @@ import TribeBrain3D from "./TribeBrain3D.jsx";
 import {
   Activity,
   ArrowRight,
+  AtSign,
   BarChart3,
   Bell,
   Brain,
   BrainCircuit,
   Check,
   ChevronRight,
-  CirclePlay,
   Clock3,
   Cpu,
   Download,
@@ -21,8 +21,10 @@ import {
   Filter,
   FlaskConical,
   Gauge,
+  Globe2,
   Grid2X2,
   Heart,
+  Instagram,
   Layers3,
   LineChart,
   Lock,
@@ -63,6 +65,9 @@ import {
   hasStoredSession,
   verifyEmailCode as authVerifyEmailCode,
   resendVerificationCode as authResendVerificationCode,
+  getCreatorProfile as authGetCreatorProfile,
+  saveCreatorProfile as authSaveCreatorProfile,
+  getStoredAccessToken,
 } from "./auth.js";
 
 const INSFORGE_ANALYSIS_FUNCTION_URL =
@@ -70,6 +75,7 @@ const INSFORGE_ANALYSIS_FUNCTION_URL =
   "https://g9jy59jq.functions.insforge.app/viewlytics-analysis";
 
 const INTELLIGENCE_STORAGE_KEY = "viewlytics_intelligence_v1";
+const PENDING_RUN_STORAGE_KEY = "viewlytics_pending_run_v1";
 
 // The frontend MUST NOT talk to the Vast Ant box directly — that box is
 // token-gated by X-Ant-Token, and we will not ship that secret in a public
@@ -177,7 +183,7 @@ const backgroundPaths = [
 ];
 
 function useRoute() {
-  const validRoutes = new Set(["landing", "login", "dashboard", "simulations", "personas", "trends", "flow"]);
+  const validRoutes = new Set(["landing", "login", "share-info", "dashboard", "simulations", "personas", "trends", "flow"]);
   const getRoute = () => {
     const hashRoute = window.location.hash.replace("#", "") || "landing";
     return validRoutes.has(hashRoute) ? hashRoute : "dashboard";
@@ -198,7 +204,7 @@ function useRoute() {
   return [route, go];
 }
 
-const PROTECTED_ROUTES = new Set(["dashboard", "simulations", "personas", "trends", "flow"]);
+const PROTECTED_ROUTES = new Set(["share-info", "dashboard", "simulations", "personas", "trends", "flow"]);
 
 function useAuthState() {
   // null = unknown / loading, false = no user, object = user
@@ -234,13 +240,361 @@ function useAuthState() {
   return { user, loading, setUser };
 }
 
+function readPendingRun() {
+  try {
+    const saved = localStorage.getItem(PENDING_RUN_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writePendingRun(run) {
+  try {
+    if (run?.run_id && run?.claim_token) {
+      localStorage.setItem(PENDING_RUN_STORAGE_KEY, JSON.stringify(run));
+    } else {
+      localStorage.removeItem(PENDING_RUN_STORAGE_KEY);
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function useAnalysisRunner(parentIntelligence) {
+  const [phase, setPhase] = useState(0);
+  const [video, setVideo] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
+  const [cloudRun, setCloudRun] = useState(null);
+  const [cloudStatus, setCloudStatus] = useState("idle");
+  const [liveStage, setLiveStage] = useState(null);
+  const [streamActive, setStreamActive] = useState(false);
+  const [streamedIntelligence, setStreamedIntelligence] = useState(null);
+  const [pendingRun, setPendingRun] = useState(() => readPendingRun());
+
+  const intelligence = streamedIntelligence
+    ? { ...(parentIntelligence || {}), ...streamedIntelligence, cloud: parentIntelligence?.cloud }
+    : video
+      ? null
+      : parentIntelligence;
+
+  const isComplete = Boolean(video) && phase === stages.length - 1 && !isRunning;
+  const progress = video ? Math.min(100, Math.round(((phase + (isRunning ? 0.55 : 1)) / stages.length) * 100)) : 0;
+
+  const rememberRun = (runRecord = null) => {
+    if (!runRecord?.run_id || !runRecord?.claim_token) return;
+    const next = {
+      run_id: runRecord.run_id,
+      claim_token: runRecord.claim_token,
+      video_url: runRecord.video_url || null,
+      video_key: runRecord.video_key || null,
+      created_at: new Date().toISOString(),
+    };
+    setPendingRun(next);
+    writePendingRun(next);
+  };
+
+  const applyAnalysisPayload = (finalPayload, { metadata, runRecord = null, source = "ant-local-pipeline" }) => {
+    rememberRun(runRecord);
+    const merged = { ...finalPayload, source, brain: finalPayload?.brain ?? null };
+    if (typeof window !== "undefined" && window?.console) {
+      console.debug(
+        "[applyAnalysisPayload] outer source:", source,
+        "| brain.source:", merged?.brain?.source,
+        "| retention pts:", merged?.brain?.retention_curve?.length || 0,
+        "| brainIsPerVideo:", brainIsPerVideo(merged?.brain)
+      );
+    }
+    setStreamedIntelligence(merged);
+    try {
+      window.dispatchEvent(new CustomEvent("cloud-intelligence-updated", { detail: merged }));
+    } catch (_) { /* ignore */ }
+    setLiveStage({ stage: "done", label: "Analysis complete", pct: 100 });
+    setPhase(stages.length - 1);
+    setIsRunning(false);
+    const sim = finalPayload.simulation || {};
+    const brainSummary = finalPayload.brain?.summary || {};
+    setCloudRun({
+      id: runRecord?.run_id || null,
+      video_name: metadata.name,
+      video_url: runRecord?.video_url || null,
+      video_key: runRecord?.video_key || null,
+      summary: {
+        video_name: metadata.name,
+        video_size: metadata.rawSize || metadata.size,
+        video_type: metadata.type,
+        persona_count: sim.persona_count || 0,
+        keyword_sets: (finalPayload.keyword_sets || []).length,
+        scenes: brainSummary.timesteps || 0,
+        transcript_tokens: (finalPayload.videos?.terms || []).length,
+        virality_score: sim.virality_score || 0,
+        positive_rate_pct: sim.positive_rate_pct || 0,
+        total_shares: sim.total_shares || 0,
+        mean_retention_proxy: brainSummary.mean_retention_proxy || 0,
+        brain_source: finalPayload.brain?.source || "cloud-compute",
+        completed_at: new Date().toISOString(),
+      },
+      intelligence: merged,
+    });
+    setCloudStatus("synced");
+  };
+
+  const advancePhaseFromPct = (pct) => {
+    const phaseIdx = Math.min(
+      stages.length - 1,
+      Math.max(0, Math.floor((Number(pct) || 0) / 100 * stages.length))
+    );
+    setPhase(phaseIdx);
+  };
+
+  const runAntServerStream = async ({ file, metadata }) => {
+    if (!file) throw new Error("Ant server requires a video file");
+    const form = new FormData();
+    form.append("video", file);
+    const url = `${INSFORGE_ANALYSIS_FUNCTION_URL}${INSFORGE_ANALYSIS_FUNCTION_URL.includes("?") ? "&" : "?"}stream=1`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { Accept: "text/event-stream" },
+      body: form,
+    });
+    if (!response.ok || !response.body) {
+      throw new Error(`Ant proxy returned ${response.status}`);
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let finalPayload = null;
+    let runRecord = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const blocks = buf.split("\n\n");
+      buf = blocks.pop() || "";
+      for (const block of blocks) {
+        const m = block.match(/^data:\s*(.+)$/m);
+        if (!m) continue;
+        let ev;
+        try { ev = JSON.parse(m[1]); } catch { continue; }
+        if (ev.type === "run") {
+          runRecord = ev;
+          rememberRun(ev);
+        } else if (ev.type === "progress") {
+          setLiveStage({ stage: ev.stage, label: ev.label, pct: ev.pct });
+          advancePhaseFromPct(ev.pct);
+        } else if (ev.type === "result") {
+          finalPayload = ev.payload;
+        } else if (ev.type === "error") {
+          throw new Error(ev.error || "ant compute error");
+        }
+      }
+    }
+    if (!finalPayload) throw new Error("Ant stream ended without result event");
+    applyAnalysisPayload(finalPayload, { metadata, runRecord, source: "ant-local-pipeline" });
+  };
+
+  const runInsForgeStream = async ({ file, metadata }) => {
+    const requestMetadata = {
+      video_name: metadata.name,
+      video_size: metadata.rawSize || metadata.size,
+      video_type: metadata.type,
+    };
+    const url = `${INSFORGE_ANALYSIS_FUNCTION_URL}${INSFORGE_ANALYSIS_FUNCTION_URL.includes("?") ? "&" : "?"}stream=1`;
+    const options = { method: "POST", headers: { Accept: "text/event-stream" } };
+    if (file) {
+      const form = new FormData();
+      form.append("metadata", JSON.stringify(requestMetadata));
+      form.append("video", file);
+      options.body = form;
+    } else {
+      options.headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(requestMetadata);
+    }
+    const response = await fetch(url, options);
+    if (!response.ok || !response.body) {
+      throw new Error(`InsForge returned ${response.status}`);
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let finalPayload = null;
+    let runRecord = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const blocks = buf.split("\n\n");
+      buf = blocks.pop() || "";
+      for (const block of blocks) {
+        const ev = block.match(/^event: (.+)$/m)?.[1]?.trim();
+        const dataRaw = block.match(/^data: (.+)$/m)?.[1];
+        if (!ev || !dataRaw) continue;
+        let data;
+        try { data = JSON.parse(dataRaw); } catch { continue; }
+        if (ev === "run") {
+          runRecord = data;
+          rememberRun(data);
+        } else if (ev === "stage") {
+          setLiveStage(data);
+          advancePhaseFromPct(data.pct);
+        } else if (ev === "result") {
+          finalPayload = data;
+        } else if (ev === "error") {
+          throw new Error(data?.error || "compute error");
+        }
+      }
+    }
+    if (!finalPayload) throw new Error("stream ended without result event");
+    applyAnalysisPayload(finalPayload, { metadata, runRecord, source: "insforge-compute" });
+  };
+
+  const syncCloudRun = async ({ file, metadata }) => {
+    setCloudStatus("syncing");
+    setStreamActive(true);
+    setLiveStage({ stage: "uploading", label: "Uploading video", pct: 2 });
+    try {
+      if (file) {
+        try {
+          await runAntServerStream({ file, metadata });
+          return;
+        } catch (antError) {
+          console.warn("Ant server stream failed, falling back to InsForge", antError);
+          setLiveStage({ stage: "uploading", label: "Retrying via InsForge", pct: 2 });
+        }
+      }
+      await runInsForgeStream({ file, metadata });
+    } catch (error) {
+      console.warn("Cloud stream failed", error);
+      setCloudStatus("error");
+      setLiveStage({ stage: "error", label: error?.message || "Stream failed", pct: 0 });
+    } finally {
+      setStreamActive(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!video || !isRunning) return undefined;
+    if (streamActive) return undefined;
+    const timer = window.setInterval(() => {
+      setPhase((current) => {
+        if (current >= stages.length - 1) {
+          setIsRunning(false);
+          return current;
+        }
+        return current + 1;
+      });
+    }, 1450);
+    return () => window.clearInterval(timer);
+  }, [isRunning, video, streamActive]);
+
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
+  const startAnalysis = (nextVideo, nextPreview = "") => {
+    setVideo(nextVideo);
+    setPhase(0);
+    setIsRunning(true);
+    setPreviewUrl(nextPreview);
+    setCloudRun(null);
+    setCloudStatus("idle");
+    setStreamedIntelligence(null);
+  };
+
+  const analyzeFile = (file) => {
+    if (!file) return false;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    const objectUrl = URL.createObjectURL(file);
+    const metadata = {
+      name: file.name,
+      size: file.size,
+      rawSize: file.size,
+      type: file.type || "video",
+    };
+    startAnalysis(
+      {
+        name: file.name,
+        size: formatBytes(file.size),
+        rawSize: file.size,
+        source: "Local upload",
+        type: file.type || "video",
+      },
+      objectUrl
+    );
+    void syncCloudRun({ file, metadata });
+    return true;
+  };
+
+  const toggleAnalysis = () => {
+    if (!video) return;
+    if (isComplete) {
+      setPhase(0);
+      setIsRunning(true);
+      return;
+    }
+    setIsRunning((next) => !next);
+  };
+
+  const claimPendingRun = async (profileSnapshot = {}) => {
+    if (!pendingRun?.run_id || !pendingRun?.claim_token) return { ok: true, skipped: true };
+    const token = getStoredAccessToken();
+    if (!token) return { ok: false, error: { message: "Sign in before claiming this analysis." } };
+    const response = await fetch(`${INSFORGE_ANALYSIS_FUNCTION_URL.replace(/\/$/, "")}/claim`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        run_id: pendingRun.run_id,
+        claim_token: pendingRun.claim_token,
+        profile_snapshot: profileSnapshot,
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.ok === false) {
+      return { ok: false, error: payload?.error || { message: "Could not attach this analysis to your account." } };
+    }
+    writePendingRun(null);
+    setPendingRun(null);
+    if (cloudRun?.id === pendingRun.run_id) {
+      setCloudRun({ ...cloudRun, user_id: payload.user_id || true, claimed_at: payload.claimed_at || new Date().toISOString() });
+    }
+    return { ok: true, run: payload.run || null };
+  };
+
+  return {
+    phase,
+    setPhase,
+    video,
+    previewUrl,
+    isRunning,
+    setIsRunning,
+    cloudRun,
+    cloudStatus,
+    liveStage,
+    streamActive,
+    streamedIntelligence,
+    pendingRun,
+    intelligence,
+    isComplete,
+    progress,
+    analyzeFile,
+    toggleAnalysis,
+    claimPendingRun,
+  };
+}
+
 function App() {
   const [route, go] = useRoute();
   const [menuOpen, setMenuOpen] = useState(false);
   const [displayRoute, setDisplayRoute] = useState(route);
   const [isExiting, setIsExiting] = useState(false);
-  const { data: intelligence, clear: clearIntelligence } = useIntelligenceData();
   const { user, loading, setUser } = useAuthState();
+  const { data: intelligence, clear: clearIntelligence } = useIntelligenceData(user);
+  const analysisRunner = useAnalysisRunner(intelligence);
+  const activeIntelligence = analysisRunner.video ? analysisRunner.intelligence : intelligence;
 
   // Gate protected routes
   useEffect(() => {
@@ -252,7 +606,11 @@ function App() {
 
   const handleSignedIn = (nextUser) => {
     setUser(nextUser || true);
-    go("dashboard");
+    go("share-info");
+  };
+
+  const handleProfileSaved = (profile) => {
+    setUser((current) => current ? { ...current, profile: { ...(current.profile || {}), ...(profile || {}) } } : current);
   };
 
   const handleSignOut = async () => {
@@ -314,19 +672,20 @@ function App() {
       ) : null}
 
       <section className={`page-stage ${isExiting ? "is-exiting" : "is-entering"}`} key={displayRoute}>
-        {displayRoute === "landing" && <LandingPage go={go} user={user} />}
+        {displayRoute === "landing" && <LandingPage go={go} user={user} runner={analysisRunner} />}
         {displayRoute === "login" && <LoginPage go={go} onSignedIn={handleSignedIn} />}
-        {displayRoute === "dashboard" && <DashboardPage go={go} intelligence={intelligence} />}
-        {displayRoute === "simulations" && <ExactPageShell active="simulations" go={go} intelligence={intelligence}><FlowPage go={go} embedded intelligence={intelligence} /></ExactPageShell>}
-        {displayRoute === "personas" && <ExactPageShell active="personas" go={go} intelligence={intelligence}><PersonasExact intelligence={intelligence} /></ExactPageShell>}
-        {displayRoute === "trends" && <ExactPageShell active="trends" go={go} intelligence={intelligence}><TrendsExact intelligence={intelligence} /></ExactPageShell>}
-        {displayRoute === "flow" && <FlowPage go={go} intelligence={intelligence} />}
+        {displayRoute === "share-info" && <ShareInfoPage go={go} user={user} runner={analysisRunner} onProfileSaved={handleProfileSaved} />}
+        {displayRoute === "dashboard" && <DashboardPage go={go} intelligence={activeIntelligence} />}
+        {displayRoute === "simulations" && <ExactPageShell active="simulations" go={go} intelligence={activeIntelligence}><FlowPage go={go} embedded intelligence={activeIntelligence} runner={analysisRunner} /></ExactPageShell>}
+        {displayRoute === "personas" && <ExactPageShell active="personas" go={go} intelligence={activeIntelligence}><PersonasExact intelligence={activeIntelligence} /></ExactPageShell>}
+        {displayRoute === "trends" && <ExactPageShell active="trends" go={go} intelligence={activeIntelligence}><TrendsExact intelligence={activeIntelligence} /></ExactPageShell>}
+        {displayRoute === "flow" && <FlowPage go={go} intelligence={activeIntelligence} runner={analysisRunner} />}
       </section>
     </main>
   );
 }
 
-function useIntelligenceData() {
+function useIntelligenceData(user) {
   const [data, setData] = useState(null);
 
   // 1. On mount: restore the most-recent analysis from THIS browser's
@@ -353,6 +712,42 @@ function useIntelligenceData() {
       // public GET; that endpoint is unauthenticated and would cross-contaminate.
     }
   }, []);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    if (readPendingRun()?.run_id) return undefined;
+    let alive = true;
+    const token = getStoredAccessToken();
+    if (!token) return undefined;
+    fetch(INSFORGE_ANALYSIS_FUNCTION_URL, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!alive || !payload?.latestRun?.intelligence) return;
+        const run = payload.latestRun;
+        const merged = {
+          ...run.intelligence,
+          cloud: {
+            connected: true,
+            endpoint: INSFORGE_ANALYSIS_FUNCTION_URL,
+            latestRun: run,
+          },
+          cloudRun: run,
+          source: run.intelligence?.source || "insforge-account-run",
+        };
+        setData(merged);
+        try {
+          localStorage.setItem(INTELLIGENCE_STORAGE_KEY, JSON.stringify(merged));
+        } catch (_) {
+          /* ignore */
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [user]);
 
   // 2. Listen for streaming-merged intelligence dispatched from FlowPage so
   // dashboards see the freshly-merged tribev2 payload without a page reload,
@@ -579,14 +974,20 @@ function ColonyBackdrop({ id }) {
   );
 }
 
-function LandingPage({ go, user }) {
+function LandingPage({ go, user, runner }) {
   const landingRef = useRef(null);
+  const inputRef = useRef(null);
   const moveBackdrop = (event) => {
     const target = landingRef.current;
     if (!target) return;
     const rect = target.getBoundingClientRect();
     target.style.setProperty("--mx", `${event.clientX - rect.left}px`);
     target.style.setProperty("--my", `${event.clientY - rect.top}px`);
+  };
+  const continueAfterUpload = (file) => {
+    if (!file) return;
+    const started = runner?.analyzeFile?.(file);
+    if (started) go(user ? "share-info" : "login");
   };
 
   return (
@@ -596,6 +997,16 @@ function LandingPage({ go, user }) {
       onPointerMove={moveBackdrop}
       onPointerEnter={moveBackdrop}
     >
+      <input
+        ref={inputRef}
+        className="flow-file-input"
+        type="file"
+        accept="video/*"
+        onChange={(event) => {
+          continueAfterUpload(event.target.files?.[0]);
+          event.target.value = "";
+        }}
+      />
       <ColonyBackdrop id="landing-bg" />
       <section className="landing-hero">
         <div className="hero-copy">
@@ -606,13 +1017,13 @@ function LandingPage({ go, user }) {
           <h1>Predict the post before you post.</h1>
           <p>Synthetic viewer swarms test your video for retention, sentiment, and virality in under 60 seconds.</p>
           <div className="hero-actions">
-            <button className="primary-button" onClick={() => go(user ? "dashboard" : "login")}>
-              Run a simulation
+            <button className="primary-button" onClick={() => inputRef.current?.click()}>
+              Upload video
               <MiniAnt index={2} />
             </button>
-            <button className="secondary-button" onClick={() => go(user ? "dashboard" : "login")}>
-              View demo
-              <CirclePlay size={17} />
+            <button className="secondary-button" onClick={() => go(user ? "share-info" : "login")}>
+              {runner?.video ? "Continue setup" : "Sign in"}
+              <ArrowRight size={17} />
             </button>
           </div>
         </div>
@@ -756,7 +1167,7 @@ function LoginPage({ go, onSignedIn }) {
         return;
       }
       if (onSignedIn) onSignedIn(result.user || true);
-      else go("dashboard");
+      else go("share-info");
     } catch (err) {
       setErrorMsg(err?.message || "Unexpected error.");
     } finally {
@@ -781,7 +1192,7 @@ function LoginPage({ go, onSignedIn }) {
         return;
       }
       if (onSignedIn) onSignedIn(result.user || true);
-      else go("dashboard");
+      else go("share-info");
     } catch (err) {
       setErrorMsg(err?.message || "Unexpected error.");
     } finally {
@@ -815,7 +1226,7 @@ function LoginPage({ go, onSignedIn }) {
       const u = await authGetCurrentUser();
       if (u) {
         if (onSignedIn) onSignedIn(u);
-        else go("dashboard");
+        else go("share-info");
         return;
       }
       setErrorMsg("Still waiting on verification. Click the link in your inbox first.");
@@ -973,6 +1384,131 @@ function LoginPage({ go, onSignedIn }) {
         <p><FlaskConical size={16} /> Test ideas before you post</p>
         <p><UsersRound size={16} /> Understand your audience</p>
         <p><WandSparkles size={16} /> Grow with data, not guesswork</p>
+      </aside>
+    </div>
+  );
+}
+
+function ShareInfoPage({ go, user, runner, onProfileSaved }) {
+  const profile = user?.profile || {};
+  const [tiktokUrl, setTiktokUrl] = useState(profile.tiktok_url || "");
+  const [instagramUrl, setInstagramUrl] = useState(profile.instagram_url || "");
+  const [companySiteUrl, setCompanySiteUrl] = useState(profile.company_site_url || "");
+  const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    authGetCreatorProfile()
+      .then((result) => {
+        if (!alive || !result?.ok || !result.profile) return;
+        setTiktokUrl(result.profile.tiktok_url || "");
+        setInstagramUrl(result.profile.instagram_url || "");
+        setCompanySiteUrl(result.profile.company_site_url || "");
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const handleSubmit = async (event) => {
+    event?.preventDefault?.();
+    if (busy) return;
+    setBusy(true);
+    setErrorMsg("");
+    const nextProfile = {
+      tiktok_url: tiktokUrl.trim(),
+      instagram_url: instagramUrl.trim(),
+      company_site_url: companySiteUrl.trim(),
+      creator_info_confirmed_at: new Date().toISOString(),
+    };
+    try {
+      const saved = await authSaveCreatorProfile(nextProfile);
+      if (!saved.ok) {
+        setErrorMsg(saved.error?.message || "Could not save creator info.");
+        return;
+      }
+      onProfileSaved?.(saved.profile || nextProfile);
+      const claimed = await runner?.claimPendingRun?.(saved.profile || nextProfile);
+      if (claimed && !claimed.ok) {
+        setErrorMsg(claimed.error?.message || "Could not attach this analysis to your account.");
+        return;
+      }
+      go("dashboard");
+    } catch (err) {
+      setErrorMsg(err?.message || "Unexpected error.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="page login-page share-info-page">
+      <div className="auth-background"><img src={atomic.pattern} alt="" /></div>
+      <section className="auth-panel">
+        <Brand />
+        <form className="auth-card share-info-card" onSubmit={handleSubmit}>
+          <div className="share-step-pill"><Check size={15} /> Account ready</div>
+          <h1>Share creator info</h1>
+          <p>Confirm the channels we should use as context before opening your analysis.</p>
+
+          <label>
+            <span>TikTok</span>
+            <div className="field">
+              <AtSign size={17} />
+              <input
+                type="text"
+                placeholder="@yourbrand or https://tiktok.com/@yourbrand"
+                value={tiktokUrl}
+                onChange={(event) => setTiktokUrl(event.target.value)}
+                autoComplete="url"
+              />
+              <span />
+            </div>
+          </label>
+          <label>
+            <span>Instagram</span>
+            <div className="field">
+              <Instagram size={17} />
+              <input
+                type="text"
+                placeholder="@yourbrand or https://instagram.com/yourbrand"
+                value={instagramUrl}
+                onChange={(event) => setInstagramUrl(event.target.value)}
+                autoComplete="url"
+              />
+              <span />
+            </div>
+          </label>
+          <label>
+            <span>Company site</span>
+            <div className="field">
+              <Globe2 size={17} />
+              <input
+                type="text"
+                placeholder="https://company.com"
+                value={companySiteUrl}
+                onChange={(event) => setCompanySiteUrl(event.target.value)}
+                autoComplete="url"
+              />
+              <span />
+            </div>
+          </label>
+
+          {errorMsg ? <div className="auth-error" role="alert">{errorMsg}</div> : null}
+
+          <button type="submit" className="primary-button wide" disabled={busy}>
+            {busy ? "Saving..." : "Show my data"} <ArrowRight size={17} />
+          </button>
+        </form>
+      </section>
+
+      <aside className="auth-value share-info-status">
+        <h2>{runner?.video ? runner.video.name : "Analysis context"}</h2>
+        <p><Upload size={16} /> {runner?.video ? "Video uploaded" : "No active upload"}</p>
+        <p><Activity size={16} /> {runner?.liveStage?.label || "Processing will continue in the background"}</p>
+        <p><ShieldCheck size={16} /> {runner?.pendingRun ? "Ready to attach to your account" : "Creator profile will be saved"}</p>
       </aside>
     </div>
   );
@@ -2312,29 +2848,27 @@ function formatBytes(size = 0) {
   return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
 }
 
-function FlowPage({ intelligence: parentIntelligence }) {
+function FlowPage({ intelligence: parentIntelligence, runner }) {
   const inputRef = useRef(null);
   const reelRef = useRef(null);
   const reelStateRef = useRef({ offset: 0, velocity: 0 });
   const isRunningRef = useRef(false);
-  const [phase, setPhase] = useState(0);
-  const [video, setVideo] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [cloudRun, setCloudRun] = useState(null);
-  const [cloudStatus, setCloudStatus] = useState("idle");
-  const [liveStage, setLiveStage] = useState(null); // { stage, label, pct } from SSE
-  const [streamActive, setStreamActive] = useState(false);
-  const [streamedIntelligence, setStreamedIntelligence] = useState(null);
-
-  // Prefer freshly-streamed intelligence over the parent's cached fetch.
-  const intelligence = streamedIntelligence
-    ? { ...(parentIntelligence || {}), ...streamedIntelligence, cloud: parentIntelligence?.cloud }
-    : parentIntelligence;
-
-  const isComplete = Boolean(video) && phase === stages.length - 1 && !isRunning;
-  const progress = video ? Math.min(100, Math.round(((phase + (isRunning ? 0.55 : 1)) / stages.length) * 100)) : 0;
+  const {
+    phase,
+    video,
+    previewUrl,
+    isRunning,
+    cloudRun,
+    cloudStatus,
+    liveStage,
+    streamActive,
+    intelligence = parentIntelligence,
+    isComplete,
+    progress,
+    analyzeFile,
+    toggleAnalysis,
+  } = runner;
   const simulatedPersonaCount = intelligence?.simulation?.persona_count ?? 0;
   const activeCloudRun = cloudRun || intelligence?.cloud?.latestRun || null;
   const cloudSummary = activeCloudRun?.summary || null;
@@ -2374,220 +2908,6 @@ function FlowPage({ intelligence: parentIntelligence }) {
     error: "Cloud sync failed"
   }[cloudStatus] || "Cloud ready";
 
-  // Apply a result payload + propagate to other pages + persist cloudRun summary.
-  const applyAnalysisPayload = (finalPayload, { metadata, runRecord = null, source = "ant-local-pipeline" }) => {
-    // Spread finalPayload first, then override ONLY the outer `source` tag
-    // (used for provenance in cloudRun summaries). Explicitly re-attach
-    // `brain` so the inner `brain.source` ("…re-warped…") survives even if
-    // some future refactor adds a brain-stripping step before this point.
-    // The gate `brainIsPerVideo(intelligence?.brain)` reads `brain.source`,
-    // NOT the outer `source`, so this MUST come through intact.
-    const merged = { ...finalPayload, source, brain: finalPayload?.brain ?? null };
-    if (typeof window !== "undefined" && window?.console) {
-      console.debug(
-        "[applyAnalysisPayload] outer source:", source,
-        "| brain.source:", merged?.brain?.source,
-        "| retention pts:", merged?.brain?.retention_curve?.length || 0,
-        "| brainIsPerVideo:", brainIsPerVideo(merged?.brain)
-      );
-    }
-    setStreamedIntelligence(merged);
-    // Notify the app-level useIntelligenceData hook so other pages (Dashboard,
-    // Trends, etc.) re-render with the freshly-merged tribev2 payload without a reload.
-    try {
-      window.dispatchEvent(new CustomEvent("cloud-intelligence-updated", { detail: merged }));
-    } catch (_) { /* ignore — older browsers */ }
-    setLiveStage({ stage: "done", label: "Analysis complete", pct: 100 });
-    setPhase(stages.length - 1);
-    setIsRunning(false);
-    const sim = finalPayload.simulation || {};
-    const brainSummary = finalPayload.brain?.summary || {};
-    setCloudRun({
-      id: runRecord?.run_id || null,
-      video_name: metadata.name,
-      video_url: runRecord?.video_url || null,
-      video_key: runRecord?.video_key || null,
-      summary: {
-        video_name: metadata.name,
-        video_size: metadata.rawSize || metadata.size,
-        video_type: metadata.type,
-        persona_count: sim.persona_count || 0,
-        keyword_sets: (finalPayload.keyword_sets || []).length,
-        scenes: brainSummary.timesteps || 0,
-        transcript_tokens: (finalPayload.videos?.terms || []).length,
-        virality_score: sim.virality_score || 0,
-        positive_rate_pct: sim.positive_rate_pct || 0,
-        total_shares: sim.total_shares || 0,
-        mean_retention_proxy: brainSummary.mean_retention_proxy || 0,
-        brain_source: finalPayload.brain?.source || "cloud-compute",
-        completed_at: new Date().toISOString(),
-      },
-      intelligence: merged,
-    });
-    setCloudStatus("synced");
-  };
-
-  // Helper that maps the synthetic SSE pct to a phase index for legacy UI.
-  const advancePhaseFromPct = (pct) => {
-    const phaseIdx = Math.min(
-      stages.length - 1,
-      Math.max(0, Math.floor((Number(pct) || 0) / 100 * stages.length))
-    );
-    setPhase(phaseIdx);
-  };
-
-  // PRIMARY path: multipart POST to the InsForge edge function, which proxies
-  // the upload to the Vast Ant server (server-side X-Ant-Token injection) and
-  // pipes the typed `data: {type, ...}` SSE stream straight back.
-  const runAntServerStream = async ({ file, metadata }) => {
-    if (!file) throw new Error("Ant server requires a video file");
-    const form = new FormData();
-    form.append("video", file);
-    const url = `${INSFORGE_ANALYSIS_FUNCTION_URL}${INSFORGE_ANALYSIS_FUNCTION_URL.includes("?") ? "&" : "?"}stream=1`;
-    // No Content-Type header — browser sets multipart boundary.
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { Accept: "text/event-stream" },
-      body: form,
-    });
-    if (!response.ok || !response.body) {
-      throw new Error(`Ant proxy returned ${response.status}`);
-    }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    let finalPayload = null;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const blocks = buf.split("\n\n");
-      buf = blocks.pop() || "";
-      for (const block of blocks) {
-        const m = block.match(/^data:\s*(.+)$/m);
-        if (!m) continue;
-        let ev;
-        try { ev = JSON.parse(m[1]); } catch { continue; }
-        if (ev.type === "progress") {
-          setLiveStage({ stage: ev.stage, label: ev.label, pct: ev.pct });
-          advancePhaseFromPct(ev.pct);
-        } else if (ev.type === "result") {
-          finalPayload = ev.payload;
-        } else if (ev.type === "error") {
-          throw new Error(ev.error || "ant compute error");
-        }
-      }
-    }
-    if (!finalPayload) throw new Error("Ant stream ended without result event");
-    applyAnalysisPayload(finalPayload, { metadata, source: "ant-local-pipeline" });
-  };
-
-  // FALLBACK path: InsForge edge function with the old `event: <name>\ndata: ...`
-  // SSE shape. Used when (a) there is no file (e.g. demo-video runs from the
-  // dashboard) or (b) the direct Ant call fails (CORS, network, server down).
-  const runInsForgeStream = async ({ file, metadata }) => {
-    const requestMetadata = {
-      video_name: metadata.name,
-      video_size: metadata.rawSize || metadata.size,
-      video_type: metadata.type,
-    };
-    const url = `${INSFORGE_ANALYSIS_FUNCTION_URL}${INSFORGE_ANALYSIS_FUNCTION_URL.includes("?") ? "&" : "?"}stream=1`;
-    const options = { method: "POST", headers: { Accept: "text/event-stream" } };
-    if (file) {
-      const form = new FormData();
-      form.append("metadata", JSON.stringify(requestMetadata));
-      form.append("video", file);
-      options.body = form;
-    } else {
-      options.headers["Content-Type"] = "application/json";
-      options.body = JSON.stringify(requestMetadata);
-    }
-    const response = await fetch(url, options);
-    if (!response.ok || !response.body) {
-      throw new Error(`InsForge returned ${response.status}`);
-    }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    let finalPayload = null;
-    let runRecord = null;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const blocks = buf.split("\n\n");
-      buf = blocks.pop() || "";
-      for (const block of blocks) {
-        const ev = block.match(/^event: (.+)$/m)?.[1]?.trim();
-        const dataRaw = block.match(/^data: (.+)$/m)?.[1];
-        if (!ev || !dataRaw) continue;
-        let data;
-        try { data = JSON.parse(dataRaw); } catch { continue; }
-        if (ev === "run") {
-          runRecord = data;
-        } else if (ev === "stage") {
-          setLiveStage(data);
-          advancePhaseFromPct(data.pct);
-        } else if (ev === "result") {
-          finalPayload = data;
-        } else if (ev === "error") {
-          throw new Error(data?.error || "compute error");
-        }
-      }
-    }
-    if (!finalPayload) throw new Error("stream ended without result event");
-    applyAnalysisPayload(finalPayload, { metadata, runRecord, source: "insforge-compute" });
-  };
-
-  const syncCloudRun = async ({ file, metadata }) => {
-    setCloudStatus("syncing");
-    setStreamActive(true);
-    setLiveStage({ stage: "uploading", label: "Uploading video", pct: 2 });
-    try {
-      if (file) {
-        // Primary: direct call to the self-contained Ant server.
-        try {
-          await runAntServerStream({ file, metadata });
-          return;
-        } catch (antError) {
-          console.warn("Ant server stream failed, falling back to InsForge", antError);
-          // Reset stage before fallback so the UI doesn't show a stale error.
-          setLiveStage({ stage: "uploading", label: "Retrying via InsForge", pct: 2 });
-        }
-      }
-      // Fallback (or no file path): InsForge edge function.
-      await runInsForgeStream({ file, metadata });
-    } catch (error) {
-      console.warn("Cloud stream failed", error);
-      setCloudStatus("error");
-      setLiveStage({ stage: "error", label: error?.message || "Stream failed", pct: 0 });
-    } finally {
-      setStreamActive(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!video || !isRunning) return undefined;
-    // When real SSE progress is driving phase, skip the synthetic auto-advance.
-    if (streamActive) return undefined;
-
-    const timer = window.setInterval(() => {
-      setPhase((current) => {
-        if (current >= stages.length - 1) {
-          setIsRunning(false);
-          return current;
-        }
-        return current + 1;
-      });
-    }, 1450);
-
-    return () => window.clearInterval(timer);
-  }, [isRunning, video, streamActive]);
-
-  useEffect(() => () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-  }, [previewUrl]);
-
   useEffect(() => {
     isRunningRef.current = isRunning;
   }, [isRunning]);
@@ -2615,53 +2935,10 @@ function FlowPage({ intelligence: parentIntelligence }) {
     return () => cancelAnimationFrame(raf);
   }, [video]);
 
-  const startAnalysis = (nextVideo, nextPreview = "") => {
-    setVideo(nextVideo);
-    setPhase(0);
-    setIsRunning(true);
-    setPreviewUrl(nextPreview);
-    setCloudRun(null);
-  };
-
-  const analyzeFile = (file) => {
-    if (!file) return;
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    const objectUrl = URL.createObjectURL(file);
-    startAnalysis(
-      {
-        name: file.name,
-        size: formatBytes(file.size),
-        rawSize: file.size,
-        source: "Local upload",
-        type: file.type || "video"
-      },
-      objectUrl
-    );
-    syncCloudRun({
-      file,
-      metadata: {
-        name: file.name,
-        size: file.size,
-        rawSize: file.size,
-        type: file.type || "video"
-      }
-    });
-  };
-
   const handleDrop = (event) => {
     event.preventDefault();
     setIsDragging(false);
     analyzeFile(event.dataTransfer.files?.[0]);
-  };
-
-  const toggleAnalysis = () => {
-    if (!video) return;
-    if (isComplete) {
-      setPhase(0);
-      setIsRunning(true);
-      return;
-    }
-    setIsRunning((next) => !next);
   };
 
   return (
@@ -2699,14 +2976,7 @@ function FlowPage({ intelligence: parentIntelligence }) {
               className="secondary-button compact"
               type="button"
               disabled={!video}
-              onClick={() => {
-                if (isComplete) {
-                  setPhase(0);
-                  setIsRunning(true);
-                  return;
-                }
-                setIsRunning((next) => !next);
-              }}
+              onClick={toggleAnalysis}
             >
               {isRunning ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}
               {isRunning ? "Pause" : isComplete ? "Run again" : "Resume"}

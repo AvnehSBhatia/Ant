@@ -5423,6 +5423,28 @@ svg {
   font-weight: 600;
 }
 
+.share-info-card {
+  max-width: 500px;
+}
+
+.share-step-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid rgba(95, 156, 59, 0.2);
+  border-radius: 999px;
+  color: var(--green-deep);
+  background: rgba(237, 248, 230, 0.82);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.share-info-status p {
+  word-break: break-word;
+}
+
 .logout-button {
   border: 1px solid var(--line, rgba(0, 0, 0, 0.1));
   background: rgba(255, 255, 249, 0.92);
