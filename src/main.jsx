@@ -68,6 +68,9 @@ import {
   getCreatorProfile as authGetCreatorProfile,
   saveCreatorProfile as authSaveCreatorProfile,
   getStoredAccessToken,
+  signInWithGoogle as authSignInWithGoogle,
+  consumeOAuthRedirect as authConsumeOAuthRedirect,
+  hasOAuthCallbackInUrl as authHasOAuthCallbackInUrl,
 } from "./auth.js";
 
 const INSFORGE_ANALYSIS_FUNCTION_URL =
@@ -207,31 +210,40 @@ function useRoute() {
 const PROTECTED_ROUTES = new Set(["share-info", "dashboard", "simulations", "personas", "trends", "flow"]);
 
 function useAuthState() {
+  // If we just came back from an OAuth provider, the URL still has the code /
+  // token in it — hold the UI in "loading" until consumeOAuthRedirect resolves.
+  const _oauthBusy = typeof window !== "undefined" && authHasOAuthCallbackInUrl();
+  const _stored = hasStoredSession();
   // null = unknown / loading, false = no user, object = user
-  const [user, setUser] = useState(hasStoredSession() ? null : false);
-  const [loading, setLoading] = useState(hasStoredSession());
+  const [user, setUser] = useState((_stored || _oauthBusy) ? null : false);
+  const [loading, setLoading] = useState(_stored || _oauthBusy);
 
   useEffect(() => {
     let alive = true;
-    if (!hasStoredSession()) {
-      setUser(false);
-      setLoading(false);
-      return () => {
-        alive = false;
-      };
-    }
-    setLoading(true);
-    authGetCurrentUser()
-      .then((u) => {
-        if (!alive) return;
-        setUser(u || false);
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!alive) return;
+    (async () => {
+      // First: drain any OAuth callback params from the URL into the session.
+      try {
+        await authConsumeOAuthRedirect();
+      } catch { /* ignore — consumeOAuthRedirect already swallows */ }
+
+      if (!alive) return;
+      if (!hasStoredSession()) {
         setUser(false);
         setLoading(false);
-      });
+        return;
+      }
+      setLoading(true);
+      try {
+        const u = await authGetCurrentUser();
+        if (!alive) return;
+        setUser(u || false);
+      } catch {
+        if (!alive) return;
+        setUser(false);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
     return () => {
       alive = false;
     };
@@ -1391,6 +1403,38 @@ function LoginPage({ go, onSignedIn }) {
 
             <button type="submit" className="primary-button wide" disabled={busy}>
               {busy ? "Working..." : (step === "signup" ? "Create account" : "Continue")} <ArrowRight size={17} />
+            </button>
+
+            <div className="auth-divider"><span>or</span></div>
+
+            <button
+              type="button"
+              className="google-button"
+              disabled={busy}
+              onClick={async () => {
+                setErrorMsg(""); setInfoMsg("");
+                setBusy(true);
+                try {
+                  const result = await authSignInWithGoogle();
+                  if (!result.ok) {
+                    setErrorMsg(result.error?.message || "Could not start Google sign-in.");
+                    setBusy(false);
+                  }
+                  // On success the browser is redirected away — leave busy=true
+                  // so the button stays disabled during the page transition.
+                } catch (err) {
+                  setErrorMsg(err?.message || "Could not start Google sign-in.");
+                  setBusy(false);
+                }
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                <path fill="#4285F4" d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.909c1.702-1.567 2.683-3.875 2.683-6.615z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.909-2.259c-.806.54-1.837.86-3.047.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+              </svg>
+              Continue with Google
             </button>
 
             <small className="auth-switch">

@@ -6276,3 +6276,36 @@ svg {
   .meta-brain-colorbar { min-width: 160px; font-size: 10px; padding: 8px 10px; }
   .meta-brain-expand { font-size: 12px; padding: 6px 10px; }
 }
+
+/* OAuth — Google sign-in button inside the auth form */
+.auth-card .google-button {
+  width: 100%;
+  margin-top: 4px;
+  font-weight: 800;
+}
+.auth-card .google-button svg {
+  flex: 0 0 auto;
+}
+.auth-card .google-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
