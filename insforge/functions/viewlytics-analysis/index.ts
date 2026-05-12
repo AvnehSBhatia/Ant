@@ -1,12 +1,51 @@
 import { createClient } from "npm:@insforge/sdk";
 
+// This edge function is the ONLY public-facing entrypoint for the analysis
+// pipeline. It proxies:
+//   - POST ?stream=1 multipart {video}: forwards as multipart to the Vast Ant
+//     server at ANT_SERVICE_URL/api/analyze, injecting X-Ant-Token, then pipes
+//     the SSE response body straight back to the browser. Keeps ANT_SHARED_TOKEN
+//     server-side so the frontend never sees it and Vast can stay token-gated.
+//   - POST ?stream=1 (no file or proxy failure): falls back to the legacy
+//     createRunStream path (ANALYZE_SERVICE_URL/analyze/stream + tribe merge).
+//   - POST (no stream): legacy synchronous createRun.
+//   - GET: latestRun.
 const ANALYZE_SERVICE_URL = Deno.env.get("ANALYZE_SERVICE_URL") || "";
 const TRIBE_SERVICE_URL = Deno.env.get("TRIBE_SERVICE_URL") || "";
+const ANT_SHARED_TOKEN = Deno.env.get("ANT_SHARED_TOKEN") || "";
+// Vast box hosting the new self-contained Ant server (/api/analyze multipart SSE).
+// Falls back to the known Vast URL if the orchestrator hasn't set the secret yet.
+const ANT_SERVICE_URL = Deno.env.get("ANT_SERVICE_URL") || "http://72.19.32.135:51980";
 
+// CORS — explicit allowlist. The previous wildcard was usable from any origin
+// (including attacker-controlled pages), letting them mine the public GET for
+// the latest run's intelligence. Allowlist mirrors the Vast box.
+const CORS_ALLOWED_ORIGINS = new Set<string>([
+  "https://ants.ceo",
+  "https://www.ants.ceo",
+  "https://g9jy59jq.insforge.site",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+]);
+
+function corsFor(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin") || "";
+  const allow = CORS_ALLOWED_ORIGINS.has(origin) ? origin : "https://ants.ceo";
+  return {
+    "Access-Control-Allow-Origin": allow,
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Vary": "Origin",
+  };
+}
+
+// Legacy alias kept for the dozens of `...corsHeaders` spreads below. Resolved
+// lazily per-request via a wrapper so we don't break the existing call sites.
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://ants.ceo",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Vary": "Origin",
 };
 
 const STAGES = [
@@ -18,10 +57,11 @@ const STAGES = [
   "Predict retention",
 ];
 
-function json(payload: unknown, status = 200): Response {
+function json(payload: unknown, status = 200, req?: Request): Response {
+  const headers = req ? corsFor(req) : corsHeaders;
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...headers, "Content-Type": "application/json" },
   });
 }
 
@@ -64,7 +104,10 @@ async function runAnalysis(videoMeta: { name: string; size: number; type: string
   try {
     const res = await fetch(`${ANALYZE_SERVICE_URL.replace(/\/$/, "")}/analyze`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(ANT_SHARED_TOKEN ? { "X-Ant-Token": ANT_SHARED_TOKEN } : {}),
+      },
       body: JSON.stringify({
         video_name: videoMeta.name,
         video_size: videoMeta.size,
@@ -94,7 +137,10 @@ async function runTribeBrain(videoUrl: string | null | undefined) {
   try {
     const res = await fetch(`${TRIBE_SERVICE_URL.replace(/\/$/, "")}/tribe-analyze`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(ANT_SHARED_TOKEN ? { "X-Ant-Token": ANT_SHARED_TOKEN } : {}),
+      },
       body: JSON.stringify({ video_url: videoUrl, auth_token: storageToken || null }),
       signal: controller.signal,
     });
@@ -237,6 +283,64 @@ function buildIntelligenceFromPayload(payload: any, fileMeta: { name: string; si
   return { summary, intelligence };
 }
 
+// Proxy a multipart {video} upload to the Vast Ant server's /api/analyze and
+// stream the SSE response straight back to the client. We do NOT buffer the
+// upstream body — just hand `response.body` (a ReadableStream) to the new
+// Response so bytes flow through unchanged. ANT_SHARED_TOKEN is injected
+// server-side; the client never sees it.
+async function proxyAntServerStream(req: Request): Promise<Response> {
+  const contentType = req.headers.get("content-type") || "";
+  if (!contentType.includes("multipart/form-data")) {
+    return json({ ok: false, error: "proxy requires multipart/form-data with video field" }, 400);
+  }
+  // Re-parse and rebuild the multipart so we only forward the `video` field
+  // (drops `metadata` and any other fields Vast doesn't accept) and so Deno
+  // sets a fresh, correct multipart boundary on the outbound request.
+  let videoFile: File | null = null;
+  try {
+    const form = await req.formData();
+    const maybe = form.get("video");
+    if (maybe instanceof File) videoFile = maybe;
+  } catch (e) {
+    return json({ ok: false, error: `multipart parse failed: ${e instanceof Error ? e.message : String(e)}` }, 400);
+  }
+  if (!videoFile) {
+    return json({ ok: false, error: "missing 'video' file field" }, 400);
+  }
+  const outForm = new FormData();
+  outForm.append("video", videoFile, videoFile.name || "video.mp4");
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${ANT_SERVICE_URL.replace(/\/$/, "")}/api/analyze`, {
+      method: "POST",
+      headers: {
+        ...(ANT_SHARED_TOKEN ? { "X-Ant-Token": ANT_SHARED_TOKEN } : {}),
+        Accept: "text/event-stream",
+      },
+      body: outForm,
+    });
+  } catch (e) {
+    return json({ ok: false, stage: "proxy.fetch", error: e instanceof Error ? e.message : String(e) }, 502);
+  }
+
+  if (!upstream.ok || !upstream.body) {
+    const text = await upstream.text().catch(() => "");
+    return json({ ok: false, stage: "proxy.upstream", status: upstream.status, error: text || `ant ${upstream.status}` }, 502);
+  }
+
+  return new Response(upstream.body, {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
 async function createRunStream(req: Request) {
   if (!ANALYZE_SERVICE_URL) {
     return json({ ok: false, error: "ANALYZE_SERVICE_URL not configured" }, 500);
@@ -281,7 +385,11 @@ async function createRunStream(req: Request) {
   // 3. Open upstream stream to the compute service.
   const upstream = await fetch(`${ANALYZE_SERVICE_URL.replace(/\/$/, "")}/analyze/stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      ...(ANT_SHARED_TOKEN ? { "X-Ant-Token": ANT_SHARED_TOKEN } : {}),
+    },
     body: JSON.stringify({
       video_name: fileMeta.name,
       video_size: fileMeta.size,
@@ -493,35 +601,167 @@ async function createRun(req: Request) {
   return json({ ok: true, run: data, stages: STAGES });
 }
 
-async function latestRun() {
+// Public anon-readable GET. Previously returned the full `latestRun` row
+// including the entire `intelligence` blob (transcript text, NIA analysis,
+// persona analytics, video filename). Anyone who hit the URL got the most
+// recent user's analysis, and any new browser tab on ants.ceo cached it into
+// the visitor's localStorage. Cross-user data leak.
+//
+// We can't scope by owner (the DB has no user_id column on
+// viewlytics_analysis_runs — see migrations/20260509225325_*.sql), and adding
+// one + RLS is too large for this audit pass.
+//
+// Mitigation: return ONLY the lightweight fields the UI actually needs to
+// hydrate (status/phase/progress/current_stage + a sanitized summary), and
+// strip filenames + the entire `intelligence` body. The frontend uses this
+// to detect "there's a run in flight" before its own POST. The persisted
+// localStorage path (useIntelligenceData) ignores this response now that
+// `intelligence` is null, so cross-user contamination is impossible.
+async function latestRun(req: Request) {
   const client = getClient();
   const { data, error } = await client.database
     .from("viewlytics_analysis_runs")
-    .select("*")
+    .select("id, status, phase, progress, current_stage, created_at, updated_at, summary")
     .order("created_at", { ascending: false })
     .limit(1);
 
   if (error) {
-    return json({ ok: false, stage: "database.select", error: error.message || String(error) }, 500);
+    return json({ ok: false, stage: "database.select", error: error.message || String(error) }, 500, req);
   }
 
-  return json({
-    ok: true,
-    backend: "insforge",
-    latestRun: Array.isArray(data) ? data[0] || null : null,
-    stages: STAGES,
+  const row = Array.isArray(data) ? data[0] || null : null;
+  // Strip personally identifying fields from the summary too — video_name
+  // could itself leak a brand/campaign identifier (e.g. "acme-q3-launch.mp4").
+  let safeSummary: Record<string, unknown> | null = null;
+  if (row && (row as any).summary && typeof (row as any).summary === "object") {
+    const s = (row as any).summary as Record<string, unknown>;
+    safeSummary = {
+      virality_score: s.virality_score ?? null,
+      positive_rate_pct: s.positive_rate_pct ?? null,
+      mean_retention_proxy: s.mean_retention_proxy ?? null,
+      completed_at: s.completed_at ?? null,
+    };
+  }
+  const safeRow = row
+    ? {
+        id: (row as any).id,
+        status: (row as any).status,
+        phase: (row as any).phase,
+        progress: (row as any).progress,
+        current_stage: (row as any).current_stage,
+        created_at: (row as any).created_at,
+        updated_at: (row as any).updated_at,
+        summary: safeSummary,
+        // Explicitly null so any client expecting `intelligence` knows it
+        // must POST a new run to get its own data.
+        intelligence: null,
+      }
+    : null;
+
+  return json(
+    {
+      ok: true,
+      backend: "insforge",
+      latestRun: safeRow,
+      stages: STAGES,
+      // Tell the frontend not to hydrate this as if it were its own analysis.
+      anonymous: true,
+    },
+    200,
+    req,
+  );
+}
+
+// Proxy interactive brain renders from the Vast box. The frontend embeds these
+// at same-origin URLs so the Vast token / raw Vast IP stay server-side.
+// Matches /brain/<name>.(html|mp4|gif|webm) under the edge function path.
+async function proxyBrainAsset(req: Request, filename: string): Promise<Response> {
+  const cors = corsFor(req);
+  // Sanitize: only allow [a-zA-Z0-9._-], must end in allowed ext, no path traversal.
+  if (!/^[A-Za-z0-9._-]+\.(html|mp4|gif|webm)$/.test(filename) || filename.includes("..")) {
+    return new Response("bad brain filename", { status: 400, headers: cors });
+  }
+  const ext = filename.split(".").pop()?.toLowerCase();
+  const ctype = ext === "mp4"
+    ? "video/mp4"
+    : ext === "gif"
+    ? "image/gif"
+    : ext === "webm"
+    ? "video/webm"
+    : "text/html; charset=utf-8";
+  // Forward Range so the browser's <video> tag can seek/stream chunks rather
+  // than buffer the whole file before play.
+  const range = req.headers.get("range");
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${ANT_SERVICE_URL.replace(/\/$/, "")}/brain/${filename}`, {
+      method: "GET",
+      headers: {
+        ...(ANT_SHARED_TOKEN ? { "X-Ant-Token": ANT_SHARED_TOKEN } : {}),
+        ...(range ? { Range: range } : {}),
+      },
+    });
+  } catch (e) {
+    return json({ ok: false, stage: "brain.proxy.fetch", error: e instanceof Error ? e.message : String(e) }, 502);
+  }
+  const headers: Record<string, string> = {
+    ...cors,
+    "Content-Type": ctype,
+    // Brain UUIDs are unguessable in practice (48 bits of entropy) but the
+    // URLs are bearer-style — anyone who scrapes the URL out of referrer/
+    // screenshots/CDN can re-fetch the file forever. Prevent intermediaries
+    // from caching them so the blast radius is limited to whoever already
+    // has the URL. Real fix (signed URLs) deferred.
+    "Cache-Control": "private, no-store, max-age=0",
+    "Referrer-Policy": "no-referrer",
+  };
+  // Preserve range-related headers when the upstream returns 206.
+  const contentRange = upstream.headers.get("content-range");
+  if (contentRange) headers["Content-Range"] = contentRange;
+  const contentLength = upstream.headers.get("content-length");
+  if (contentLength) headers["Content-Length"] = contentLength;
+  const acceptRanges = upstream.headers.get("accept-ranges");
+  if (acceptRanges) headers["Accept-Ranges"] = acceptRanges;
+  return new Response(upstream.body, {
+    status: upstream.status,
+    headers,
   });
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
-  if (req.method === "GET") return latestRun();
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsFor(req) });
+  // Brain asset proxy: /<fn-path>/brain/<id>.(html|mp4|gif|webm)
+  {
+    const url = new URL(req.url);
+    const brainMatch = url.pathname.match(/\/brain\/([A-Za-z0-9._-]+\.(?:html|mp4|gif|webm))$/);
+    if ((req.method === "GET" || req.method === "HEAD") && brainMatch) {
+      return proxyBrainAsset(req, brainMatch[1]);
+    }
+  }
+  if (req.method === "GET") return latestRun(req);
   if (req.method === "POST") {
     const url = new URL(req.url);
     const wantsStream =
       url.searchParams.get("stream") === "1" ||
       (req.headers.get("accept") || "").includes("text/event-stream");
-    if (wantsStream) return createRunStream(req);
+    if (wantsStream) {
+      // Prefer the Vast multipart proxy when the client sent a real video
+      // file. On any proxy failure (upstream 5xx/auth/network), fall through
+      // to the legacy ANALYZE_SERVICE_URL/analyze/stream JSON path so the
+      // dashboard's demo-video runs (no file) keep working.
+      const ct = req.headers.get("content-type") || "";
+      if (ct.includes("multipart/form-data")) {
+        try {
+          // Clone so the fallback can still read the body if the proxy short-circuits.
+          const proxied = await proxyAntServerStream(req.clone());
+          if (proxied.status < 400) return proxied;
+          console.warn("ant proxy returned", proxied.status, "— falling back to legacy stream");
+        } catch (e) {
+          console.warn("ant proxy threw — falling back to legacy stream:", e);
+        }
+      }
+      return createRunStream(req);
+    }
     return createRun(req);
   }
   return json({ ok: false, error: "Method not allowed" }, 405);

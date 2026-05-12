@@ -21,44 +21,14 @@ import "./personas-exact.css";
 
 const ant = (index = 0) => `/assets/atomic/ants/ant-${String((index % 16) + 1).padStart(2, "0")}.png`;
 
-const fallbackPersonas = [
-  {
-    name: "Creator peers",
-    value: "2,136",
-    share: "23.4%",
-    tone: "green",
-    icon: 4,
-    spark: "M0 28 C18 44 22 20 36 29 S54 14 65 23 S78 9 86 20 S102 12 112 5 S124 31 136 16"
-  },
-  {
-    name: "Skeptical scrollers",
-    value: "3,842",
-    share: "42.1%",
-    tone: "purple",
-    icon: 10,
-    spark: "M0 39 C16 18 24 32 35 21 S52 28 60 12 S76 23 84 4 S102 19 110 8 S126 22 136 10"
-  },
-  {
-    name: "Bargain hunters",
-    value: "2,018",
-    share: "22.1%",
-    tone: "orange",
-    icon: 12,
-    spark: "M0 18 C12 9 19 21 28 14 S43 3 51 16 S64 25 73 11 S89 15 98 7 S118 20 136 12"
-  },
-  {
-    name: "Enthusiastic fans",
-    value: "1,112",
-    share: "12.4%",
-    tone: "blue",
-    icon: 15,
-    spark: "M0 33 C10 16 24 28 36 23 S57 29 70 16 S93 11 104 23 S122 42 136 20"
-  }
-];
-
 const personaTones = ["green", "purple", "orange", "blue"];
 const personaIcons = [4, 10, 12, 15];
-const personaSparks = fallbackPersonas.map((p) => p.spark);
+const personaSparks = [
+  "M0 28 C18 44 22 20 36 29 S54 14 65 23 S78 9 86 20 S102 12 112 5 S124 31 136 16",
+  "M0 39 C16 18 24 32 35 21 S52 28 60 12 S76 23 84 4 S102 19 110 8 S126 22 136 10",
+  "M0 18 C12 9 19 21 28 14 S43 3 51 16 S64 25 73 11 S89 15 98 7 S118 20 136 12",
+  "M0 33 C10 16 24 28 36 23 S57 29 70 16 S93 11 104 23 S122 42 136 20"
+];
 
 function pe_formatCount(value) {
   if (value == null || Number.isNaN(Number(value))) return "--";
@@ -69,7 +39,7 @@ function pe_formatCount(value) {
 }
 
 function buildPersonas(cohorts) {
-  if (!Array.isArray(cohorts) || cohorts.length === 0) return fallbackPersonas;
+  if (!Array.isArray(cohorts) || cohorts.length === 0) return [];
   const total = cohorts.reduce((acc, c) => acc + (Number(c?.personas) || 0), 0) || 1;
   return cohorts.slice(0, 4).map((cohort, index) => ({
     id: cohort?.id,
@@ -107,13 +77,6 @@ const navItems = [
   { id: "videos", label: "Videos", Icon: Film },
   { id: "personas", label: "Personas", Icon: UsersRound, active: true },
   { id: "trends", label: "Trends", Icon: LineChart }
-];
-
-const fallbackClusterData = [
-  { label: "2.1K", name: "Creator peers", tone: "green", x: 22, y: 22, count: 30, icon: 4 },
-  { label: "3.8K", name: "Skeptical scrollers", tone: "purple", x: 75, y: 21, count: 34, icon: 10 },
-  { label: "2.0K", name: "Bargain hunters", tone: "orange", x: 22.5, y: 70, count: 29, icon: 12 },
-  { label: "1.1K", name: "Enthusiastic fans", tone: "blue", x: 76, y: 70, count: 27, icon: 15 }
 ];
 
 const tunnelPaths = [
@@ -163,28 +126,6 @@ const floatingAnts = [
   [72, 53, -28, 1]
 ];
 
-const drivers = [
-  { label: "Loves the magnetic mount", value: "+24%", up: true },
-  { label: "Perfect for creator workflow", value: "+18%", up: true },
-  { label: "Great battery life", value: "+16%", up: true },
-  { label: "Price feels high", value: "-12%", up: false },
-  { label: "Need more color options", value: "-8%", up: false }
-];
-
-const reactions = [
-  ["🔥", "1.2K"],
-  ["👏", "876"],
-  ["❤️", "654"],
-  ["⚡", "321"],
-  ["👀", "210"]
-];
-
-const quotes = [
-  { text: "Exactly what I need for on-the-go shoots.", time: "2m ago", tone: "green", icon: 4 },
-  { text: "Not sure it's worth the price.", time: "4m ago", tone: "purple", icon: 10 },
-  { text: "Waiting for a discount.", time: "6m ago", tone: "orange", icon: 12 },
-  { text: "This will level up my setup!", time: "8m ago", tone: "blue", icon: 15 }
-];
 
 function PersonaCard({ persona, active }) {
   return (
@@ -262,85 +203,109 @@ function Cluster({ cluster }) {
 }
 
 function SentimentPanel({ positivePct, neutralPct, negativePct, sentimentDrivers }) {
-  const pos = positivePct != null ? Math.round(positivePct) : 78;
-  const neu = neutralPct != null ? Math.round(neutralPct) : 15;
-  const neg = negativePct != null ? Math.round(negativePct) : 7;
+  const pos = positivePct != null ? Math.round(positivePct) : null;
+  const neu = neutralPct != null ? Math.round(neutralPct) : null;
+  const neg = negativePct != null ? Math.round(negativePct) : null;
+  if (pos == null && neu == null && neg == null && (!sentimentDrivers || sentimentDrivers.length === 0)) {
+    return null;
+  }
   return (
     <section className="pe-card pe-sentiment-card">
       <h2>
         Positive sentiment <Info size={13} />
       </h2>
-      <div className="pe-sentiment-top">
-        <div className="pe-donut" aria-label={`${pos} percent positive sentiment`}>
-          <Heart size={25} />
-          <strong>{pos}%</strong>
+      {(pos != null || neu != null || neg != null) && (
+        <div className="pe-sentiment-top">
+          {pos != null ? (
+            <div className="pe-donut" aria-label={`${pos} percent positive sentiment`}>
+              <Heart size={25} />
+              <strong>{pos}%</strong>
+            </div>
+          ) : null}
+          <div className="pe-sentiment-bars">
+            {pos != null ? (
+              <div>
+                <span className="pe-face pe-good">☺</span>
+                <p>Positive</p>
+                <b>{pos}%</b>
+                <i style={{ "--w": `${pos}%` }} />
+              </div>
+            ) : null}
+            {neu != null ? (
+              <div>
+                <span className="pe-face pe-neutral">◔</span>
+                <p>Neutral</p>
+                <b>{neu}%</b>
+                <i style={{ "--w": `${neu}%` }} />
+              </div>
+            ) : null}
+            {neg != null ? (
+              <div>
+                <span className="pe-face pe-bad">↯</span>
+                <p>Negative</p>
+                <b>{neg}%</b>
+                <i style={{ "--w": `${neg}%` }} />
+              </div>
+            ) : null}
+          </div>
         </div>
-        <div className="pe-sentiment-bars">
-          <div>
-            <span className="pe-face pe-good">☺</span>
-            <p>Positive</p>
-            <b>{pos}%</b>
-            <i style={{ "--w": `${pos}%` }} />
+      )}
+      {sentimentDrivers && sentimentDrivers.length > 0 && (
+        <>
+          <div className="pe-divider" />
+          <h3>Sentiment drivers</h3>
+          <div className="pe-driver-list">
+            {sentimentDrivers.map((driver) => (
+              <div className={`pe-driver ${driver.up ? "pe-up" : "pe-down"}`} key={driver.label}>
+                <span>{driver.up ? <ArrowUp size={12} /> : <ArrowDown size={12} />}</span>
+                <p>{driver.label}</p>
+                <b>{driver.value}</b>
+              </div>
+            ))}
           </div>
-          <div>
-            <span className="pe-face pe-neutral">◔</span>
-            <p>Neutral</p>
-            <b>{neu}%</b>
-            <i style={{ "--w": `${neu}%` }} />
-          </div>
-          <div>
-            <span className="pe-face pe-bad">↯</span>
-            <p>Negative</p>
-            <b>{neg}%</b>
-            <i style={{ "--w": `${neg}%` }} />
-          </div>
-        </div>
-      </div>
-      <div className="pe-divider" />
-      <h3>Sentiment drivers</h3>
-      <div className="pe-driver-list">
-        {sentimentDrivers.map((driver) => (
-          <div className={`pe-driver ${driver.up ? "pe-up" : "pe-down"}`} key={driver.label}>
-            <span>{driver.up ? <ArrowUp size={12} /> : <ArrowDown size={12} />}</span>
-            <p>{driver.label}</p>
-            <b>{driver.value}</b>
-          </div>
-        ))}
-      </div>
+        </>
+      )}
     </section>
   );
 }
 
 function ReactionsPanel({ reactionPills, quoteList }) {
+  if ((!reactionPills || reactionPills.length === 0) && (!quoteList || quoteList.length === 0)) {
+    return null;
+  }
   return (
     <section className="pe-card pe-reactions-card">
       <h2>
         Top reactions <Info size={13} />
       </h2>
-      <div className="pe-reaction-row">
-        {reactionPills.map(([emoji, amount]) => (
-          <button type="button" key={emoji} aria-label={`${amount} reactions`}>
-            <span>{emoji}</span>
-            {amount}
-          </button>
-        ))}
-      </div>
-      <div className="pe-quotes">
-        {quoteList.map((quote) => (
-          <div className="pe-quote" key={quote.text}>
-            <span className={`pe-quote-bug pe-${quote.tone}`}>
-              <img src={ant(quote.icon)} alt="" />
-            </span>
-            <p>&ldquo;{quote.text}&rdquo;</p>
-            <time>{quote.time}</time>
-          </div>
-        ))}
-      </div>
+      {reactionPills && reactionPills.length > 0 ? (
+        <div className="pe-reaction-row">
+          {reactionPills.map(([emoji, amount]) => (
+            <button type="button" key={emoji} aria-label={`${amount} reactions`}>
+              <span>{emoji}</span>
+              {amount}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {quoteList && quoteList.length > 0 ? (
+        <div className="pe-quotes">
+          {quoteList.map((quote) => (
+            <div className="pe-quote" key={quote.text}>
+              <span className={`pe-quote-bug pe-${quote.tone}`}>
+                <img src={ant(quote.icon)} alt="" />
+              </span>
+              <p>&ldquo;{quote.text}&rdquo;</p>
+              <time>{quote.time}</time>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
 
-function ColonyMap({ clusterData = fallbackClusterData }) {
+function ColonyMap({ clusterData = [] }) {
   return (
     <section className="pe-card pe-map-card">
       <div className="pe-card-head">
@@ -429,66 +394,67 @@ function ColonyMap({ clusterData = fallbackClusterData }) {
 }
 
 function ProfilePanel({ activePersona, simulation }) {
-  const persona = activePersona || {};
-  const keywords = persona.keywords && persona.keywords.length
-    ? persona.keywords.slice(0, 6)
-    : ["Create better content", "Workflow efficiency", "Gear optimization"];
-  const positive = persona.positive_rate_pct != null ? Math.round(persona.positive_rate_pct) : 92;
-  const sharePct = persona.share_rate_pct != null ? Math.round(persona.share_rate_pct) : 78;
+  const persona = activePersona || null;
+  if (!persona) return null;
+  const keywords = persona.keywords && persona.keywords.length ? persona.keywords.slice(0, 6) : [];
   const reactionRates = simulation?.reaction_rates_pct || {};
   const stages = [
-    ["Hook", positive],
-    ["Value", Math.round(reactionRates.like ?? sharePct)],
-    ["Proof", Math.round(reactionRates.comment ?? Math.max(40, positive - 20))],
-    ["CTA", Math.round(reactionRates.share ?? Math.max(20, sharePct - 30))]
-  ];
+    ["Hook", persona.positive_rate_pct != null ? Math.round(persona.positive_rate_pct) : null],
+    ["Value", reactionRates.like != null ? Math.round(reactionRates.like) : null],
+    ["Proof", reactionRates.comment != null ? Math.round(reactionRates.comment) : null],
+    ["CTA", reactionRates.share != null ? Math.round(reactionRates.share) : null]
+  ].filter(([, v]) => v != null);
+  const hasStats = persona.positive_rate_pct != null || persona.share_rate_pct != null || persona.top_reaction;
   return (
     <section className="pe-card pe-profile-card">
       <div className="pe-profile-eyebrow">Active persona</div>
       <div className="pe-profile-title">
-        <h2>{persona.name || "Creator peers"}</h2>
+        {persona.name ? <h2>{persona.name}</h2> : null}
         <span>Active</span>
       </div>
       <div className="pe-profile-bio">
         <div className="pe-profile-avatar">
-          <img src={ant(persona.icon ?? 4)} alt="" />
+          <img src={ant(persona.icon ?? 0)} alt="" />
         </div>
-        <p>{persona.value ? `${persona.value} simulated viewers in this cohort.` : "Tech-savvy creators who value specs, workflow fit, and creator-focused features."}</p>
+        {persona.value ? <p>{persona.value} simulated viewers in this cohort.</p> : null}
       </div>
-      <div className="pe-stats-grid">
-        <div>
-          <span>Positive</span>
-          <b>{persona.positive_rate_pct != null ? `${Math.round(persona.positive_rate_pct)}%` : "--"}</b>
+      {hasStats && (
+        <div className="pe-stats-grid">
+          {persona.positive_rate_pct != null ? (
+            <div><span>Positive</span><b>{`${Math.round(persona.positive_rate_pct)}%`}</b></div>
+          ) : null}
+          {persona.share_rate_pct != null ? (
+            <div><span>Share</span><b>{`${Math.round(persona.share_rate_pct)}%`}</b></div>
+          ) : null}
+          {persona.top_reaction ? (
+            <div><span>Top reaction</span><b>{persona.top_reaction}</b></div>
+          ) : null}
         </div>
-        <div>
-          <span>Share</span>
-          <b>{persona.share_rate_pct != null ? `${Math.round(persona.share_rate_pct)}%` : "--"}</b>
+      )}
+      {keywords.length > 0 && (
+        <div className="pe-profile-section">
+          <h3>Key motivations</h3>
+          <div className="pe-chip-row">
+            {keywords.map((kw) => (
+              <span key={kw}>{kw}</span>
+            ))}
+          </div>
         </div>
-        <div>
-          <span>Top reaction</span>
-          <b>{persona.top_reaction || "--"}</b>
-        </div>
-      </div>
-      <div className="pe-profile-section">
-        <h3>Key motivations</h3>
-        <div className="pe-chip-row">
-          {keywords.map((kw) => (
-            <span key={kw}>{kw}</span>
+      )}
+      {stages.length > 0 && (
+        <div className="pe-profile-section">
+          <h3>Top engagement stages</h3>
+          {stages.map(([label, value]) => (
+            <div className="pe-stage-row" key={label}>
+              <span>{label}</span>
+              <i>
+                <em style={{ width: `${value}%` }} />
+              </i>
+              <b>{value}%</b>
+            </div>
           ))}
         </div>
-      </div>
-      <div className="pe-profile-section">
-        <h3>Top engagement stages</h3>
-        {stages.map(([label, value]) => (
-          <div className="pe-stage-row" key={label}>
-            <span>{label}</span>
-            <i>
-              <em style={{ width: `${value}%` }} />
-            </i>
-            <b>{value}%</b>
-          </div>
-        ))}
-      </div>
+      )}
       <button className="pe-profile-button" type="button">
         View full profile <ArrowRight size={16} />
       </button>
@@ -585,13 +551,6 @@ function Sidebar() {
           />
         ))}
       </div>
-      <div className="pe-plan-card">
-        <span />
-        <div>
-          <strong>Creator Lab</strong>
-          <p>Pro Plan</p>
-        </div>
-      </div>
     </aside>
   );
 }
@@ -606,18 +565,18 @@ export default function PersonasExact({ intelligence }) {
   const clusterData = buildClusterData(personasList);
   const activePersona = personasList[0];
 
-  // Sentiment drivers: use top traits if available, else fall back
+  // Sentiment drivers: only from real top_traits
   const sentimentDrivers = topTraits.length
-    ? topTraits.slice(0, 5).map((trait) => ({
-        label: String(trait?.trait || "trait"),
-        value: trait?.share_rate_pct != null
-          ? `${trait.share_rate_pct >= 0 ? "+" : ""}${Math.round(Number(trait.share_rate_pct))}%`
-          : "--",
-        up: (Number(trait?.positive_rate_pct) || 0) >= 50
-      }))
-    : drivers;
+    ? topTraits.slice(0, 5)
+        .filter((trait) => trait?.share_rate_pct != null)
+        .map((trait) => ({
+          label: String(trait?.trait || "trait"),
+          value: `${trait.share_rate_pct >= 0 ? "+" : ""}${Math.round(Number(trait.share_rate_pct))}%`,
+          up: (Number(trait?.positive_rate_pct) || 0) >= 50
+        }))
+    : [];
 
-  // Reactions: derive from cohort top_reaction counts, else fall back
+  // Reactions: derive from cohort top_reaction counts
   const reactionPills = (() => {
     const tally = new Map();
     cohorts.forEach((cohort) => {
@@ -627,10 +586,10 @@ export default function PersonasExact({ intelligence }) {
       });
     });
     const sorted = [...tally.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-    return sorted.length ? sorted.map(([emoji, count]) => [emoji, pe_formatCount(count)]) : reactions;
+    return sorted.length ? sorted.map(([emoji, count]) => [emoji, pe_formatCount(count)]) : [];
   })();
 
-  // Quotes: synthesize from cohort labels + top reaction
+  // Quotes: synthesize from cohort labels + top reaction (only when we have cohorts)
   const quoteList = cohorts.length
     ? cohorts.slice(0, 4).map((cohort, index) => ({
         text: cohort?.keywords?.[0]
@@ -640,12 +599,14 @@ export default function PersonasExact({ intelligence }) {
         tone: personaTones[index % personaTones.length],
         icon: personaIcons[index % personaIcons.length]
       }))
-    : quotes;
+    : [];
 
   // Sentiment pcts derived from simulation reaction rates
-  const positivePct = simulation?.positive_rate_pct ?? reactionRates.like;
-  const negativePct = reactionRates.neutral != null ? Math.max(0, 100 - (positivePct ?? 78) - (reactionRates.neutral ?? 15)) : null;
-  const neutralPct = reactionRates.neutral;
+  const positivePct = simulation?.positive_rate_pct ?? reactionRates.like ?? null;
+  const neutralPct = reactionRates.neutral != null ? reactionRates.neutral : null;
+  const negativePct = neutralPct != null && positivePct != null
+    ? Math.max(0, 100 - positivePct - neutralPct)
+    : null;
 
   const personaCount = simulation?.persona_count;
   const subtitle = personaCount != null
@@ -665,9 +626,11 @@ export default function PersonasExact({ intelligence }) {
             <p>{subtitle}</p>
           </div>
           <div className="pe-header-actions">
-            <button type="button" className="pe-sim-select">
-              <i /> Simulation: {intelligence?.brain?.summary?.simulation_label || "Cloud cohort run"}
-            </button>
+            {intelligence?.brain?.summary?.simulation_label ? (
+              <button type="button" className="pe-sim-select">
+                <i /> Simulation: {intelligence.brain.summary.simulation_label}
+              </button>
+            ) : null}
             <button type="button">
               <CalendarDays size={17} /> Last 7 days <ChevronDown size={15} />
             </button>

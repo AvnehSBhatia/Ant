@@ -138,50 +138,6 @@
   transform: translateX(2px);
 }
 
-.te-account {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  gap: 11px;
-  align-items: center;
-  margin-top: auto;
-  padding: 12px;
-  border: 1px solid rgba(207, 218, 199, 0.9);
-  border-radius: 16px;
-  background: rgba(255, 255, 250, 0.84);
-  box-shadow: 0 9px 24px rgba(24, 31, 20, 0.07);
-}
-
-.te-avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, rgba(255, 246, 175, 0.95), transparent 28%),
-    linear-gradient(135deg, #6cab41, #2e701f);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4), 0 8px 16px rgba(46, 112, 31, 0.18);
-}
-
-.te-account strong,
-.te-account small {
-  display: block;
-  min-width: 0;
-}
-
-.te-account strong {
-  overflow: hidden;
-  font-size: 15px;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.te-account small {
-  margin-top: 2px;
-  color: var(--te-soft-ink);
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .te-main {
   position: relative;
   min-width: 980px;
@@ -1245,10 +1201,6 @@
   .te-nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-top: 18px;
-  }
-
-  .te-account {
-    margin-top: 16px;
   }
 
   .te-main {

@@ -1,0 +1,24 @@
+# Backend / compute service code — not part of the frontend deploy
+server/
+insforge/compute/
+insforge/functions/
+
+# Reference clones, scratch, qa output
+_remote/
+_scan/
+.qa/
+
+# Local artifacts
+*.log
+vite.err.log
+vite.log
+tmp-*.png
+tmp-*.json
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Pre-rendered TribeV2 brain PNG frames — no longer used at runtime
+# (brain rendering happens via cloud per-video now)
+public/assets/tribev2/brain-frame-*.png

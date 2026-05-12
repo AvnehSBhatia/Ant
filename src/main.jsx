@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import VideosExact from "./generated-pages/VideosExact.jsx";
 import PersonasExact from "./generated-pages/PersonasExact.jsx";
 import TrendsExact from "./generated-pages/TrendsExact.jsx";
+import TribeBrain3D from "./TribeBrain3D.jsx";
 import {
   Activity,
   ArrowRight,
@@ -27,6 +27,7 @@ import {
   LineChart,
   Lock,
   Mail,
+  Maximize2,
   Menu,
   MessageSquare,
   MoreVertical,
@@ -68,9 +69,13 @@ const INSFORGE_ANALYSIS_FUNCTION_URL =
   import.meta.env.VITE_INSFORGE_ANALYSIS_FUNCTION_URL ||
   "https://g9jy59jq.functions.insforge.app/viewlytics-analysis";
 
-const ANT_SERVICE_URL =
-  import.meta.env.VITE_ANT_SERVICE_URL ||
-  "http://72.19.32.135:51980";
+const INTELLIGENCE_STORAGE_KEY = "viewlytics_intelligence_v1";
+
+// The frontend MUST NOT talk to the Vast Ant box directly — that box is
+// token-gated by X-Ant-Token, and we will not ship that secret in a public
+// bundle. All compute calls go through INSFORGE_ANALYSIS_FUNCTION_URL, which
+// proxies multipart {video} uploads to Vast server-side and pipes the SSE
+// response back. Do not reintroduce a VITE_ANT_SERVICE_URL.
 
 // True only when the brain payload is real per-video data, not the bundled
 // fallback. Accepts:
@@ -92,7 +97,6 @@ const navItems = [
 const dashboardNav = [
   { id: "dashboard", label: "Dashboard", Icon: Grid2X2 },
   { id: "simulations", label: "Simulations", Icon: Gauge },
-  { id: "videos", label: "Videos", Icon: Film },
   { id: "personas", label: "Personas", Icon: UsersRound },
   { id: "trends", label: "Trends", Icon: LineChart }
 ];
@@ -113,13 +117,6 @@ const cohorts = [
   { name: "Skeptical scrollers", score: 41, hold: 31, tone: "red", viewers: "2,500" }
 ];
 
-const personaRows = [
-  { name: "Gen Z trend-seekers", positive: 82, neutral: 14, negative: 4, tone: "green" },
-  { name: "Budget-conscious buyers", positive: 64, neutral: 24, negative: 12, tone: "gold" },
-  { name: "Creator peers", positive: 76, neutral: 18, negative: 6, tone: "blue" },
-  { name: "Skeptical scrollers", positive: 41, neutral: 32, negative: 27, tone: "red" }
-];
-
 const stages = [
   ["Upload video", "Summer Launch Reel.mp4", Upload],
   ["Chunk scenes", "15 scenes", Grid2X2],
@@ -127,37 +124,6 @@ const stages = [
   ["Analyze pacing", "Tempo + beats", Gauge],
   ["Deploy ant swarm", "10,000 viewers", UsersRound],
   ["Predict retention", "In progress", LineChart]
-];
-
-const simulationRuns = [
-  { title: "Summer Launch Reel", status: "Live", video: "0:15 vertical", viewers: "10,000", score: 82, hold: 67, lift: "+19%", tone: "green", marker: "hook" },
-  { title: "Creator Tool Teaser", status: "Queued", video: "0:22 vertical", viewers: "6,400", score: 74, hold: 61, lift: "+11%", tone: "blue", marker: "rewatch" },
-  { title: "UGC Problem/Solution", status: "Complete", video: "0:31 square", viewers: "12,800", score: 69, hold: 54, lift: "+8%", tone: "gold", marker: "share" },
-  { title: "Founder Cold Open", status: "Draft", video: "0:18 vertical", viewers: "4,000", score: 57, hold: 43, lift: "-3%", tone: "red", marker: "dropoff" }
-];
-
-const videoLibrary = [
-  { title: "Summer Launch Reel", format: "9:16", duration: "0:15", score: 82, scenes: 15, tone: "green", tags: ["Hook", "Launch", "Fast edit"] },
-  { title: "Creator Tool Teaser", format: "9:16", duration: "0:22", score: 74, scenes: 18, tone: "blue", tags: ["Demo", "Voiceover", "CTA"] },
-  { title: "UGC Problem/Solution", format: "1:1", duration: "0:31", score: 69, scenes: 22, tone: "gold", tags: ["Pain point", "Before/after"] },
-  { title: "Founder Cold Open", format: "9:16", duration: "0:18", score: 57, scenes: 11, tone: "red", tags: ["Founder", "Trust"] },
-  { title: "Trend Remix Cut", format: "9:16", duration: "0:12", score: 88, scenes: 9, tone: "green", tags: ["Trend", "Audio", "Share"] },
-  { title: "Feature Carousel", format: "4:5", duration: "0:26", score: 71, scenes: 16, tone: "blue", tags: ["Feature", "Educate"] }
-];
-
-const trendSignals = [
-  { label: "POV cold opens", lift: "+24%", tone: "green" },
-  { label: "Receipt-style proof", lift: "+18%", tone: "gold" },
-  { label: "Comment-to-video", lift: "+15%", tone: "blue" },
-  { label: "Silent captions", lift: "+11%", tone: "green" },
-  { label: "Overproduced intro", lift: "-9%", tone: "red" }
-];
-
-const settingsRows = [
-  { title: "Simulation model", value: "Swarm v0.9", detail: "Balanced speed and reasoning", icon: BrainCircuit },
-  { title: "Default viewers", value: "10,000 ants", detail: "Across 4 synthetic cohorts", icon: UsersRound },
-  { title: "Privacy mode", value: "Pre-launch vault", detail: "No external publishing hooks", icon: ShieldCheck },
-  { title: "Integrations", value: "TikTok, Reels", detail: "Exports ready for creator ops", icon: Layers3 }
 ];
 
 const atomic = {
@@ -203,8 +169,6 @@ const flowPaths = [
   "M8 302 C132 334 238 276 374 312 S570 372 734 328 S884 294 984 316"
 ];
 
-const chartPath = "M14 44 C86 62 104 134 156 126 C210 118 236 154 286 178 C340 202 374 238 438 224 C498 211 532 196 596 212 C668 234 716 250 786 238 C840 228 872 250 904 262";
-
 const backgroundPaths = [
   "M-40 96 C142 34 246 196 386 118 C530 38 658 46 810 112 C934 166 1048 110 1110 52",
   "M-42 238 C104 298 216 178 366 238 C522 302 644 176 800 228 C944 274 1034 214 1112 270",
@@ -212,39 +176,8 @@ const backgroundPaths = [
   "M36 610 C178 506 314 578 462 516 C608 456 714 574 872 512 C986 468 1062 494 1136 438"
 ];
 
-const workspacePaths = [
-  "M28 86 C174 28 256 130 392 94 S608 36 748 84 S896 136 980 78",
-  "M26 164 C158 222 282 118 430 176 S612 248 766 174 S900 112 980 164",
-  "M26 252 C162 200 274 286 424 246 S624 184 766 256 S902 310 980 240",
-  "M28 334 C162 386 292 306 444 344 S650 420 782 350 S916 302 980 356"
-];
-
-const videoPaths = [
-  "M18 78 C120 30 190 108 292 76 S470 34 582 84 S740 134 860 78",
-  "M18 172 C126 222 210 126 322 178 S492 238 610 180 S746 132 860 166",
-  "M18 256 C134 220 220 292 342 256 S500 202 620 262 S750 304 860 246"
-];
-
-const personaPaths = [
-  "M54 208 C152 82 282 74 366 186 S560 330 704 174 S850 76 948 220",
-  "M82 324 C210 220 320 358 454 278 S642 134 760 276 S882 388 948 302",
-  "M106 112 C250 210 372 142 506 172 S680 254 814 150 S916 94 974 134"
-];
-
-const trendPaths = [
-  "M20 292 C126 266 174 202 256 198 C350 192 374 122 464 118 C560 114 608 72 704 84 C804 96 846 48 960 56",
-  "M20 326 C142 310 220 288 322 262 C418 238 492 244 590 204 C704 158 800 174 960 116",
-  "M20 242 C142 248 228 232 330 218 C456 202 560 238 664 188 C760 142 844 150 960 98"
-];
-
-const settingsPaths = [
-  "M42 110 C182 62 300 154 444 110 S662 58 820 118 S932 172 984 126",
-  "M42 218 C178 274 292 180 438 224 S658 306 820 218 S934 158 984 210",
-  "M42 326 C186 280 314 366 456 326 S676 252 828 332 S938 394 984 344"
-];
-
 function useRoute() {
-  const validRoutes = new Set(["landing", "login", "dashboard", "simulations", "videos", "personas", "trends", "flow"]);
+  const validRoutes = new Set(["landing", "login", "dashboard", "simulations", "personas", "trends", "flow"]);
   const getRoute = () => {
     const hashRoute = window.location.hash.replace("#", "") || "landing";
     return validRoutes.has(hashRoute) ? hashRoute : "dashboard";
@@ -265,7 +198,7 @@ function useRoute() {
   return [route, go];
 }
 
-const PROTECTED_ROUTES = new Set(["dashboard", "simulations", "videos", "personas", "trends", "flow"]);
+const PROTECTED_ROUTES = new Set(["dashboard", "simulations", "personas", "trends", "flow"]);
 
 function useAuthState() {
   // null = unknown / loading, false = no user, object = user
@@ -306,7 +239,7 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [displayRoute, setDisplayRoute] = useState(route);
   const [isExiting, setIsExiting] = useState(false);
-  const intelligence = useIntelligenceData();
+  const { data: intelligence, clear: clearIntelligence } = useIntelligenceData();
   const { user, loading, setUser } = useAuthState();
 
   // Gate protected routes
@@ -345,25 +278,46 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [displayRoute, route]);
 
+  // While the auth check is in flight, render nothing for protected routes.
+  // Previously the page components mounted in parallel with `authGetCurrentUser`
+  // and fired their own network requests with whatever token was in
+  // localStorage — including stale tokens from a logged-out session. Holding
+  // the render until `loading === false` makes the gate single-source-of-truth.
+  if (loading && PROTECTED_ROUTES.has(displayRoute)) {
+    return (
+      <main className="app-shell">
+        <div className="page-glow" />
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <div className="page-glow" />
       {user && PROTECTED_ROUTES.has(displayRoute) ? (
-        <button
-          className="logout-button floating-signout"
-          onClick={handleSignOut}
-          title={user.email || "Sign out"}
-        >
-          Sign out
-        </button>
+        <>
+          <button
+            className="logout-button floating-clear-intel"
+            onClick={clearIntelligence}
+            title="Clear saved analysis"
+          >
+            Clear saved analysis
+          </button>
+          <button
+            className="logout-button floating-signout"
+            onClick={handleSignOut}
+            title={user.email || "Sign out"}
+          >
+            Sign out
+          </button>
+        </>
       ) : null}
 
       <section className={`page-stage ${isExiting ? "is-exiting" : "is-entering"}`} key={displayRoute}>
-        {displayRoute === "landing" && <LandingPage go={go} />}
+        {displayRoute === "landing" && <LandingPage go={go} user={user} />}
         {displayRoute === "login" && <LoginPage go={go} onSignedIn={handleSignedIn} />}
         {displayRoute === "dashboard" && <DashboardPage go={go} intelligence={intelligence} />}
         {displayRoute === "simulations" && <ExactPageShell active="simulations" go={go} intelligence={intelligence}><FlowPage go={go} embedded intelligence={intelligence} /></ExactPageShell>}
-        {displayRoute === "videos" && <ExactPageShell active="videos" go={go} intelligence={intelligence}><VideosExact intelligence={intelligence} /></ExactPageShell>}
         {displayRoute === "personas" && <ExactPageShell active="personas" go={go} intelligence={intelligence}><PersonasExact intelligence={intelligence} /></ExactPageShell>}
         {displayRoute === "trends" && <ExactPageShell active="trends" go={go} intelligence={intelligence}><TrendsExact intelligence={intelligence} /></ExactPageShell>}
         {displayRoute === "flow" && <FlowPage go={go} intelligence={intelligence} />}
@@ -375,22 +329,59 @@ function App() {
 function useIntelligenceData() {
   const [data, setData] = useState(null);
 
-  // Listen for streaming-merged intelligence dispatched from FlowPage so dashboards
-  // see the freshly-merged tribev2 payload without a page reload.
+  // 1. On mount: restore the most-recent analysis from THIS browser's
+  // localStorage only. We used to fall through to the public edge function
+  // GET (`viewlytics-analysis`) and hydrate whatever `latestRun.intelligence`
+  // it returned. That endpoint is anon-readable and returns the most-recent
+  // run for the entire deployment — so a fresh browser opening ants.ceo would
+  // ingest the previous user's transcript/NIA/persona data into its own
+  // localStorage and render it as if it were their own analysis. The edge
+  // function now strips `intelligence` from anon GETs, but we also remove the
+  // hydration branch here so this can't regress if the server side ever
+  // softens.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(INTELLIGENCE_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && (parsed.simulation || parsed.brain)) {
+          setData(parsed);
+        }
+      }
+    } catch (_) {
+      // corrupted entry — ignore. We intentionally do NOT fall through to the
+      // public GET; that endpoint is unauthenticated and would cross-contaminate.
+    }
+  }, []);
+
+  // 2. Listen for streaming-merged intelligence dispatched from FlowPage so
+  // dashboards see the freshly-merged tribev2 payload without a page reload,
+  // and persist each merged snapshot to localStorage.
   useEffect(() => {
     const handler = (event) => {
       const payload = event?.detail;
       if (!payload) return;
+      if (typeof window !== "undefined" && window?.console) {
+        console.debug(
+          "[useIntelligenceData] received cloud-intelligence-updated",
+          "| brain.source:", payload?.brain?.source,
+          "| retention pts:", payload?.brain?.retention_curve?.length || 0
+        );
+      }
       setData((prev) => {
         const cloud = prev?.cloud || { connected: true, endpoint: INSFORGE_ANALYSIS_FUNCTION_URL };
-        return {
+        // Preserve the inner `brain` block verbatim from the event payload —
+        // its `source` field ("…re-warped…") is what gates BrainActivityPanel.
+        // Only fall back to prev.brain if payload truly omits it.
+        const nextBrain = payload.brain ? payload.brain : (prev?.brain || {});
+        const merged = {
           ...(prev || {}),
           ...payload,
           summary: { ...(prev?.summary || {}), ...(payload.summary || {}) },
           videos: payload.videos || prev?.videos || { count: 0, top: [], terms: [], hashtags: [] },
           keyword_sets: payload.keyword_sets || prev?.keyword_sets || [],
           simulation: payload.simulation || prev?.simulation || {},
-          brain: payload.brain || prev?.brain || {},
+          brain: nextBrain,
           insights: payload.insights || prev?.insights || [],
           trends: payload.trends || prev?.trends || [],
           model: payload.model || prev?.model || {},
@@ -399,88 +390,24 @@ function useIntelligenceData() {
           cloudRun: { ...(prev?.cloudRun || {}), intelligence: payload },
           source: payload.source || "insforge-stream-merge",
         };
+        try {
+          localStorage.setItem(INTELLIGENCE_STORAGE_KEY, JSON.stringify(merged));
+        } catch (_) {
+          // quota/serialize errors are non-fatal — keep in-memory state
+        }
+        return merged;
       });
     };
     window.addEventListener("cloud-intelligence-updated", handler);
     return () => window.removeEventListener("cloud-intelligence-updated", handler);
   }, []);
 
-  useEffect(() => {
-    let alive = true;
-    const localData = fetch("/data/viewlytics-intelligence.json", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .catch(() => null);
-    const cloudData = fetch(INSFORGE_ANALYSIS_FUNCTION_URL, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .catch(() => null);
+  const clear = () => {
+    try { localStorage.removeItem(INTELLIGENCE_STORAGE_KEY); } catch (_) {}
+    setData(null);
+  };
 
-    Promise.all([localData, cloudData])
-      .then(([localPayload, cloudPayload]) => {
-        if (!alive) return;
-        const latestRun = cloudPayload?.latestRun || null;
-        const cloudIntel = latestRun?.intelligence || null;
-        const cloudIsFull =
-          cloudIntel &&
-          cloudIntel.simulation?.cohorts?.length &&
-          cloudIntel.brain?.retention_curve?.length;
-        const cloudInfo = {
-          connected: Boolean(latestRun || cloudPayload?.ok),
-          endpoint: INSFORGE_ANALYSIS_FUNCTION_URL,
-          latestRun,
-        };
-
-        if (cloudIsFull) {
-          setData({
-            ...(localPayload || {}),
-            ...cloudIntel,
-            summary: { ...(localPayload?.summary || {}), ...(latestRun?.summary || {}) },
-            videos: cloudIntel.videos || localPayload?.videos || { count: 0, top: [], terms: [], hashtags: [] },
-            keyword_sets: cloudIntel.keyword_sets || localPayload?.keyword_sets || [],
-            simulation: cloudIntel.simulation || localPayload?.simulation || {},
-            brain: cloudIntel.brain || localPayload?.brain || {},
-            insights: cloudIntel.insights || localPayload?.insights || [],
-            trends: cloudIntel.trends || localPayload?.trends || [],
-            model: cloudIntel.model || localPayload?.model || {},
-            nia: cloudIntel.nia || localPayload?.nia || {},
-            cloud: cloudInfo,
-            cloudRun: latestRun,
-            source: "insforge-cloud",
-          });
-          return;
-        }
-
-        // Fallback: cloud incomplete or absent — use local with whatever cloud summary exists
-        if (!localPayload) {
-          setData(latestRun ? { cloud: cloudInfo, cloudRun: latestRun, source: "insforge-cloud-summary-only" } : null);
-          return;
-        }
-        if (latestRun) {
-          setData({
-            ...localPayload,
-            summary: { ...(localPayload.summary || {}), ...(latestRun.summary || {}) },
-            simulation: { ...(localPayload.simulation || {}), ...((latestRun.intelligence || {}).simulation || {}) },
-            brain: {
-              ...(localPayload.brain || {}),
-              summary: { ...(localPayload.brain?.summary || {}), ...((latestRun.intelligence || {}).brain?.summary || {}) },
-              source: (latestRun.intelligence || {}).brain?.source || localPayload.brain?.source,
-            },
-            cloud: cloudInfo,
-            cloudRun: latestRun,
-            source: latestRun?.intelligence?.source || "insforge-cloud-partial",
-          });
-        } else {
-          setData({ ...localPayload, cloud: cloudInfo, source: "local" });
-        }
-      })
-      .catch(() => {
-        if (alive) setData(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  return data;
+  return { data, clear };
 }
 
 function ExactPageShell({ active, go, children, intelligence }) {
@@ -525,7 +452,6 @@ function ExactSidebar({ active, go }) {
           />
         ))}
       </div>
-      <div className="exact-account-card"><span /><div><strong>Creator Lab</strong><small>Pro Plan</small></div></div>
     </aside>
   );
 }
@@ -653,7 +579,7 @@ function ColonyBackdrop({ id }) {
   );
 }
 
-function LandingPage({ go }) {
+function LandingPage({ go, user }) {
   const landingRef = useRef(null);
   const moveBackdrop = (event) => {
     const target = landingRef.current;
@@ -680,11 +606,11 @@ function LandingPage({ go }) {
           <h1>Predict the post before you post.</h1>
           <p>Synthetic viewer swarms test your video for retention, sentiment, and virality in under 60 seconds.</p>
           <div className="hero-actions">
-            <button className="primary-button" onClick={() => go("flow")}>
+            <button className="primary-button" onClick={() => go(user ? "dashboard" : "login")}>
               Run a simulation
               <MiniAnt index={2} />
             </button>
-            <button className="secondary-button" onClick={() => go("dashboard")}>
+            <button className="secondary-button" onClick={() => go(user ? "dashboard" : "login")}>
               View demo
               <CirclePlay size={17} />
             </button>
@@ -1066,427 +992,7 @@ function DashboardSidebar({ active, go }) {
           </button>
         ))}
       </nav>
-      <div className="account-chip"><span /><div><strong>Creator Lab</strong><small>Pro Plan</small></div></div>
     </aside>
-  );
-}
-
-function WorkspacePage({ section, go }) {
-  const Page = {
-    simulations: SimulationsPage,
-    videos: VideosPage,
-    personas: PersonasPage,
-    trends: TrendsPage
-  }[section] || SimulationsPage;
-
-  return (
-    <div className="dashboard-layout workspace-layout">
-      <DashboardSidebar active={section} go={go} />
-      <section className={`dashboard-main workspace-main workspace-${section}`}>
-        <Page go={go} />
-      </section>
-    </div>
-  );
-}
-
-function WorkspaceHeader({ icon: Icon, eyebrow, title, description, children }) {
-  return (
-    <div className="workspace-header">
-      <div>
-        <span className="workspace-eyebrow">{Icon && <Icon size={15} />} {eyebrow}</span>
-        <h1>{title}</h1>
-        <p>{description}</p>
-      </div>
-      <div className="workspace-actions">{children}</div>
-    </div>
-  );
-}
-
-function SimulationsPage({ go }) {
-  const [activeRun, setActiveRun] = useState(0);
-  const run = simulationRuns[activeRun];
-
-  return (
-    <div className="workspace-page">
-      <WorkspaceHeader
-        icon={Gauge}
-        eyebrow="Simulation control"
-        title="Simulations"
-        description="Launch synthetic viewer colonies, watch their route choices, and compare what each swarm predicts before the post goes live."
-      >
-        <button className="secondary-button compact"><Pause size={15} /> Pause swarm</button>
-        <button className="primary-button" onClick={() => go("flow")}><Zap size={16} /> Run swarm</button>
-      </WorkspaceHeader>
-
-      <div className="workspace-stats">
-        <MetricCard label="Active route" value={run.status} note={run.title} />
-        <MetricCard label="Synthetic viewers" value={run.viewers} note="4 persona hives" />
-        <MetricCard label="Virality" value={run.score} suffix="/100" spark />
-        <MetricCard label="3s hold" value={run.hold} suffix="%" note={`${run.lift} cohort lift`} />
-      </div>
-
-      <div className="simulations-layout">
-        <article className="analytics-panel swarm-map-panel">
-          <div className="panel-heading">
-            <h2>{run.title} route map</h2>
-            <span><i /> {run.status}</span>
-          </div>
-          <div className="workspace-route-map">
-            <RouteAnts id="simulation-workspace" paths={workspacePaths} count={138} className="workspace-routes" viewBox="0 0 1000 420" />
-            {[
-              ["upload", "Upload", "12%", "18%", "green"],
-              ["transcript", "Scene read", "34%", "58%", "gold"],
-              ["pacing", "Pacing split", "62%", "32%", "blue"],
-              ["flag", "Forecast", "84%", "67%", "green"]
-            ].map(([marker, label, left, top, tone]) => (
-              <div className={`route-node ${tone}`} style={{ left, top }} key={label}>
-                <MarkerAsset name={marker} />
-                <strong>{label}</strong>
-                <StaticCluster count={tone === "green" ? 18 : 12} tone={tone} />
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="analytics-panel run-list-panel">
-          <div className="panel-heading"><h2>Runs</h2><span>{simulationRuns.length} active</span></div>
-          <div className="run-list">
-            {simulationRuns.map((item, index) => (
-              <button className={`run-card ${item.tone} ${activeRun === index ? "active" : ""}`} key={item.title} onClick={() => setActiveRun(index)}>
-                <MarkerAsset name={item.marker} />
-                <span><strong>{item.title}</strong><small>{item.video} - {item.viewers}</small></span>
-                <b>{item.score}</b>
-              </button>
-            ))}
-          </div>
-        </article>
-
-        <article className="analytics-panel pipeline-panel">
-          <div className="panel-heading"><h2>Scene pipeline</h2><span><Clock3 size={14} /> 00:42 ETA</span></div>
-          <div className="pipeline-list">
-            {stages.map(([title, detail, Icon], index) => (
-              <div className={index < 4 ? "done" : index === 4 ? "active" : ""} key={title}>
-                <span>{index < 4 ? <Check size={12} /> : index + 1}</span>
-                <Icon size={16} />
-                <strong>{title}</strong>
-                <small>{detail}</small>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="analytics-panel simulation-cohorts">
-          <div className="panel-heading"><h2>Cohort lift</h2><span>Predicted</span></div>
-          <div className="cohort-grid compact-cohorts">
-            {cohorts.map((cohort, index) => (
-              <div className={`cohort-card ${cohort.tone}`} key={cohort.name}>
-                <MiniAnt index={index + activeRun} />
-                <h3>{cohort.name}</h3>
-                <strong>{cohort.score + (activeRun % 2)}</strong><small>Score</small>
-              </div>
-            ))}
-          </div>
-        </article>
-      </div>
-    </div>
-  );
-}
-
-function VideosPage() {
-  const [selected, setSelected] = useState(0);
-  const [query, setQuery] = useState("");
-  const filteredVideos = videoLibrary.filter((video) => video.title.toLowerCase().includes(query.toLowerCase()) || video.tags.join(" ").toLowerCase().includes(query.toLowerCase()));
-  const activeVideo = videoLibrary[selected] || videoLibrary[0];
-
-  return (
-    <div className="workspace-page">
-      <WorkspaceHeader
-        icon={Film}
-        eyebrow="Video library"
-        title="Videos"
-        description="Every upload becomes a searchable scene map with transcript signals, thumbnail context, and ant attention trails."
-      >
-        <button className="secondary-button compact"><Filter size={15} /> Filter</button>
-        <button className="primary-button"><Upload size={16} /> Upload video</button>
-      </WorkspaceHeader>
-
-      <div className="videos-layout">
-        <article className="analytics-panel video-library-panel">
-          <div className="workspace-search">
-            <Search size={17} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search videos, hooks, transcripts" />
-          </div>
-          <div className="video-grid">
-            {filteredVideos.map((video) => {
-              const realIndex = videoLibrary.findIndex((item) => item.title === video.title);
-              return (
-                <button className={`video-card ${video.tone} ${selected === realIndex ? "active" : ""}`} key={video.title} onClick={() => setSelected(realIndex)}>
-                  <img src={atomic.thumb(realIndex)} alt="" />
-                  <span><strong>{video.title}</strong><small>{video.duration} - {video.scenes} scenes - {video.format}</small></span>
-                  <b>{video.score}</b>
-                </button>
-              );
-            })}
-          </div>
-        </article>
-
-        <article className="analytics-panel video-detail-panel">
-          <div className="panel-heading">
-            <h2>{activeVideo.title}</h2>
-            <span><i /> Attention path</span>
-          </div>
-          <div className="video-preview">
-            <img src={selected === 0 ? atomic.poster : atomic.thumb(selected)} alt="" />
-            <RouteAnts id="video-preview-routes" paths={videoPaths} count={52} className="video-routes" fast viewBox="0 0 900 330" />
-            <div className="video-score-badge"><strong>{activeVideo.score}</strong><small>viral fit</small></div>
-          </div>
-          <div className="scene-strip">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <button className={index === 1 ? "active" : ""} key={index}>
-                <img src={atomic.thumb(index + selected)} alt="" />
-                <span>{String(index * 3).padStart(2, "0")}s</span>
-              </button>
-            ))}
-          </div>
-        </article>
-
-        <article className="analytics-panel transcript-panel">
-          <div className="panel-heading"><h2>Transcript signals</h2><span>Scene context</span></div>
-          {[
-            ["0:00", "Pattern interrupt lands fast; ants split into hook and curiosity paths.", "hook"],
-            ["0:04", "Value prop is clear, but skeptical scrollers need proof earlier.", "confusion"],
-            ["0:09", "Demo beat creates the strongest rewatch cluster.", "rewatch"],
-            ["0:13", "CTA creates high share intent for creator peers.", "share"]
-          ].map(([time, copy, marker]) => (
-            <div className="transcript-row" key={time}>
-              <MarkerAsset name={marker} />
-              <span>{time}</span>
-              <p>{copy}</p>
-            </div>
-          ))}
-        </article>
-      </div>
-    </div>
-  );
-}
-
-function PersonasPage() {
-  const [activePersona, setActivePersona] = useState(0);
-  const persona = personaRows[activePersona];
-
-  return (
-    <div className="workspace-page">
-      <WorkspaceHeader
-        icon={UsersRound}
-        eyebrow="Synthetic cohorts"
-        title="Personas"
-        description="Persona hives simulate taste, skepticism, attention span, and share intent so the colony view stays grounded in real audience behavior."
-      >
-        <button className="secondary-button compact"><SlidersHorizontal size={15} /> Tune mix</button>
-        <button className="primary-button"><UsersRound size={16} /> Add cohort</button>
-      </WorkspaceHeader>
-
-      <div className="personas-layout">
-        <article className="analytics-panel persona-list-panel">
-          <div className="panel-heading"><h2>Cohorts</h2><span>4 hives</span></div>
-          {personaRows.map((row, index) => (
-            <button className={`persona-card ${row.tone} ${activePersona === index ? "active" : ""}`} key={row.name} onClick={() => setActivePersona(index)}>
-              <img src={atomic.hive[row.tone]} alt="" />
-              <span><strong>{row.name}</strong><small>{row.positive}% positive sentiment</small></span>
-              <MiniSpark />
-            </button>
-          ))}
-        </article>
-
-        <article className="analytics-panel persona-cluster-panel">
-          <div className="panel-heading"><h2>Cluster behavior</h2><span><i /> Live swarm</span></div>
-          <div className="persona-map">
-            <RouteAnts id="persona-map-routes" paths={personaPaths} count={112} className="persona-routes" viewBox="0 0 1000 430" />
-            {cohorts.map((cohort, index) => (
-              <div className={`persona-hive-node ${cohort.tone}`} style={{ "--x": `${18 + index * 22}%`, "--y": `${index % 2 ? 58 : 28}%` }} key={cohort.name}>
-                <img src={atomic.hive[cohort.tone]} alt="" />
-                <StaticCluster count={18 + index * 3} tone={cohort.tone} />
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="analytics-panel persona-profile-panel">
-          <div className="panel-heading"><h2>{persona.name}</h2><span>Persona profile</span></div>
-          <SentimentRow {...persona} />
-          <div className="persona-traits">
-            {["Stops for proof", "Shares concise wins", "Skips slow setup", "Likes creator POV"].map((trait, index) => (
-              <span key={trait}><MiniAnt index={index + activePersona} /> {trait}</span>
-            ))}
-          </div>
-          <div className="persona-bars">
-            {[
-              ["Hook sensitivity", persona.positive],
-              ["Proof demand", 100 - persona.negative],
-              ["Share intent", persona.neutral + 48]
-            ].map(([label, value]) => (
-              <label key={label}>
-                <span>{label}</span>
-                <i><b style={{ width: `${Math.min(value, 96)}%` }} /></i>
-              </label>
-            ))}
-          </div>
-        </article>
-      </div>
-    </div>
-  );
-}
-
-function TrendsPage() {
-  return (
-    <div className="workspace-page">
-      <WorkspaceHeader
-        icon={LineChart}
-        eyebrow="7-day intelligence"
-        title="Trends"
-        description="A live read on hook velocity, emerging topics, and the places where ant swarms predict attention is about to move."
-      >
-        <button className="secondary-button compact"><Bell size={15} /> Watchlist</button>
-        <button className="primary-button"><Sparkles size={16} /> Next best moves</button>
-      </WorkspaceHeader>
-
-      <div className="trends-layout">
-        <article className="analytics-panel trend-chart-panel">
-          <div className="panel-heading"><h2>Swarm forecast</h2><span><i /> Rising</span></div>
-          <TrendChart />
-        </article>
-
-        <article className="analytics-panel trend-keywords-panel">
-          <div className="panel-heading"><h2>Hook keywords</h2><span>Velocity</span></div>
-          <div className="trend-signal-list">
-            {trendSignals.map((signal, index) => (
-              <button className={`trend-signal ${signal.tone}`} key={signal.label}>
-                <MiniAnt index={index} />
-                <span>{signal.label}</span>
-                <strong>{signal.lift}</strong>
-              </button>
-            ))}
-          </div>
-        </article>
-
-        <article className="analytics-panel competitor-panel">
-          <div className="panel-heading"><h2>Emerging topics</h2><span>Ant clusters</span></div>
-          {[
-            ["AI creator ops", "High share density among creator peers", "virality"],
-            ["Tiny workflow wins", "Budget buyers respond to proof", "sentiment"],
-            ["Behind-the-scenes demos", "Rewatch loops at product reveal", "rewatch"]
-          ].map(([title, copy, marker]) => (
-            <div className="topic-row" key={title}>
-              <MarkerAsset name={marker} />
-              <div><strong>{title}</strong><small>{copy}</small></div>
-              <StaticCluster count={12} tone="green" />
-            </div>
-          ))}
-        </article>
-      </div>
-    </div>
-  );
-}
-
-function TrendChart() {
-  return (
-    <div className="trend-chart">
-      <svg viewBox="0 0 980 360" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#f3b61f" stopOpacity=".22" />
-            <stop offset="100%" stopColor="#5f9c3b" stopOpacity="0" />
-          </linearGradient>
-          <path id="trend-primary-path" d={trendPaths[0]} />
-        </defs>
-        {[0, 1, 2, 3].map((line) => <line key={line} x1="20" x2="960" y1={line * 78 + 54} y2={line * 78 + 54} />)}
-        <path className="trend-area" d={`${trendPaths[0]} L960 340 L20 340 Z`} />
-        {trendPaths.map((path, index) => (
-          <path className={`chart-line trend-line trend-${index}`} d={path} key={path} />
-        ))}
-        {Array.from({ length: 34 }).map((_, index) => (
-          <g key={index} className="svg-ant" opacity=".78">
-            <animateMotion dur={`${5.2 + (index % 5) * 0.2}s`} begin={`${index * -0.16}s`} repeatCount="indefinite" rotate="auto">
-              <mpath href="#trend-primary-path" />
-            </animateMotion>
-            <image href={atomic.pathAnt} x="-8" y="-8" width="16" height="16" transform="rotate(90 0 0)" />
-          </g>
-        ))}
-      </svg>
-      <div className="trend-days"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
-    </div>
-  );
-}
-
-function SettingsPage() {
-  const [density, setDensity] = useState(74);
-  const [vault, setVault] = useState(true);
-
-  return (
-    <div className="workspace-page">
-      <WorkspaceHeader
-        icon={Settings}
-        eyebrow="Workspace"
-        title="Settings"
-        description="Tune the simulation model, persona mix, integrations, privacy posture, and how dense the ant colonies appear during previews."
-      >
-        <button className="secondary-button compact"><ShieldCheck size={15} /> Audit log</button>
-        <button className="primary-button"><Check size={16} /> Save changes</button>
-      </WorkspaceHeader>
-
-      <div className="settings-layout">
-        <article className="analytics-panel settings-card settings-overview">
-          <div className="panel-heading"><h2>Workspace settings</h2><span>Creator Lab</span></div>
-          {settingsRows.map(({ title, value, detail, icon: Icon }) => (
-            <div className="setting-row" key={title}>
-              <Icon size={18} />
-              <div><strong>{title}</strong><small>{detail}</small></div>
-              <span>{value}</span>
-            </div>
-          ))}
-        </article>
-
-        <article className="analytics-panel settings-card model-card">
-          <div className="panel-heading"><h2>Simulation model</h2><span>Swarm v0.9</span></div>
-          {[
-            ["Reasoning depth", 82],
-            ["Trend sensitivity", 68],
-            ["Skepticism weight", 56]
-          ].map(([label, value]) => (
-            <label className="settings-slider" key={label}>
-              <span>{label}</span>
-              <input type="range" min="0" max="100" defaultValue={value} />
-            </label>
-          ))}
-          <button className={`toggle-row ${vault ? "active" : ""}`} onClick={() => setVault((next) => !next)}>
-            <ToggleRight size={22} />
-            <span><strong>Pre-launch privacy vault</strong><small>{vault ? "Enabled" : "Disabled"}</small></span>
-          </button>
-        </article>
-
-        <article className="analytics-panel settings-card density-card">
-          <div className="panel-heading"><h2>Ant density</h2><span>{density}%</span></div>
-          <div className="density-preview">
-            <RouteAnts id="settings-density-routes" paths={settingsPaths} count={Math.round(density * 0.9)} className="settings-routes" fast viewBox="0 0 1000 380" />
-          </div>
-          <label className="settings-slider">
-            <span>Preview density</span>
-            <input type="range" min="24" max="96" value={density} onChange={(event) => setDensity(Number(event.target.value))} />
-          </label>
-        </article>
-
-        <article className="analytics-panel settings-card integration-card">
-          <div className="panel-heading"><h2>Integrations</h2><span>Ready</span></div>
-          {["TikTok draft export", "Instagram Reels", "Creator CRM", "CSV intelligence"].map((name, index) => (
-            <button className="integration-row" key={name}>
-              <span>{index < 2 ? <Check size={13} /> : <Zap size={13} />}</span>
-              <strong>{name}</strong>
-              <small>{index < 2 ? "Connected" : "Prototype"}</small>
-            </button>
-          ))}
-        </article>
-      </div>
-    </div>
   );
 }
 
@@ -1558,58 +1064,11 @@ const TECH_INVESTMENT_ACTIONS = {
   neutral: "Watchlist",
 };
 
-function hashHandleSlug(slug) {
-  let h = 2166136261;
-  const s = String(slug);
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
-  return Math.abs(h);
-}
-
 function strHash(s) {
   let h = 2166136261;
   const t = String(s);
   for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
   return Math.abs(h);
-}
-
-function normalizeHandle(raw) {
-  return String(raw || "")
-    .trim()
-    .replace(/^@+/, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]/g, "");
-}
-
-const NICHE_TAGS = [
-  "B2B SaaS", "CPG", "Beauty", "Fitness", "Gaming", "FinTok", "Climate",
-  "EdTech", "Local services", "Travel", "Food", "Dev tools", "Parenting",
-  "Music", "Sports", "News explainers", "AI tools", "Interior design",
-];
-
-function buildFakeSocialPreview(slug) {
-  const h = hashHandleSlug(slug);
-  const followers = 1_800 + (h % 984_000);
-  const following = 120 + (h % 3_800);
-  const posts = 30 + (h % 420);
-  const engagementPct = 3.2 + (h % 87) / 10;
-  const tags = [
-    NICHE_TAGS[h % NICHE_TAGS.length],
-    NICHE_TAGS[(h >> 3) % NICHE_TAGS.length],
-    NICHE_TAGS[(h >> 7) % NICHE_TAGS.length],
-  ].filter((t, i, a) => a.indexOf(t) === i);
-  return {
-    displayName: slug
-      .split(/[._-]/)
-      .map((w) => w && w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ") || slug,
-    handle: `@${slug}`,
-    platform: (h % 5 === 0 ? "TikTok" : h % 5 === 1 ? "Reels" : h % 5 === 2 ? "Shorts" : "Clips"),
-    followers,
-    following,
-    posts,
-    engagementPct: Math.round(engagementPct * 10) / 10,
-    nicheTags: tags,
-  };
 }
 
 function presentTraitAffinity(traits) {
@@ -1681,6 +1140,7 @@ function presentReactionBreakdown(counts) {
 }
 
 function HeroStat({ label, value, suffix, tone }) {
+  if (value == null || value === "") return null;
   return (
     <div className={`hero-stat tone-${tone || "green"}`}>
       <span className="hero-stat-label">{label}</span>
@@ -1694,7 +1154,7 @@ function HeroStat({ label, value, suffix, tone }) {
 
 function RetentionCurve({ brain }) {
   const curve = brain?.retention_curve || [];
-  if (!curve.length) return <div className="empty-curve">no retention curve</div>;
+  if (!curve.length) return null;
   const W = 640;
   const H = 220;
   const padX = 24;
@@ -1852,7 +1312,7 @@ function ReactionBars({ counts, rates }) {
 }
 
 function CohortList({ cohorts }) {
-  if (!cohorts?.length) return <div className="empty-curve">no cohorts</div>;
+  if (!cohorts?.length) return null;
   return (
     <ol className="cohort-list">
       {cohorts.map((c, i) => (
@@ -1869,44 +1329,9 @@ function CohortList({ cohorts }) {
   );
 }
 
-function InsightList({ insights }) {
-  if (!insights?.length) return <div className="empty-curve">no insights</div>;
-  return (
-    <ul className="insight-list">
-      {insights.map((it, i) => (
-        <li key={it.title || i} className={`tone-${it.tone || "blue"}`}>
-          <span className="insight-tag" />
-          <div>
-            <strong>{it.title}</strong>
-            <small>{it.detail}</small>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function PeakMoments({ moments }) {
-  if (!moments?.length) return <div className="empty-curve">no peaks</div>;
-  return (
-    <ul className="peak-list">
-      {moments.slice(0, 6).map((m, i) => (
-        <li key={`${m.time_sec}-${i}`} className={`tone-${m.tone || "good"}`}>
-          <span className="peak-time">{Number(m.time_sec).toFixed(1)}s</span>
-          <div>
-            <strong>{m.region || "Cortex"}</strong>
-            <small>{m.hemisphere || "—"} · L2 {Number(m.activation_l2 || 0).toFixed(2)}</small>
-          </div>
-          <span className="peak-pct">{formatPct(m.retention, 0)}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function UpstreamTimelineChart({ timeline }) {
   const series = useMemo(() => presentReactionTimeline(timeline || []), [timeline]);
-  if (!series.length) return <div className="empty-curve">no timeline</div>;
+  if (!series.length) return null;
   const W = 640;
   const H = 200;
   const padX = 18;
@@ -2022,26 +1447,12 @@ function agentReply(userText, agent) {
   return `${name}: Still deciding — ask about hook, audio, edit, or sharing.`;
 }
 
-async function askOliviaServer(message, history, selectedAgent) {
-  // Tries the ant server's /api/chat. The cloud build doesn't have Ollama
-  // installed, so this often 5xx's — caller falls back to agentReply().
-  const resp = await fetch(`${ANT_SERVICE_URL}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      message,
-      history: history.filter((m) => !m.pending).slice(-10).map((m) => ({ role: m.role, text: m.text })),
-      agent: selectedAgent ? {
-        id: selectedAgent.id,
-        display_name: selectedAgent.display_name,
-        cohort_label: selectedAgent.cohort_label,
-        keywords: selectedAgent.keywords || [],
-      } : null,
-    }),
-  });
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok && !data.reply) throw new Error(data.error || `Chat failed (${resp.status})`);
-  return String(data.reply || "").trim() || "I need a second to think about that.";
+async function askOliviaServer(_message, _history, _selectedAgent) {
+  // Chat is intentionally short-circuited. The Ant server's /api/chat is now
+  // token-gated (X-Ant-Token) and we will not ship that secret in the browser
+  // bundle. Until the edge function gains a chat proxy route, throw so the
+  // caller falls back to the deterministic agentReply() seed responses.
+  throw new Error("chat disabled in cloud build");
 }
 
 function AgentSwarmWithChat({ sim, cohorts }) {
@@ -2565,7 +1976,6 @@ function BrainActivityPanel({ data, compact = false, hero = false, phase = 0, pr
   const bad = brain?.bad_regions?.[0];
   const topHighs = (brain?.highs || []).slice(0, 5);
   const topLows = (brain?.lows || []).slice(0, 5);
-  const peakMoments = (brain?.peak_moments || []).slice(0, 5);
   const fmtRetention = (r) => {
     if (r == null) return "--";
     const pct = r > 1.5 ? r : r * 100;
@@ -2579,23 +1989,27 @@ function BrainActivityPanel({ data, compact = false, hero = false, phase = 0, pr
         <span><BrainCircuit size={18} /></span>
         <div>
           <h2>TribeV2 brain activity</h2>
-          <p>{brain?.summary?.brain_vertices != null ? Number(brain.summary.brain_vertices).toLocaleString() : "--"} TribeV2 cortical vertices - green is strong attention, red is drop risk</p>
+          <p>{brain?.summary?.brain_vertices != null ? `${Number(brain.summary.brain_vertices).toLocaleString()} TribeV2 cortical vertices - green is strong attention, red is drop risk` : "Green is strong attention, red is drop risk."}</p>
         </div>
       </div>
       <div className="brain-card-grid">
         <TribeBrainModel brain={brain} phase={phase} progress={progress} isRunning={isRunning} />
         <div className="brain-readout">
-          <div className="brain-score-row">
-            <strong>{brain?.summary?.mean_retention_proxy != null ? formatPercent(brain.summary.mean_retention_proxy) : "--"}</strong>
-            <span>mean neural retention proxy</span>
-          </div>
+          {brain?.summary?.mean_retention_proxy != null ? (
+            <div className="brain-score-row">
+              <strong>{formatPercent(brain.summary.mean_retention_proxy)}</strong>
+              <span>mean neural retention proxy</span>
+            </div>
+          ) : null}
           <BrainRetentionTrace curve={brain?.retention_curve} />
-          <div className="brain-region-grid">
-            <span className="is-good"><b>{high ? `${high.time_sec}s` : "--"}</b><small>attention high</small></span>
-            <span className="is-bad"><b>{low ? `${low.time_sec}s` : "--"}</b><small>attention low</small></span>
-            <span className="is-good"><b>{good?.region || "Temporal cortex"}</b><small>working region</small></span>
-            <span className="is-bad"><b>{bad?.region || "Drop risk"}</b><small>risk region</small></span>
-          </div>
+          {(high || low || good?.region || bad?.region) && (
+            <div className="brain-region-grid">
+              {high ? <span className="is-good"><b>{high.time_sec}s</b><small>attention high</small></span> : null}
+              {low ? <span className="is-bad"><b>{low.time_sec}s</b><small>attention low</small></span> : null}
+              {good?.region ? <span className="is-good"><b>{good.region}</b><small>working region</small></span> : null}
+              {bad?.region ? <span className="is-bad"><b>{bad.region}</b><small>risk region</small></span> : null}
+            </div>
+          )}
           {(topHighs.length > 0 || topLows.length > 0) && (
             <div className="brain-region-grid">
               {topHighs.length > 0 && (
@@ -2618,18 +2032,6 @@ function BrainActivityPanel({ data, compact = false, hero = false, phase = 0, pr
                   ))}
                 </span>
               )}
-            </div>
-          )}
-          {peakMoments.length > 0 && (
-            <div className="brain-region-grid">
-              <span className={peakMoments[0]?.tone === "bad" ? "is-bad" : "is-good"} style={{ gridColumn: "span 2" }}>
-                <small>Peak brain moments</small>
-                {peakMoments.map((m, i) => (
-                  <b key={`pk-${i}`} style={{ display: "block", fontSize: 12, fontWeight: 600, whiteSpace: "normal", marginTop: 4 }}>
-                    {m.time_sec}s &middot; {m.region || "region"} &middot; {m.tone || "neutral"} &middot; activation {fmtActivity(m.activation_l2)}
-                  </b>
-                ))}
-              </span>
             </div>
           )}
         </div>
@@ -2659,10 +2061,10 @@ function DashboardIntelligence({ data }) {
           </div>
         </div>
         <div className="real-run-stats">
-          <span><b>{formatCount(sim?.persona_count)}</b><small>personas</small></span>
-          <span><b>{formatCount(sim?.total_shares)}</b><small>share edges</small></span>
-          <span><b>{formatPercent(sim?.positive_rate_pct)}</b><small>positive</small></span>
-          <span><b>{sim?.virality_score ?? "--"}</b><small>virality</small></span>
+          {sim?.persona_count != null ? <span><b>{formatCount(sim.persona_count)}</b><small>personas</small></span> : null}
+          {sim?.total_shares != null ? <span><b>{formatCount(sim.total_shares)}</b><small>share edges</small></span> : null}
+          {sim?.positive_rate_pct != null ? <span><b>{formatPercent(sim.positive_rate_pct)}</b><small>positive</small></span> : null}
+          {sim?.virality_score != null ? <span><b>{sim.virality_score}</b><small>virality</small></span> : null}
         </div>
         <div className="real-insight-list">
           {data.insights?.map((insight) => (
@@ -2698,17 +2100,17 @@ function RealPageInsights({ active, data }) {
       icon: Gauge,
       title: "Real simulation payload",
       detail: `${formatCount(sim?.persona_count)} personas reacted locally across ${data.keyword_sets?.length ?? 0} noisy keyword cohorts.`,
-      statA: `${formatCount(sim?.total_shares)} share edges`,
-      statB: `${sim?.virality_score ?? "--"} virality`,
-      statC: `${formatPercent(sim?.viral_reaction_rate_pct)} viral reactions`
+      statA: sim?.total_shares != null ? `${formatCount(sim.total_shares)} share edges` : null,
+      statB: sim?.virality_score != null ? `${sim.virality_score} virality` : null,
+      statC: sim?.viral_reaction_rate_pct != null ? `${formatPercent(sim.viral_reaction_rate_pct)} viral reactions` : null
     },
     videos: {
       icon: Film,
       title: "TikTok corpus intake",
       detail: `${data.videos?.count ?? 0} local video metadata files shaped into analysis docs; top reference: ${topVideo?.title || "local video"}.`,
-      statA: `${topVideo?.engagement_rate_pct ?? "--"}% engagement`,
-      statB: `${formatCount(topVideo?.views)} views`,
-      statC: `${data.videos?.terms?.[0]?.term || "trend"} lead term`
+      statA: topVideo?.engagement_rate_pct != null ? `${topVideo.engagement_rate_pct}% engagement` : null,
+      statB: topVideo?.views != null ? `${formatCount(topVideo.views)} views` : null,
+      statC: data.videos?.terms?.[0]?.term ? `${data.videos.terms[0].term} lead term` : null
     },
     personas: {
       icon: UsersRound,
@@ -2719,18 +2121,10 @@ function RealPageInsights({ active, data }) {
         const dims = data.model?.persona_dimensions ?? 0;
         return `${sets} sets of ${kwPerSet} noisy keywords were mapped into ${dims}D persona vectors, then expanded into the full swarm.`;
       })(),
-      statA: topCohort?.label || "Top cohort",
-      statB: `${formatPercent(topCohort?.positive_rate_pct)} positive`,
-      statC: `${formatPercent(topCohort?.share_rate_pct)} share fit`
+      statA: topCohort?.label || null,
+      statB: topCohort?.positive_rate_pct != null ? `${formatPercent(topCohort.positive_rate_pct)} positive` : null,
+      statC: topCohort?.share_rate_pct != null ? `${formatPercent(topCohort.share_rate_pct)} share fit` : null
     },
-    trends: {
-      icon: LineChart,
-      title: "Trend intelligence",
-      detail: `Trend terms came from local TikTok descriptions, hashtags, and transcript language, then were tested against the swarm.`,
-      statA: data.trends?.[0]?.term || "trend",
-      statB: data.trends?.[1]?.term || "signal",
-      statC: data.trends?.[2]?.term || "moment"
-    }
   }[active];
 
   if (!activeCopy) return null;
@@ -2746,13 +2140,10 @@ function RealPageInsights({ active, data }) {
         </div>
       </div>
       <div className="real-page-stats">
-        <strong>{activeCopy.statA}</strong>
-        <strong>{activeCopy.statB}</strong>
-        <strong>{activeCopy.statC}</strong>
+        {activeCopy.statA ? <strong>{activeCopy.statA}</strong> : null}
+        {activeCopy.statB ? <strong>{activeCopy.statB}</strong> : null}
+        {activeCopy.statC ? <strong>{activeCopy.statC}</strong> : null}
       </div>
-      {active === "trends" && brainIsPerVideo(data?.brain) && (
-        <BrainActivityPanel data={data} compact />
-      )}
     </section>
   );
 }
@@ -2765,9 +2156,30 @@ function DashboardPage({ go, intelligence }) {
   const insights = intelligence?.insights || [];
   const reactionCounts = sim.reaction_counts || {};
   const reactionRates = sim.reaction_rates_pct || {};
-  const fakeProfile = intelligence?.client_meta?.fake_profile;
-  const fakeHandle = intelligence?.client_meta?.handle;
   const totalShares = sim.total_shares;
+
+  // Interactive nilearn 3D brain HTML, proxied through the edge function so the
+  // raw Vast URL + X-Ant-Token never reach the client bundle.
+  const interactiveBrainPath = intelligence?.brain?.interactive_html_url;
+  const dashboardBrainUrl = interactiveBrainPath
+    ? `${INSFORGE_ANALYSIS_FUNCTION_URL}${interactiveBrainPath}`
+    : null;
+  // Looping baked MP4 of the cortex animation — Meta TribeV2 demo aesthetic.
+  // Same proxy path; takes precedence over the iframe when present.
+  const animatedBrainPath = intelligence?.brain?.animated_video_url;
+  const dashboardAnimatedUrl = animatedBrainPath
+    ? `${INSFORGE_ANALYSIS_FUNCTION_URL}${animatedBrainPath}`
+    : null;
+
+  // Debug aid (live in DevTools console): tells you whether the Brain panel
+  // gate evaluates true and what brain.source it saw on this render.
+  if (typeof window !== "undefined" && window?.console) {
+    console.debug(
+      "[DashboardPage] brain gate:", brainIsPerVideo(intelligence?.brain),
+      "| source:", intelligence?.brain?.source,
+      "| retention pts:", intelligence?.brain?.retention_curve?.length || 0
+    );
+  }
 
   return (
     <div className="dashboard-layout">
@@ -2776,11 +2188,9 @@ function DashboardPage({ go, intelligence }) {
       <section className="dashboard-main">
         <div className="dash-topbar">
           <div>
-            <button className="back-link" onClick={() => go("flow")}><ChevronRight size={15} /> Back to simulations</button>
             <h1>{topVideo?.title || "Summer Launch Reel.mp4"}</h1>
             <p>
-              {intelligence ? `Local TikTok corpus - ${sim?.persona_count != null ? formatCount(sim.persona_count) : "--"} simulated personas` : "Awaiting cloud intelligence"}
-              {fakeProfile && fakeHandle ? <> · profile preview <em>{fakeProfile.handle}</em> ({formatCount(fakeProfile.followers)} followers)</> : null}
+              {intelligence ? `Local TikTok corpus - ${sim?.persona_count != null ? formatCount(sim.persona_count) : ""} simulated personas` : "Awaiting cloud intelligence"}
             </p>
           </div>
           <div className="dash-actions">
@@ -2793,27 +2203,31 @@ function DashboardPage({ go, intelligence }) {
 
         {/* Hero stat strip */}
         <section className="analytics-panel dash-hero-row">
+          {!intelligence ? (
+            <div className="hero-empty-hint">Run an analysis to populate this dashboard.</div>
+          ) : null}
           <div className="hero-stats">
-            <HeroStat label="Simulated personas" value={sim?.persona_count != null ? formatCount(sim.persona_count) : "--"} tone="green" />
-            <HeroStat label="Virality score" value={sim?.virality_score != null ? Number(sim.virality_score).toFixed(1) : "--"} suffix={sim?.virality_score != null ? "/100" : ""} tone="hot" />
-            <HeroStat label="Positive reactions" value={sim?.positive_rate_pct != null ? formatPct(sim.positive_rate_pct, 1) : "--"} tone="green" />
-            <HeroStat label="Brain retention" value={brain?.summary?.mean_retention_proxy != null ? formatPct(brain.summary.mean_retention_proxy, 0) : "--"} tone="blue" />
-            <HeroStat label="Total shares" value={totalShares != null ? formatCount(totalShares) : "--"} tone="gold" />
-            <HeroStat label="Drop-off risk" value={sim?.dropoff_risk_pct != null ? formatPct(sim.dropoff_risk_pct, 0) : "--"} tone="red" />
+            <HeroStat label="Simulated personas" value={sim?.persona_count != null ? formatCount(sim.persona_count) : null} tone="green" />
+            <HeroStat label="Virality score" value={sim?.virality_score != null ? Number(sim.virality_score).toFixed(1) : null} suffix={sim?.virality_score != null ? "/100" : ""} tone="hot" />
+            <HeroStat label="Positive reactions" value={sim?.positive_rate_pct != null ? formatPct(sim.positive_rate_pct, 1) : null} tone="green" />
+            <HeroStat label="Brain retention" value={brain?.summary?.mean_retention_proxy != null ? formatPct(brain.summary.mean_retention_proxy, 0) : null} tone="blue" />
+            <HeroStat label="Total shares" value={totalShares != null ? formatCount(totalShares) : null} tone="gold" />
+            <HeroStat label="Drop-off risk" value={sim?.dropoff_risk_pct != null ? formatPct(sim.dropoff_risk_pct, 0) : null} tone="red" />
           </div>
         </section>
 
-        {brainIsPerVideo(intelligence?.brain) && (
-          <BrainActivityPanel data={intelligence} hero />
-        )}
-
-        {brainIsPerVideo(intelligence?.brain) && (brain?.geometry_frames?.length || brain?.mesh_points?.length) ? (
+        {brainIsPerVideo(intelligence?.brain) && (brain?.geometry_frames?.length) ? (
           <article className="analytics-panel">
             <div className="panel-heading">
-              <h2><Brain size={16} /> Tribe V2 cortical map (3D)</h2>
-              <span><i /> {(brain?.geometry_frames || []).length} frames · {brain?.summary?.brain_vertices || 0} vertices</span>
+              <h2><Brain size={16} /> TribeV2 cortical activation (3D)</h2>
+              <span><i /> {dashboardBrainUrl ? "fsaverage5 interactive surface" : `${(brain?.geometry_frames || []).length} frames`} · {brain?.summary?.brain_vertices || brain?.shape_timesteps_vertices?.[1] || 0} vertices</span>
             </div>
-            <BrainCanvasDirect brain={brain} />
+            <TribeBrain3D
+              brain={brain}
+              isRunning={false}
+              brainUrl={dashboardBrainUrl}
+              animatedVideoUrl={dashboardAnimatedUrl}
+            />
           </article>
         ) : null}
 
@@ -2823,10 +2237,14 @@ function DashboardPage({ go, intelligence }) {
             <article className="analytics-panel">
               <div className="panel-heading">
                 <h2><Activity size={16} /> Retention curve</h2>
-                <span>
-                  <i /> peak {brain?.summary?.max_retention_proxy != null ? formatPct(brain.summary.max_retention_proxy, 0) : "--"} ·
-                  floor {brain?.summary?.min_retention_proxy != null ? formatPct(brain.summary.min_retention_proxy, 0) : "--"}
-                </span>
+                {brain?.summary?.max_retention_proxy != null || brain?.summary?.min_retention_proxy != null ? (
+                  <span>
+                    <i />
+                    {brain?.summary?.max_retention_proxy != null ? <> peak {formatPct(brain.summary.max_retention_proxy, 0)}</> : null}
+                    {brain?.summary?.max_retention_proxy != null && brain?.summary?.min_retention_proxy != null ? " · " : null}
+                    {brain?.summary?.min_retention_proxy != null ? <>floor {formatPct(brain.summary.min_retention_proxy, 0)}</> : null}
+                  </span>
+                ) : null}
               </div>
               <RetentionCurve brain={brain} />
             </article>
@@ -2852,20 +2270,6 @@ function DashboardPage({ go, intelligence }) {
                 <span><i /> positive · share fit</span>
               </div>
               <CohortList cohorts={cohortsList.slice(0, 8)} />
-            </article>
-            <article className="analytics-panel">
-              <div className="panel-heading">
-                <h2><Sparkles size={16} /> Insights</h2>
-                <span><i /> auto-generated</span>
-              </div>
-              <InsightList insights={insights} />
-            </article>
-            <article className="analytics-panel">
-              <div className="panel-heading">
-                <h2><Repeat2 size={16} /> Brain peak moments</h2>
-                <span><i /> Destrieux atlas</span>
-              </div>
-              <PeakMoments moments={brain.peak_moments || []} />
             </article>
             <article className="analytics-panel">
               <div className="panel-heading">
@@ -2923,11 +2327,6 @@ function FlowPage({ intelligence: parentIntelligence }) {
   const [liveStage, setLiveStage] = useState(null); // { stage, label, pct } from SSE
   const [streamActive, setStreamActive] = useState(false);
   const [streamedIntelligence, setStreamedIntelligence] = useState(null);
-  const [accountHandle, setAccountHandle] = useState("");
-  const handleSlug = useMemo(() => normalizeHandle(accountHandle), [accountHandle]);
-  const fakeLive = useMemo(() => (handleSlug ? buildFakeSocialPreview(handleSlug) : null), [handleSlug]);
-  const handleSlugRef = useRef("");
-  useEffect(() => { handleSlugRef.current = handleSlug; }, [handleSlug]);
 
   // Prefer freshly-streamed intelligence over the parent's cached fetch.
   const intelligence = streamedIntelligence
@@ -2977,20 +2376,21 @@ function FlowPage({ intelligence: parentIntelligence }) {
 
   // Apply a result payload + propagate to other pages + persist cloudRun summary.
   const applyAnalysisPayload = (finalPayload, { metadata, runRecord = null, source = "ant-local-pipeline" }) => {
-    // Splice the user's fake-social client_meta into the payload (display only —
-    // not sent to the model). Use the ref so this stays correct even if the
-    // analyze call was kicked off before the handle was typed.
-    const slug = handleSlugRef.current || "";
-    const fake = slug ? buildFakeSocialPreview(slug) : null;
-    const stamped = {
-      ...finalPayload,
-      client_meta: {
-        ...(finalPayload.client_meta || {}),
-        handle: slug || null,
-        fake_profile: fake,
-      },
-    };
-    const merged = { ...stamped, source };
+    // Spread finalPayload first, then override ONLY the outer `source` tag
+    // (used for provenance in cloudRun summaries). Explicitly re-attach
+    // `brain` so the inner `brain.source` ("…re-warped…") survives even if
+    // some future refactor adds a brain-stripping step before this point.
+    // The gate `brainIsPerVideo(intelligence?.brain)` reads `brain.source`,
+    // NOT the outer `source`, so this MUST come through intact.
+    const merged = { ...finalPayload, source, brain: finalPayload?.brain ?? null };
+    if (typeof window !== "undefined" && window?.console) {
+      console.debug(
+        "[applyAnalysisPayload] outer source:", source,
+        "| brain.source:", merged?.brain?.source,
+        "| retention pts:", merged?.brain?.retention_curve?.length || 0,
+        "| brainIsPerVideo:", brainIsPerVideo(merged?.brain)
+      );
+    }
     setStreamedIntelligence(merged);
     // Notify the app-level useIntelligenceData hook so other pages (Dashboard,
     // Trends, etc.) re-render with the freshly-merged tribev2 payload without a reload.
@@ -3036,19 +2436,22 @@ function FlowPage({ intelligence: parentIntelligence }) {
     setPhase(phaseIdx);
   };
 
-  // PRIMARY path: direct multipart POST to the self-contained Ant server.
-  // Streams typed `data: {type, ...}` events.
+  // PRIMARY path: multipart POST to the InsForge edge function, which proxies
+  // the upload to the Vast Ant server (server-side X-Ant-Token injection) and
+  // pipes the typed `data: {type, ...}` SSE stream straight back.
   const runAntServerStream = async ({ file, metadata }) => {
     if (!file) throw new Error("Ant server requires a video file");
     const form = new FormData();
     form.append("video", file);
+    const url = `${INSFORGE_ANALYSIS_FUNCTION_URL}${INSFORGE_ANALYSIS_FUNCTION_URL.includes("?") ? "&" : "?"}stream=1`;
     // No Content-Type header — browser sets multipart boundary.
-    const response = await fetch(`${ANT_SERVICE_URL}/api/analyze`, {
+    const response = await fetch(url, {
       method: "POST",
+      headers: { Accept: "text/event-stream" },
       body: form,
     });
     if (!response.ok || !response.body) {
-      throw new Error(`Ant server returned ${response.status}`);
+      throw new Error(`Ant proxy returned ${response.status}`);
     }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -3245,19 +2648,6 @@ function FlowPage({ intelligence: parentIntelligence }) {
     });
   };
 
-  const useDemoVideo = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    const demoVideo = {
-      name: "Summer Launch Reel.mp4",
-      size: "18.4 MB",
-      rawSize: 18_400_000,
-      source: "Demo workspace",
-      type: "video/mp4"
-    };
-    startAnalysis(demoVideo);
-    syncCloudRun({ metadata: demoVideo });
-  };
-
   const handleDrop = (event) => {
     event.preventDefault();
     setIsDragging(false);
@@ -3304,46 +2694,7 @@ function FlowPage({ intelligence: parentIntelligence }) {
               {video ? "Replace" : "Choose file"}
             </button>
           </div>
-          <div className="flow-handle-block">
-            <label className="flow-handle-label">
-              <span>
-                Primary handle
-                <small> · display only — not sent into the models</small>
-              </span>
-              <input
-                className="flow-handle-input"
-                type="text"
-                placeholder="@yourbrand"
-                value={accountHandle}
-                onChange={(e) => setAccountHandle(e.target.value)}
-                autoComplete="off"
-              />
-            </label>
-            {fakeLive ? (
-              <div className="flow-fake-profile">
-                <div className="flow-fake-profile-head">
-                  <strong>{fakeLive.displayName}</strong>
-                  <span className="flow-fake-handle">{fakeLive.handle}</span>
-                  <span className="flow-fake-platform">{fakeLive.platform}</span>
-                </div>
-                <div className="flow-fake-stats">
-                  <span><em>{formatCount(fakeLive.followers)}</em> followers</span>
-                  <span><em>{formatCount(fakeLive.following)}</em> following</span>
-                  <span><em>{fakeLive.posts}</em> posts</span>
-                  <span><em>{fakeLive.engagementPct}%</em> est. engagement</span>
-                </div>
-                <div className="flow-fake-tags">
-                  {fakeLive.nicheTags.map((t) => (
-                    <span key={t} className="flow-fake-tag">{t}</span>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
           <div className="flow-upload-actions">
-            <button className="primary-button compact" type="button" onClick={useDemoVideo}>
-              <Film size={15} /> Use demo
-            </button>
             <button
               className="secondary-button compact"
               type="button"
@@ -3418,12 +2769,20 @@ function FlowPage({ intelligence: parentIntelligence }) {
 
       <section className="flow-live-analysis">
         {brainIsPerVideo(intelligence?.brain) ? (
-          <BrainActivityPanel
-            data={intelligence}
-            compact
-            phase={phase}
-            progress={progress}
+          <TribeBrain3D
+            brain={intelligence?.brain}
             isRunning={Boolean(video && isRunning)}
+            compact
+            brainUrl={
+              intelligence?.brain?.interactive_html_url
+                ? `${INSFORGE_ANALYSIS_FUNCTION_URL}${intelligence.brain.interactive_html_url}`
+                : null
+            }
+            animatedVideoUrl={
+              intelligence?.brain?.animated_video_url
+                ? `${INSFORGE_ANALYSIS_FUNCTION_URL}${intelligence.brain.animated_video_url}`
+                : null
+            }
           />
         ) : (video && isRunning) ? (
           <div className="brain-scan-status" style={{
@@ -3514,16 +2873,10 @@ function FlowPage({ intelligence: parentIntelligence }) {
                   <span>{video ? "Replace video" : "Upload video"}</span>
                 </button>
                 {isComplete && (
-                  <>
-                    <button className="flow-center-soft" type="button" onClick={useDemoVideo}>
-                      <Film size={16} />
-                      Demo
-                    </button>
-                    <button className="flow-center-soft" type="button" onClick={toggleAnalysis}>
-                      <Play size={16} fill="currentColor" />
-                      Run again
-                    </button>
-                  </>
+                  <button className="flow-center-soft" type="button" onClick={toggleAnalysis}>
+                    <Play size={16} fill="currentColor" />
+                    Run again
+                  </button>
                 )}
               </div>
             )}
@@ -3549,10 +2902,10 @@ function FlowPage({ intelligence: parentIntelligence }) {
       </section>
 
       <section className="live-metrics">
-        <LiveMetric title="Retention (TribeV2)" value={video ? `${Number(cloudSummary?.mean_retention_proxy ?? retentionNow).toFixed(1)}%` : "--"} delta={video ? `${activeRetentionPoint?.time_sec ?? 0}s brain frame` : "Awaiting video"} tone="green" />
-        <LiveMetric title="Positive reactions" value={video ? `${Number(cloudSummary?.positive_rate_pct ?? positiveNow).toFixed(1)}%` : "--"} delta={video ? `${formatCount(analysisCounts.ants)} personas sampled` : "Awaiting transcript"} tone="green" />
-        <LiveMetric title="Virality Score" value={video ? `${Math.round((cloudSummary?.virality_score ?? intelligence?.simulation?.virality_score ?? 0) * Math.max(0.34, progress / 100))}` : "--"} suffix={video ? "/100" : ""} delta={video ? `${formatCount(cloudSummary?.total_shares ?? intelligence?.simulation?.total_shares ?? 0)} share edges` : "Awaiting swarm"} tone="green" />
-        <LiveMetric title="Drop-off Risk" value={video ? (intelligence?.simulation?.dropoff_risk_pct != null ? `${Math.max(3, Number(intelligence.simulation.dropoff_risk_pct) - phase).toFixed(1)}%` : "--") : "--"} delta={video ? "Updates with analysis phase" : "Awaiting retention"} tone="orange" />
+        <LiveMetric title="Retention (TribeV2)" value={video && (cloudSummary?.mean_retention_proxy != null || retentionNow) ? `${Number(cloudSummary?.mean_retention_proxy ?? retentionNow).toFixed(1)}%` : null} delta={video ? `${activeRetentionPoint?.time_sec ?? 0}s brain frame` : "Awaiting video"} tone="green" />
+        <LiveMetric title="Positive reactions" value={video && (cloudSummary?.positive_rate_pct != null || positiveNow) ? `${Number(cloudSummary?.positive_rate_pct ?? positiveNow).toFixed(1)}%` : null} delta={video ? `${formatCount(analysisCounts.ants)} personas sampled` : "Awaiting transcript"} tone="green" />
+        <LiveMetric title="Virality Score" value={video && (cloudSummary?.virality_score != null || intelligence?.simulation?.virality_score != null) ? `${Math.round((cloudSummary?.virality_score ?? intelligence?.simulation?.virality_score ?? 0) * Math.max(0.34, progress / 100))}` : null} suffix={video ? "/100" : ""} delta={video ? `${formatCount(cloudSummary?.total_shares ?? intelligence?.simulation?.total_shares ?? 0)} share edges` : "Awaiting swarm"} tone="green" />
+        <LiveMetric title="Drop-off Risk" value={video && intelligence?.simulation?.dropoff_risk_pct != null ? `${Math.max(3, Number(intelligence.simulation.dropoff_risk_pct) - phase).toFixed(1)}%` : null} delta={video ? "Updates with analysis phase" : "Awaiting retention"} tone="orange" />
       </section>
 
       <footer className="flow-footer">
@@ -3573,21 +2926,14 @@ function MomentCard({ kind, label, left, tone }) {
   );
 }
 
-function MetricCard({ label, value, suffix = "", note = "", spark = false }) {
+function MetricCard({ label, value = null, suffix = "", note = "" }) {
+  if (value == null || value === "") return null;
   return (
     <article className="metric-card">
       <span>{label}</span>
       <div><strong>{value}</strong>{suffix && <small>{suffix}</small>}</div>
-      {spark ? <MiniSpark /> : <p>{note}</p>}
+      {note ? <p>{note}</p> : null}
     </article>
-  );
-}
-
-function MiniSpark() {
-  return (
-    <svg className="mini-spark" viewBox="0 0 110 28" role="img" aria-label="small retention sparkline">
-      <path d="M2 20 C14 20 18 9 27 15 S42 24 50 14 S63 5 73 13 S91 22 108 9" />
-    </svg>
   );
 }
 
@@ -3682,12 +3028,12 @@ function SentimentRow({ name, positive, neutral, negative, tone }) {
 }
 
 function LiveMetric({ title, value, suffix = "", delta, tone }) {
+  if (value == null) return null;
   return (
     <article className={`live-card ${tone}`}>
       <span>{title}</span>
       <div><strong>{value}</strong>{suffix && <small>{suffix}</small>}</div>
-      <p>{delta}</p>
-      <MiniSpark />
+      {delta ? <p>{delta}</p> : null}
     </article>
   );
 }

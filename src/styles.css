@@ -1086,48 +1086,6 @@ svg {
   filter: grayscale(1) contrast(1.1) brightness(0.42);
 }
 
-.exact-account-card {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  min-height: 92px;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 16px;
-  align-items: center;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: rgba(255, 255, 251, 0.9);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
-}
-
-.exact-account-card > span {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 34% 32%, rgba(255, 255, 255, 0.9), transparent 0 22%),
-    linear-gradient(135deg, #8cc06b, #2f7d2f 70%);
-  box-shadow: 0 10px 18px rgba(47, 117, 42, 0.22);
-}
-
-.exact-account-card strong,
-.exact-account-card small {
-  display: block;
-}
-
-.exact-account-card strong {
-  font-size: 18px;
-  font-weight: 950;
-}
-
-.exact-account-card small {
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 900;
-}
-
 .exact-page-main {
   min-width: 0;
   padding: 36px 0 28px 34px;
@@ -2215,36 +2173,6 @@ svg {
 .sidebar nav button:hover {
   color: var(--ink);
   background: #edf8e6;
-}
-
-.account-chip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: auto;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: #fffef9;
-}
-
-.account-chip span {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 30%, #f6d56d, transparent 32%),
-    linear-gradient(135deg, #5f9c3b, #2e701f);
-}
-
-.account-chip strong,
-.account-chip small {
-  display: block;
-}
-
-.account-chip small {
-  color: var(--muted);
-  font-weight: 800;
 }
 
 .dashboard-main {
@@ -5517,6 +5445,15 @@ svg {
   backdrop-filter: blur(6px);
 }
 
+.logout-button.floating-clear-intel {
+  position: fixed;
+  top: 16px;
+  right: 116px;
+  z-index: 60;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(6px);
+}
+
 .auth-step-verify {
   display: flex;
   flex-direction: column;
@@ -5548,104 +5485,7 @@ svg {
 
 /* ── Ported upstream visualisations ────────────────────────────────────── */
 
-/* Flow primary-handle + fake social preview */
-.flow-handle-block {
-  margin-top: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(255, 255, 251, 0.7);
-  display: grid;
-  gap: 10px;
-}
-.flow-handle-label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 950;
-  color: var(--ink);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.flow-handle-label small {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: none;
-  letter-spacing: 0;
-  margin-left: 4px;
-}
-.flow-handle-input {
-  margin-top: 4px;
-  padding: 10px 12px;
-  border: 1px solid var(--line-dark);
-  border-radius: 10px;
-  background: var(--paper);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
-  outline: none;
-  transition: border-color 140ms ease, box-shadow 140ms ease;
-}
-.flow-handle-input:focus {
-  border-color: var(--green);
-  box-shadow: 0 0 0 3px rgba(95, 156, 59, 0.18);
-}
-.flow-fake-profile {
-  display: grid;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: linear-gradient(180deg, var(--green-soft), rgba(237, 248, 230, 0.45));
-}
-.flow-fake-profile-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-}
-.flow-fake-profile-head strong {
-  font-size: 15px;
-  font-weight: 950;
-  color: var(--ink);
-}
-.flow-fake-handle {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--green-deep);
-}
-.flow-fake-platform {
-  margin-left: auto;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(95, 156, 59, 0.16);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--green-deep);
-}
-.flow-fake-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--muted);
-  font-weight: 800;
-}
-.flow-fake-stats em {
-  font-style: normal;
-  font-weight: 950;
-  color: var(--ink);
-}
-.flow-fake-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+/* Agent chat tag pill (also used in Olivia chat meta) */
 .flow-fake-tag {
   padding: 2px 8px;
   border: 1px solid var(--line);
@@ -5706,14 +5546,23 @@ svg {
   display: grid;
   gap: 12px;
   margin-bottom: 12px;
+  width: 100%;
+  min-width: 0;
 }
 .dash-stage.two-col {
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  grid-template-columns: minmax(360px, 1fr) minmax(360px, 1fr);
 }
 .dash-col {
   display: grid;
   gap: 12px;
   align-content: start;
+  min-width: 0;
+  width: 100%;
+}
+.dash-col > .analytics-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 @media (max-width: 1080px) {
   .dash-stage.two-col { grid-template-columns: 1fr; }
@@ -6165,4 +6014,194 @@ svg {
 /* Agent empty state */
 .agent-swarm-empty {
   padding: 18px;
+}
+
+/* ── TribeBrain3D — real-time spinning 3D brain (react-three-fiber) ── */
+.tribe-brain-3d {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: #0b0d11;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.4);
+}
+.tribe-brain-3d.is-compact {
+  border-radius: 12px;
+}
+.tribe-brain-3d-canvas {
+  position: relative;
+  width: 100%;
+  min-height: 360px;
+  height: 420px;
+  background: radial-gradient(ellipse at center, #15171c 0%, #0b0d11 70%);
+}
+.tribe-brain-3d.is-compact .tribe-brain-3d-canvas {
+  min-height: 280px;
+  height: 320px;
+}
+.tribe-brain-3d-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  outline: none;
+  touch-action: none;
+}
+.tribe-brain-3d-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px 12px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(220, 220, 230, 0.78);
+  background: linear-gradient(180deg, rgba(11, 13, 17, 0.0) 0%, rgba(0, 0, 0, 0.45) 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  letter-spacing: 0.02em;
+}
+.tribe-brain-3d-caption .tb3-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tribe-brain-3d-caption strong {
+  color: #ffd980;
+  font-weight: 700;
+  margin: 0 2px;
+}
+.tribe-brain-3d-caption em {
+  font-style: normal;
+  color: rgba(220, 220, 230, 0.55);
+  margin-right: 4px;
+}
+.tribe-brain-3d-caption .tb3-dot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 215, 100, 0.55);
+  margin: 0 4px;
+}
+.tribe-brain-3d-caption .tb3-region {
+  margin-left: auto;
+  color: rgba(255, 200, 130, 0.85);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ─── Meta TribeV2-style baked MP4 brain panel ─────────────────────────── */
+.meta-brain-shell {
+  position: relative;
+  width: 100%;
+  min-height: 460px;
+  background: #000;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.7);
+}
+.tribe-brain-3d.is-compact .meta-brain-shell {
+  min-height: 320px;
+}
+.meta-brain-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  z-index: 2;
+}
+.meta-brain-silhouette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 55% 50%, rgba(120, 90, 140, 0.18) 0 22%, transparent 38%),
+    linear-gradient(180deg, rgba(40, 30, 55, 0.35) 0%, rgba(0, 0, 0, 0) 60%);
+  filter: blur(2px);
+  z-index: 1;
+  pointer-events: none;
+}
+.meta-brain-expand {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+.meta-brain-expand:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.meta-brain-expand:focus-visible {
+  outline: 2px solid rgba(252, 211, 77, 0.6);
+  outline-offset: 2px;
+}
+.meta-brain-colorbar {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px 10px;
+  align-items: center;
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  font-size: 11px;
+  min-width: 220px;
+  pointer-events: none;
+}
+.meta-brain-colorbar-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #6a1e00 0%,
+    #c43a06 28%,
+    #f97316 55%,
+    #fcd34d 80%,
+    #ffffff 100%
+  );
+  box-shadow: 0 0 16px -4px rgba(252, 115, 22, 0.45) inset;
+}
+.meta-brain-colorbar-caption {
+  grid-column: 1 / -1;
+  text-align: center;
+  margin-top: 2px;
+  font-size: 11px;
+  opacity: 0.85;
+  letter-spacing: 0.02em;
+}
+.meta-brain-colorbar-label {
+  font-size: 11px;
+  opacity: 0.85;
+  letter-spacing: 0.04em;
+}
+@media (max-width: 720px) {
+  .meta-brain-shell { min-height: 320px; }
+  .meta-brain-colorbar { min-width: 160px; font-size: 10px; padding: 8px 10px; }
+  .meta-brain-expand { font-size: 12px; padding: 6px 10px; }
 }

@@ -15,8 +15,13 @@ import importlib
 import io
 import json
 import math
+import os
 import re
 import sys
+import time
+import uuid
+import urllib.error
+import urllib.request
 from collections import Counter, defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -49,15 +54,61 @@ BRAIN_PEAKS = CACHE / "brain_peak_activity_video.json"
 BRAIN_RETENTION = CACHE / "viewer_retention_video.json"
 BRAIN_GEOMETRY = CACHE / "brain_geometry_nodes_video.json"
 
+# Where interactive nilearn brain HTML renders live on the server. Served by
+# FastAPI under /brain/<filename>.html. Override with ANT_BRAIN_RENDERS_DIR.
+BRAIN_RENDERS_DIR = Path(
+    os.environ.get("ANT_BRAIN_RENDERS_DIR")
+    or ("/workspace/brain_renders" if os.path.isdir("/workspace") else
+        str(Path(os.environ.get("TEMP") or "/tmp") / "ant_brain_renders"))
+)
+
 
 REACTION_ORDER = ["comment", "like", "share", "follow", "saves", "strong_like", "neutral"]
 POSITIVE_REACTIONS = {"like", "strong_like", "saves", "follow"}
 SHARE_TRIGGERS = {"share", "strong_like"}
 
-POPULATION_SIZE = int(__import__("os").environ.get("ANT_POPULATION_SIZE", "60000"))
+POPULATION_SIZE = int(os.environ.get("ANT_POPULATION_SIZE", "60000"))
 KEYWORD_SET_COUNT = 16
 KEYWORDS_PER_SET = 8
 RNG_SEED = 1776
+
+NIA_BASE = "https://apigcp.trynia.ai/v2"
+NIA_SOURCE_NAME = "Viewlytics TikTok Corpus"
+
+PERSONA_POOLS = {
+    "creator operators": [
+        "marketing", "manager", "professional", "certification", "single", "london",
+        "software", "data", "analyst", "college", "young", "united", "states",
+    ],
+    "startup builders": [
+        "software", "engineer", "data", "analyst", "graduate", "doctorate", "austin",
+        "seattle", "united", "states", "professional", "manager",
+    ],
+    "budget families": [
+        "parent", "parenting", "children", "two", "young", "married", "partner",
+        "denver", "chicago", "care", "home", "housing",
+    ],
+    "student trend scouts": [
+        "student", "graduate", "college", "single", "roommates", "austin", "toronto",
+        "canada", "young", "some", "school",
+    ],
+    "global professionals": [
+        "manager", "professional", "bachelor", "master", "degree", "certification",
+        "melbourne", "sydney", "australia", "london", "dublin", "ireland",
+    ],
+    "skeptical experts": [
+        "retired", "engineer", "bachelor", "degree", "spouse", "partner", "barcelona",
+        "spain", "privacy", "home", "empty", "nest",
+    ],
+    "local service buyers": [
+        "barista", "warehouse", "supervisor", "coordinator", "chef", "dental",
+        "hygienist", "diploma", "part", "time", "berlin", "germany",
+    ],
+    "care network": [
+        "care", "parents", "aging", "children", "parenting", "partner", "married",
+        "home", "vancouver", "canada", "netherlands", "amsterdam",
+    ],
+}
 
 
 STOPWORDS = {
@@ -239,6 +290,350 @@ def build_keyword_sets_from_personas(
         })
 
     return sets
+
+
+# ---------------------------------------------------------------------------
+# Nia (Nozomio) integration — real keyword-set generation from indexed corpus.
+# Gated by NIA_API_KEY env var; absence triggers deterministic fallback.
+# ---------------------------------------------------------------------------
+
+
+def _nia_request(method: str, path: str, payload: dict[str, Any] | None = None, timeout: int = 90) -> dict[str, Any]:
+    api_key = os.environ.get("NIA_API_KEY", "").strip()
+    if not api_key:
+        return {"ok": False, "error": "missing_NIA_API_KEY"}
+    body = None
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    if payload is not None:
+        body = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(f"{NIA_BASE}{path}", data=body, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            raw = response.read().decode("utf-8")
+            data = json.loads(raw) if raw else {}
+            return {"ok": True, "status_code": response.status, "data": data}
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        return {"ok": False, "status_code": exc.code, "error": detail[:1200]}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": repr(exc)}
+
+
+def _nia_source_id(source: dict[str, Any]) -> str:
+    for key in ("id", "source_id", "local_folder_id", "identifier"):
+        value = source.get(key)
+        if value:
+            return str(value)
+    return ""
+
+
+def _nia_source_status(source: dict[str, Any]) -> str:
+    return str(source.get("status") or source.get("indexing_status") or source.get("state") or "unknown")
+
+
+def prepare_nia_files(
+    videos: list[dict[str, Any]],
+    transcript_text: str,
+    keyword_sets: list[dict[str, Any]],
+    vocab: list[str] | None = None,
+) -> list[dict[str, str]]:
+    files: list[dict[str, str]] = []
+    for index, video in enumerate(videos[:120], start=1):
+        title = video.get("title") or f"video-{index}"
+        safe_id = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(video.get("id") or index)).strip("-")[:80]
+        content = "\n".join([
+            f"# {title}",
+            "",
+            f"Uploader: {video.get('uploader', '')}",
+            f"Views: {video.get('views', 0)}",
+            f"Likes: {video.get('likes', 0)}",
+            f"Comments: {video.get('comments', 0)}",
+            f"Saves: {video.get('saves', 0)}",
+            f"Reposts: {video.get('reposts', 0)}",
+            f"Engagement rate percent: {video.get('engagement_rate_pct', 0)}",
+            f"Duration seconds: {video.get('duration_sec', 0)}",
+            f"Hashtags: {', '.join(video.get('hashtags', []))}",
+            f"Terms: {', '.join(video.get('text_terms', []))}",
+            "",
+            "## Text",
+            str(video.get("document_text", "")),
+        ])
+        files.append({"path": f"videos/{index:03d}-{safe_id}.md", "content": content})
+
+    if transcript_text:
+        files.append({
+            "path": "transcripts/source-video-transcript.md",
+            "content": "# Source video transcript\n\n" + transcript_text[:28000],
+        })
+
+    keyword_lines = []
+    for seed in keyword_sets:
+        keyword_lines.append(
+            f"- {seed['label']}: {', '.join(seed['keywords'])}; "
+            f"noise terms: {', '.join(seed.get('content_noise_terms', []))}"
+        )
+    files.append({
+        "path": "personas/noisy-keyword-seeds.md",
+        "content": f"# {KEYWORD_SET_COUNT} noisy persona keyword seed sets\n\n" + "\n".join(keyword_lines),
+    })
+
+    pool_lines = [
+        f"- {name}: {', '.join(words)}"
+        for name, words in PERSONA_POOLS.items()
+    ]
+    vocab_sample = ""
+    if vocab:
+        vocab_sample = ", ".join(sorted(vocab)[:600])
+    files.append({
+        "path": "personas/persona-vocabulary.md",
+        "content": (
+            "# Viewlytics persona vocabulary\n\n"
+            "## Positive persona pools (canonical demographic / occupational / geographic anchors)\n"
+            + "\n".join(pool_lines)
+            + "\n\n## Persona keyword vocabulary (sample)\n"
+            + vocab_sample
+        ),
+    })
+    return files
+
+
+def index_with_nia(
+    videos: list[dict[str, Any]],
+    transcript_text: str,
+    keyword_sets: list[dict[str, Any]],
+    vocab: list[str] | None = None,
+) -> dict[str, Any]:
+    """Create a Nia filesystem namespace, write the corpus files inline, and
+    return a metadata dict with the source_id. The filesystem source type is
+    ready immediately (no indexing daemon required), so callers can query
+    `/search` against the returned `source_id` right away.
+    """
+    if not os.environ.get("NIA_API_KEY", "").strip():
+        return {
+            "status": "local_fallback_missing_NIA_API_KEY",
+            "prepared_sources": len(videos) + (1 if transcript_text else 0),
+            "note": "NIA_API_KEY was not present, so local metadata/transcript parsing was used.",
+        }
+
+    files = prepare_nia_files(videos, transcript_text, keyword_sets, vocab)
+
+    # Create a fresh filesystem namespace per analyze call. Filesystems are
+    # cheap (instant), private to the caller, and don't burn the 3-source
+    # repository/doc quota.
+    create_payload = {
+        "name": NIA_SOURCE_NAME,
+        "description": (
+            "Per-analyze TikTok corpus snapshot: transcript, video metadata, "
+            "and deterministic persona keyword seed sets."
+        ),
+    }
+    created_resp = _nia_request("POST", "/fs", create_payload, timeout=30)
+    if not created_resp.get("ok"):
+        return {
+            "status": "nia_index_failed",
+            "prepared_sources": len(files),
+            "error": created_resp.get("error", "fs_create_failed"),
+        }
+    source = created_resp.get("data", {}) or {}
+    source_id = str(source.get("id") or source.get("source_id") or "")
+    if not source_id:
+        return {
+            "status": "nia_index_failed",
+            "prepared_sources": len(files),
+            "error": "no_source_id_returned",
+        }
+
+    # Convert prepare_nia_files() output (which uses {"path","content"}) to the
+    # WriteFileBody schema (which uses {"path","body"}). Batch in chunks to
+    # keep request size reasonable.
+    written_total = 0
+    BATCH = 25
+    for i in range(0, len(files), BATCH):
+        chunk = files[i : i + BATCH]
+        body = {
+            "files": [
+                {"path": f["path"], "body": f["content"]}
+                for f in chunk
+            ]
+        }
+        resp = _nia_request("PUT", f"/fs/{source_id}/files/batch", body, timeout=90)
+        if not resp.get("ok"):
+            return {
+                "status": "nia_index_failed",
+                "source_id": source_id,
+                "prepared_sources": len(files),
+                "indexed_files": written_total,
+                "error": resp.get("error", "fs_write_batch_failed"),
+            }
+        written_total += int((resp.get("data") or {}).get("written") or len(chunk))
+
+    nia_result: dict[str, Any] = {
+        "status": "nia_ready",
+        "source_id": source_id,
+        "source_name": NIA_SOURCE_NAME,
+        "source_type": "filesystem",
+        "created": True,
+        "prepared_sources": len(files),
+        "indexed_files": written_total,
+    }
+
+    # Synthesized snapshot answer (used by frontend insight cards). Filesystem
+    # sources are queried via the `data_sources` parameter.
+    query_payload = {
+        "mode": "query",
+        "messages": [
+            {
+                "role": "user",
+                "content": (
+                    "From this Viewlytics TikTok corpus, identify the strongest hook themes, "
+                    "persona angles, trend words, and risks. Keep it concise and usable for "
+                    "frontend insight cards."
+                ),
+            }
+        ],
+        "data_sources": [source_id],
+        "include_sources": True,
+        "fast_mode": False,
+    }
+    answer = _nia_request("POST", "/search", query_payload, timeout=180)
+    if answer.get("ok"):
+        data = answer.get("data", {})
+        nia_result["query_status"] = "ok"
+        nia_result["answer"] = str(
+            data.get("answer") or data.get("content") or data.get("response") or data
+        )[:5000]
+    else:
+        nia_result["query_status"] = "failed"
+        nia_result["query_error"] = answer.get("error", "unknown error")
+
+    return nia_result
+
+
+def _extract_json_object(text: str) -> dict[str, Any] | None:
+    """Robustly extract the first JSON object from a model response — strips
+    code fences, finds the outermost balanced {...} block."""
+    if not text:
+        return None
+    cleaned = text.strip()
+    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```\s*$", cleaned, re.DOTALL | re.IGNORECASE)
+    if fence:
+        cleaned = fence.group(1).strip()
+    start = cleaned.find("{")
+    if start < 0:
+        return None
+    depth = 0
+    end = -1
+    in_string = False
+    escape = False
+    for i in range(start, len(cleaned)):
+        ch = cleaned[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                end = i + 1
+                break
+    if end <= start:
+        return None
+    try:
+        return json.loads(cleaned[start:end])
+    except Exception:
+        return None
+
+
+def nia_generate_keyword_sets(
+    source_id: str,
+    corpus_video_terms: Counter,
+    vocab: list[str],
+) -> list[dict[str, Any]]:
+    """Ask Nia to synthesize KEYWORD_SET_COUNT persona keyword sets from the indexed corpus.
+
+    Returns a list of KEYWORD_SET_COUNT dicts matching the keyword-set schema, or
+    an empty list if Nia did not return a usable response (caller falls back).
+    """
+    if not source_id:
+        return []
+
+    prompt = (
+        f"From the indexed Viewlytics corpus, generate exactly {KEYWORD_SET_COUNT} distinct viewer "
+        f"persona keyword sets. Each set must contain exactly {KEYWORDS_PER_SET} lowercase single-word "
+        "keywords drawn from common demographic, occupational, geographic, and "
+        "behavioral language seen in the corpus. Avoid stopwords. Return strict JSON: "
+        '{"sets": [{"label": "...", "keywords": ["k1","k2",...,"k'
+        f'{KEYWORDS_PER_SET}'
+        '"]}, ... '
+        f"{KEYWORD_SET_COUNT} entries ...]"
+        "}. "
+        "No prose, no markdown."
+    )
+    query_payload = {
+        "mode": "query",
+        "messages": [{"role": "user", "content": prompt}],
+        "data_sources": [source_id],
+        "include_sources": False,
+        "fast_mode": False,
+    }
+    answer = _nia_request("POST", "/search", query_payload, timeout=240)
+    if not answer.get("ok"):
+        return []
+    data = answer.get("data", {}) or {}
+    raw_text = ""
+    for key in ("answer", "content", "response", "message", "text"):
+        value = data.get(key)
+        if isinstance(value, str) and value.strip():
+            raw_text = value
+            break
+    if not raw_text and isinstance(data, dict):
+        raw_text = json.dumps(data)
+    parsed = _extract_json_object(raw_text)
+    if not parsed:
+        return []
+    raw_sets = parsed.get("sets")
+    if not isinstance(raw_sets, list) or len(raw_sets) != KEYWORD_SET_COUNT:
+        return []
+
+    cleaned_sets: list[dict[str, Any]] = []
+    for index, entry in enumerate(raw_sets):
+        if not isinstance(entry, dict):
+            return []
+        label = str(entry.get("label") or "").strip()
+        keywords_raw = entry.get("keywords")
+        if not label or not isinstance(keywords_raw, list) or len(keywords_raw) != KEYWORDS_PER_SET:
+            return []
+        keywords: list[str] = []
+        seen: set[str] = set()
+        for kw in keywords_raw:
+            kw_str = str(kw or "").strip().lower()
+            kw_str = re.sub(r"[^a-z0-9'-]+", "", kw_str)
+            if not kw_str or kw_str in STOPWORDS or kw_str in seen:
+                return []
+            seen.add(kw_str)
+            keywords.append(kw_str)
+        if len(keywords) != KEYWORDS_PER_SET:
+            return []
+        cleaned_sets.append({
+            "id": f"kw-{index + 1:02d}",
+            "label": label,
+            "keywords": keywords,
+            "content_noise_terms": [],
+            "noise_level": round(0.012 + (index % 7) * 0.006, 3),
+            "persona_count": POPULATION_SIZE // KEYWORD_SET_COUNT,
+        })
+    return cleaned_sets
 
 
 def hashed_embedding(text: str, dim: int = 384) -> np.ndarray:
@@ -507,6 +902,332 @@ def render_tribe_plotter_frames(
     return frames
 
 
+def _prune_old_brain_renders(keep: int = 20) -> None:
+    """Keep only the most recent ``keep`` renders per extension so disk doesn't balloon."""
+    try:
+        if not BRAIN_RENDERS_DIR.is_dir():
+            return
+        for ext in ("*.html", "*.mp4", "*.gif", "*.webm"):
+            files = sorted(
+                (p for p in BRAIN_RENDERS_DIR.glob(ext) if p.is_file()),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            for old in files[keep:]:
+                try:
+                    old.unlink()
+                except Exception:  # noqa: BLE001
+                    pass
+    except Exception as exc:  # noqa: BLE001
+        print(f"[local_pipeline] brain render prune failed: {exc!r}", file=sys.stderr)
+
+
+def render_interactive_brain_html(
+    cached_frames: list[dict[str, Any]],
+    activation_signal: np.ndarray,
+    n_seconds: int,
+    total_vertices: int,
+    retention_curve: list[dict[str, Any]],
+) -> Optional[dict[str, str]]:
+    """Render an interactive 3D cortical brain via ``nilearn.plotting.view_surf``.
+
+    Produces a standalone HTML page (plotly + WebGL) showing peak-timestep
+    activation on the fsaverage5 pial surface. Best-effort: returns ``None`` on
+    any failure so the rest of the payload still ships.
+
+    Returns ``{"url": "/brain/<id>.html", "path": "<absolute path>", "peak_time_sec": ...}``.
+    """
+    if total_vertices <= 0 or n_seconds <= 0 or not cached_frames:
+        return None
+    try:
+        from nilearn.datasets import fetch_surf_fsaverage
+        from nilearn.plotting import view_surf
+    except Exception as exc:  # noqa: BLE001
+        print(f"[local_pipeline] nilearn unavailable for view_surf: {exc!r}", file=sys.stderr)
+        return None
+
+    try:
+        # Build (T, V) preds array using the same scheme as render_tribe_plotter_frames.
+        preds = np.zeros((n_seconds, total_vertices), dtype=np.float32)
+        for i in range(n_seconds):
+            cached = cached_frames[(i * 3 + 1) % len(cached_frames)]
+            amp = float(activation_signal[i]) if activation_signal.size else 0.6
+            preds[i] = _frame_to_prediction(cached, total_vertices, amp)
+
+        # Peak activation timestep (max L2 norm across vertices).
+        l2 = np.linalg.norm(preds, axis=1)
+        if not np.any(l2 > 0):
+            return None
+        peak_t = int(np.argmax(l2))
+        peak_time_sec = float(peak_t)
+
+        hemi_v = total_vertices // 2
+        lh_map = preds[peak_t, :hemi_v]
+        rh_map = preds[peak_t, hemi_v:]
+        # Render the hemisphere with the stronger peak so the user sees activation.
+        if float(rh_map.max(initial=0.0)) > float(lh_map.max(initial=0.0)):
+            hemi_key = "right"
+            surf_map = rh_map
+        else:
+            hemi_key = "left"
+            surf_map = lh_map
+
+        surf = fetch_surf_fsaverage(mesh="fsaverage5")
+        title = f"TribeV2 peak cortical activation t={peak_time_sec:.1f}s"
+        html_view = view_surf(
+            surf_mesh=surf[f"pial_{hemi_key}"],
+            surf_map=surf_map.astype(np.float32),
+            bg_map=surf[f"sulc_{hemi_key}"],
+            cmap="inferno",
+            symmetric_cmap=False,
+            black_bg=True,
+            title=title,
+            threshold="50%",  # show top 50% of activation
+        )
+
+        BRAIN_RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+        run_id = uuid.uuid4().hex[:12]
+        html_path = BRAIN_RENDERS_DIR / f"{run_id}.html"
+        html_view.save_as_html(str(html_path))
+        return {
+            "url": f"/brain/{run_id}.html",
+            "path": str(html_path),
+            "peak_time_sec": round(peak_time_sec, 2),
+            "hemi": hemi_key,
+        }
+    except Exception as exc:  # noqa: BLE001
+        print(f"[local_pipeline] view_surf render failed: {exc!r}", file=sys.stderr)
+        return None
+
+
+def render_animated_brain_mp4(
+    cached_frames: list[dict[str, Any]],
+    activation_signal: np.ndarray,
+    n_seconds: int,
+    total_vertices: int,
+    max_frames: int = 30,
+    fps: int = 3,
+    spin: bool = True,
+) -> Optional[dict[str, Any]]:
+    """Render a side-view brain animation: white anatomical cortex with hot
+    activations painted on, one frame per timestep, baked into an MP4.
+
+    Mirrors the Meta TribeV2 demo (https://aidemos.atmeta.com/tribev2/) aesthetic:
+    nilearn.plot_surf_stat_map lateral view, hot cmap, dark background, with
+    bg_on_data so the white anatomical cortex shows through low-activation regions.
+
+    Returns ``{"url": "/brain/<id>.mp4", "fps": ..., "frames": ..., "hemi": ...,
+    "format": "mp4"|"gif"}`` or ``None`` on any failure (so iframe fallback ships).
+    """
+    if total_vertices <= 0 or n_seconds <= 0 or not cached_frames:
+        return None
+    try:
+        import shutil
+        import tempfile
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from nilearn.datasets import fetch_surf_fsaverage
+        from nilearn.plotting import plot_surf_stat_map
+        try:
+            import imageio.v3 as iio
+            _IIO_V3 = True
+        except Exception:
+            import imageio as iio  # type: ignore
+            _IIO_V3 = False
+    except Exception as exc:  # noqa: BLE001
+        print(f"[local_pipeline] animated mp4 deps unavailable: {exc!r}", file=sys.stderr)
+        return None
+
+    try:
+        # Build the (T, V) preds array the same way render_interactive_brain_html does.
+        preds = np.zeros((n_seconds, total_vertices), dtype=np.float32)
+        for i in range(n_seconds):
+            cached = cached_frames[(i * 3 + 1) % len(cached_frames)]
+            amp = float(activation_signal[i]) if activation_signal.size else 0.6
+            preds[i] = _frame_to_prediction(cached, total_vertices, amp)
+
+        n_t = preds.shape[0]
+        N_HEMI = preds.shape[1] // 2
+        # Render BOTH hemispheres as a single combined mesh so rotation reveals
+        # the full anatomical brain (not just one half).
+        use_hemi = "both"
+
+        surf = fetch_surf_fsaverage(mesh="fsaverage5")
+        # nilearn 0.13 returns paths / SurfaceMesh objects, not (verts, faces).
+        # load_surf_mesh handles both transparently.
+        from nilearn.surface import load_surf_mesh, load_surf_data
+        lh_mesh = load_surf_mesh(surf["pial_left"])
+        rh_mesh = load_surf_mesh(surf["pial_right"])
+        lh_verts = np.asarray(getattr(lh_mesh, "coordinates", None)
+                              if hasattr(lh_mesh, "coordinates") else lh_mesh[0])
+        lh_faces = np.asarray(getattr(lh_mesh, "faces", None)
+                              if hasattr(lh_mesh, "faces") else lh_mesh[1])
+        rh_verts = np.asarray(getattr(rh_mesh, "coordinates", None)
+                              if hasattr(rh_mesh, "coordinates") else rh_mesh[0])
+        rh_faces = np.asarray(getattr(rh_mesh, "faces", None)
+                              if hasattr(rh_mesh, "faces") else rh_mesh[1])
+        combined_verts = np.vstack([lh_verts, rh_verts])
+        combined_faces = np.vstack([lh_faces, rh_faces + len(lh_verts)])
+        surf_mesh = (combined_verts, combined_faces)
+        bg_map = np.concatenate([
+            np.asarray(load_surf_data(surf["sulc_left"])),
+            np.asarray(load_surf_data(surf["sulc_right"])),
+        ])
+
+        # Subsample to <= max_frames evenly spaced timesteps for tractable render time.
+        if n_t > max_frames:
+            idx = np.linspace(0, n_t - 1, max_frames).astype(int)
+        else:
+            idx = np.arange(n_t)
+
+        # Consistent color scale across frames via global 95th percentile.
+        abs_acts = np.abs(preds)
+        vmax = float(np.percentile(abs_acts, 95)) if abs_acts.size else 1.0
+        if vmax <= 0:
+            vmax = float(abs_acts.max() or 1.0)
+        threshold = max(vmax * 0.30, 1e-6)  # show top ~70% of dynamic range, Meta-look
+
+        tmp = Path(tempfile.mkdtemp(prefix="brain_anim_"))
+        frame_paths: list[Path] = []
+        try:
+            # nilearn 0.13 dropped `darkness` and `figsize` from plot_surf_stat_map.
+            # We pass them only if the installed nilearn still accepts them.
+            import inspect
+            _surf_kwargs = set(inspect.signature(plot_surf_stat_map).parameters.keys())
+            # Slow rotation: 180° sweep across the full loop (gentle nod), not a
+            # full 360° whirl. Anchored at left-lateral start so the loop reads
+            # as "rotate around to see the other side and back".
+            n_render_frames = len(idx)
+            SPIN_ARC_DEG = 30.0   # tweak if you want subtler / wider rotation
+            START_AZIM = 270.0    # left-lateral starting view
+            HEMI_KW_SUPPORTED = "hemi" in _surf_kwargs
+            for frame_i, i in enumerate(idx):
+                surf_map = preds[int(i)].astype(np.float32)
+                # Pre-create the figure with the size we want; pass via `figure=`
+                # so it works on both old & new nilearn.
+                fig = plt.figure(figsize=(8, 6), facecolor="#000000")
+                if spin and n_render_frames > 1:
+                    # Easing: -1..+1 cosine sweep so motion eases at the endpoints
+                    # (no jarring jump at the loop seam).
+                    sweep = math.sin((frame_i / n_render_frames) * 2 * math.pi) * 0.5
+                    azim = (START_AZIM + sweep * SPIN_ARC_DEG) % 360.0
+                    view_arg: Any = (0.0, azim)
+                else:
+                    view_arg = (0.0, START_AZIM)
+                _kwargs = dict(
+                    bg_map=bg_map,
+                    view=view_arg,
+                    cmap="hot",
+                    colorbar=False,
+                    threshold=threshold,
+                    bg_on_data=True,
+                    vmax=vmax,
+                    title=None,
+                    figure=fig,
+                )
+                # Some nilearn versions still want hemi when the mesh is bundled.
+                if HEMI_KW_SUPPORTED:
+                    _kwargs["hemi"] = "both"
+                if "darkness" in _surf_kwargs:
+                    _kwargs["darkness"] = 0.4
+                plot_surf_stat_map(surf_mesh, surf_map, **_kwargs)
+                fig.set_facecolor("#000000")
+                for ax in fig.axes:
+                    ax.set_facecolor("#000000")
+                fpath = tmp / f"frame_{int(i):04d}.png"
+                fig.savefig(
+                    str(fpath),
+                    dpi=110,
+                    facecolor="#000000",
+                    bbox_inches="tight",
+                    pad_inches=0.05,
+                )
+                plt.close(fig)
+                frame_paths.append(fpath)
+
+            if not frame_paths:
+                return None
+
+            # Read frames back. imageio v3 vs older API differ slightly.
+            if _IIO_V3:
+                frames = [iio.imread(str(p)) for p in frame_paths]
+            else:
+                frames = [iio.imread(str(p)) for p in frame_paths]  # same call works
+
+            # Normalize shapes (matplotlib's tight bbox can yield ±1 px differences).
+            H = max(f.shape[0] for f in frames)
+            W = max(f.shape[1] for f in frames)
+            normed: list[np.ndarray] = []
+            for f in frames:
+                if f.ndim == 2:
+                    f = np.stack([f, f, f], axis=-1)
+                if f.shape[2] == 4:
+                    f = f[:, :, :3]
+                if f.shape[:2] != (H, W):
+                    pad = np.zeros((H, W, f.shape[2]), dtype=f.dtype)
+                    pad[: f.shape[0], : f.shape[1]] = f
+                    normed.append(pad)
+                else:
+                    normed.append(f)
+
+            BRAIN_RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+            run_id = uuid.uuid4().hex[:12]
+            mp4_path = BRAIN_RENDERS_DIR / f"{run_id}.mp4"
+            out_format = "mp4"
+            try:
+                if _IIO_V3:
+                    iio.imwrite(
+                        str(mp4_path),
+                        np.stack(normed, axis=0),
+                        fps=fps,
+                        codec="libx264",
+                        quality=8,
+                        macro_block_size=8,
+                    )
+                else:
+                    # Older imageio API.
+                    writer = iio.get_writer(
+                        str(mp4_path),
+                        fps=fps,
+                        codec="libx264",
+                        quality=8,
+                        macro_block_size=8,
+                    )
+                    try:
+                        for f in normed:
+                            writer.append_data(f)
+                    finally:
+                        writer.close()
+            except Exception as exc_mp4:  # noqa: BLE001
+                print(f"[local_pipeline] mp4 encode failed, falling back to gif: {exc_mp4!r}", file=sys.stderr)
+                gif_path = mp4_path.with_suffix(".gif")
+                try:
+                    if _IIO_V3:
+                        iio.imwrite(str(gif_path), np.stack(normed, axis=0), duration=1.0 / max(1, fps), loop=0)
+                    else:
+                        iio.mimsave(str(gif_path), normed, duration=1.0 / max(1, fps), loop=0)
+                    mp4_path = gif_path
+                    out_format = "gif"
+                except Exception as exc_gif:  # noqa: BLE001
+                    print(f"[local_pipeline] gif fallback failed: {exc_gif!r}", file=sys.stderr)
+                    return None
+
+            return {
+                "url": f"/brain/{mp4_path.name}",
+                "path": str(mp4_path),
+                "fps": fps,
+                "frames": len(normed),
+                "hemi": use_hemi,
+                "format": out_format,
+            }
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[local_pipeline] animated brain render failed: {exc!r}", file=sys.stderr)
+        return None
+
+
 def build_brain_payload(video_signals: dict[str, Any]) -> dict[str, Any]:
     """Re-warp the bundled TribeV2 artifacts to the user's actual video timeline.
 
@@ -674,7 +1395,29 @@ def build_brain_payload(video_signals: dict[str, Any]) -> dict[str, Any]:
 
     render_frames = render_tribe_plotter_frames(cached_frames, activation_signal, n_seconds, total_vertices)
 
-    return {
+    # GC old renders, then produce a fresh interactive nilearn view. Best-effort.
+    _prune_old_brain_renders(keep=20)
+    interactive = render_interactive_brain_html(
+        cached_frames=cached_frames,
+        activation_signal=activation_signal,
+        n_seconds=n_seconds,
+        total_vertices=total_vertices,
+        retention_curve=curve,
+    )
+    # Bake the same activations into a looping MP4 (Meta TribeV2 demo look:
+    # lateral white-anatomy cortex with hot-colored activations).
+    try:
+        animated = render_animated_brain_mp4(
+            cached_frames=cached_frames,
+            activation_signal=activation_signal,
+            n_seconds=n_seconds,
+            total_vertices=total_vertices,
+        )
+    except Exception as _exc_anim:  # noqa: BLE001
+        print(f"[local_pipeline] animated brain render top-level guard: {_exc_anim!r}", file=sys.stderr)
+        animated = None
+
+    payload = {
         "source": "facebook/tribev2 cached cortical artifacts (re-warped to uploaded video signals)",
         "summary": {
             "mean_retention_proxy": round(float(blended.mean()), 2),
@@ -693,6 +1436,18 @@ def build_brain_payload(video_signals: dict[str, Any]) -> dict[str, Any]:
         "render_frames": render_frames,
         "retention_curve": curve,
     }
+    if interactive is not None:
+        payload["interactive_html_url"] = interactive["url"]
+        payload["interactive_html_path"] = interactive["path"]
+        payload["interactive_html_peak_time_sec"] = interactive["peak_time_sec"]
+        payload["interactive_html_hemi"] = interactive["hemi"]
+    if animated is not None:
+        payload["animated_video_url"] = animated["url"]
+        payload["animated_video_fps"] = animated["fps"]
+        payload["animated_video_frames"] = animated["frames"]
+        payload["animated_video_hemi"] = animated["hemi"]
+        payload["animated_video_format"] = animated["format"]
+    return payload
 
 
 # ---------------------------------------------------------------------------
@@ -990,7 +1745,30 @@ def build_payload(
 
     report("transcript", "Reading reference transcript corpus", 22.0)
     transcript_text, transcript_terms = read_transcript_terms()
-    keyword_sets = build_keyword_sets_from_personas(persona_seeds, vocab, transcript_terms)
+    deterministic_sets = build_keyword_sets_from_personas(persona_seeds, vocab, transcript_terms)
+
+    report("nia_index", "Indexing corpus with Nia", 26.0)
+    nia_meta = index_with_nia(
+        videos=[],
+        transcript_text=transcript_text,
+        keyword_sets=deterministic_sets,
+        vocab=vocab,
+    )
+    nia_keyword_sets_source = "deterministic"
+    if nia_meta.get("source_id") and nia_meta.get("status") in {"nia_ready", "nia_completed"}:
+        report("nia_keyword_sets", "Generating Nia persona keyword sets", 29.0)
+        nia_sets = nia_generate_keyword_sets(
+            nia_meta["source_id"], Counter(transcript_terms), vocab
+        )
+        if nia_sets:
+            keyword_sets = nia_sets
+            nia_keyword_sets_source = "nia"
+        else:
+            keyword_sets = deterministic_sets
+            nia_keyword_sets_source = "deterministic_fallback_invalid_nia_response"
+    else:
+        keyword_sets = deterministic_sets
+    nia_meta["keyword_sets_source"] = nia_keyword_sets_source
 
     report("population_generation", f"Generating {POPULATION_SIZE:,} persona vectors", 32.0)
     personas, cohort_ids, trait_bits = generate_population(keyword_sets, weights, kw_to_idx)
@@ -1083,6 +1861,7 @@ def build_payload(
         "brain": brain,
         "trends": trends,
         "insights": insights,
+        "nia": nia_meta,
     }
 
     report("done", "Analysis complete", 100.0)
