@@ -17,7 +17,6 @@ import importlib
 import json
 import math
 import os
-import random
 import re
 import sys
 import time
@@ -57,7 +56,6 @@ BRAIN_GEOMETRY = BUNDLED_ROOT / "cache" / "brain_geometry_nodes_video.json"
 POPULATION_SIZE = 200_000
 KEYWORD_SET_COUNT = 50
 KEYWORDS_PER_SET = 8
-RNG_SEED = 1776
 
 NIA_BASE = "https://apigcp.trynia.ai/v2"
 NIA_SOURCE_NAME = "Viewlytics TikTok Corpus"
@@ -65,6 +63,43 @@ NIA_SOURCE_NAME = "Viewlytics TikTok Corpus"
 REACTION_ORDER = ["comment", "like", "share", "follow", "saves", "strong_like", "neutral"]
 POSITIVE_REACTIONS = {"like", "strong_like", "saves", "follow"}
 SHARE_TRIGGERS = {"share", "strong_like"}
+
+_DEFAULT_REACTION_PRIOR: dict[str, float] = {
+    "comment": 0.08,
+    "like": 0.08,
+    "share": 0.07,
+    "follow": 0.18,
+    "saves": 0.25,
+    "strong_like": 0.26,
+    "neutral": 0.08,
+}
+
+
+def _analysis_stability_key(
+    transcript_text: str,
+    video_meta: dict[str, Any] | None = None,
+    corpus_digest: str = "",
+) -> str:
+    meta = video_meta or {}
+    parts = [
+        corpus_digest,
+        (transcript_text or "")[:12_000],
+        str(meta.get("video_key") or ""),
+        str(meta.get("video_url") or ""),
+        str(meta.get("video_name") or ""),
+    ]
+    raw = "\n".join(parts)
+    return raw if raw.strip() else "viewlytics-default-stability"
+
+
+def _rng_from_stability_key(material: str, salt: int = 0) -> np.random.Generator:
+    digest = hashlib.blake2b(
+        f"viewlytics-sim-rng|{salt}|{material}".encode("utf-8"),
+        digest_size=32,
+    ).digest()
+    seeds = tuple(int.from_bytes(digest[i : i + 8], "little") % (2**63) for i in range(0, 32, 8))
+    return np.random.default_rng(np.random.SeedSequence(seeds))
+
 
 STOPWORDS = {
     "a", "about", "after", "all", "am", "an", "and", "are", "as", "at", "be", "been",
@@ -191,29 +226,31 @@ def predict_persona_vector(keywords: list[str], weights: np.ndarray, kw_to_idx: 
 
 
 def build_keyword_sets(vocab: list[str], corpus_terms: Counter[str], hashtag_terms: Counter[str]) -> list[dict[str, Any]]:
-    rng = random.Random(RNG_SEED)
     vocab_set = set(vocab)
     pool_names = list(PERSONA_POOLS.keys())
     weighted_noise = [term for term, _ in (corpus_terms + hashtag_terms).most_common(120) if len(term) > 3]
-    fallback_noise = [kw for kw in vocab if kw not in {"for", "with", "one", "some"}]
+    fallback_noise = sorted(kw for kw in vocab if kw not in {"for", "with", "one", "some"})
     sets: list[dict[str, Any]] = []
+    fb_len = max(1, len(fallback_noise))
 
     for index in range(KEYWORD_SET_COUNT):
         base_name = pool_names[index % len(pool_names)]
-        base = [kw for kw in PERSONA_POOLS[base_name] if kw in vocab_set]
-        rng.shuffle(base)
+        base = sorted(kw for kw in PERSONA_POOLS[base_name] if kw in vocab_set)
         chosen = base[: min(6, len(base))]
 
+        fill_i = 0
         while len(chosen) < KEYWORDS_PER_SET:
-            candidate = rng.choice(fallback_noise)
+            candidate = fallback_noise[(index * 17 + fill_i * 31) % fb_len]
+            fill_i += 1
             if candidate not in chosen:
                 chosen.append(candidate)
 
-        noisy_terms = rng.sample(weighted_noise, k=min(3, len(weighted_noise))) if weighted_noise else []
+        noisy_terms = weighted_noise[: min(3, len(weighted_noise))]
+
         swap_count = 1 + (index % 3 == 0)
-        for _ in range(swap_count):
-            replacement = rng.choice(fallback_noise)
-            replace_at = rng.randrange(KEYWORDS_PER_SET)
+        for s in range(swap_count):
+            replacement = fallback_noise[(index * 11 + s * 5) % fb_len]
+            replace_at = (index + s * 2) % KEYWORDS_PER_SET
             if replacement not in chosen:
                 chosen[replace_at] = replacement
 
@@ -573,8 +610,30 @@ def hashed_embedding(text: str, dim: int = 384) -> np.ndarray:
     return vec
 
 
-def generate_population(keyword_sets: list[dict[str, Any]], weights: np.ndarray, kw_to_idx: dict[str, int]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    rng = np.random.default_rng(RNG_SEED)
+def _fallback_reaction_probs(personas: np.ndarray, text: str, labels: list[str]) -> np.ndarray:
+    nlab = len(labels)
+    prior = np.array([float(_DEFAULT_REACTION_PRIOR.get(name, 1.0 / max(1, nlab))) for name in labels], dtype=np.float64)
+    prior /= max(float(prior.sum()), 1e-12)
+    emb = hashed_embedding(text).astype(np.float64)
+    emb_feats = np.array([float(emb[i % emb.shape[0]]) for i in range(nlab)], dtype=np.float64)
+    pc = min(nlab, personas.shape[1])
+    pslice = personas[:, :pc].astype(np.float64)
+    if pc < nlab:
+        pslice = np.pad(pslice, ((0, 0), (0, nlab - pc)), mode="edge")
+    logits = np.log(prior + 1e-6)[None, :] + 0.55 * pslice + 0.32 * emb_feats[None, :]
+    logits -= np.max(logits, axis=1, keepdims=True)
+    exp = np.exp(logits)
+    denom = np.maximum(exp.sum(axis=1, keepdims=True), 1e-12)
+    return (exp / denom).astype(np.float32)
+
+
+def generate_population(
+    keyword_sets: list[dict[str, Any]],
+    weights: np.ndarray,
+    kw_to_idx: dict[str, int],
+    stability_key: str,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    rng = _rng_from_stability_key(stability_key, salt=2)
     per_set = POPULATION_SIZE // len(keyword_sets)
     vectors = np.empty((POPULATION_SIZE, 100), dtype=np.float32)
     cohort_ids = np.empty((POPULATION_SIZE,), dtype=np.int16)
@@ -630,9 +689,8 @@ def load_engagement_model():
 def predict_reaction_probs(personas: np.ndarray, text: str) -> tuple[np.ndarray, list[str], str]:
     net, labels = load_engagement_model()
     if net is None or torch is None or F is None:
-        rng = np.random.default_rng(RNG_SEED)
-        raw = rng.dirichlet(np.array([0.08, 0.08, 0.07, 0.18, 0.25, 0.26, 0.08]), size=len(personas))
-        return raw.astype(np.float32), REACTION_ORDER, "fallback_dirichlet"
+        raw = _fallback_reaction_probs(personas, text, labels)
+        return raw, labels, "fallback_persona_softmax"
 
     emb = hashed_embedding(text)
     transcript = torch.from_numpy(emb).float().unsqueeze(0)
@@ -664,8 +722,16 @@ def pick_reaction(rng: np.random.Generator, probs: np.ndarray, labels: list[str]
     return labels[int(rng.choice(top, p=weights))]
 
 
-def simulate_population(probs: np.ndarray, labels: list[str], cohort_ids: np.ndarray, trait_bits: np.ndarray, keyword_sets: list[dict[str, Any]], brain_score: float) -> dict[str, Any]:
-    rng = np.random.default_rng(RNG_SEED + 11)
+def simulate_population(
+    probs: np.ndarray,
+    labels: list[str],
+    cohort_ids: np.ndarray,
+    trait_bits: np.ndarray,
+    keyword_sets: list[dict[str, Any]],
+    brain_score: float,
+    stability_key: str,
+) -> dict[str, Any]:
+    rng = _rng_from_stability_key(stability_key, salt=11)
     n = len(probs)
     reacted = np.zeros(n, dtype=np.bool_)
     queue: deque[tuple[int, int, int]] = deque()
@@ -1076,16 +1142,18 @@ def build_payload(
 
     _report("keyword_sets", "Finalized noisy keyword sets", 20.0)
 
-    _report("population_generation", "Generating 200,000 persona vectors", 30.0)
-    print("Generating 200,000 persona vectors...", file=sys.stderr)
-    personas, cohort_ids, trait_bits = generate_population(keyword_sets, weights, kw_to_idx)
-
     content_text = " ".join(
         [transcript_text]
         + [video["title"] + " " + " ".join(video.get("text_terms", [])) for video in videos[:40]]
         + [term for term, _ in corpus_terms.most_common(120)]
         + [_safe_text(video_meta.get("video_name"))]
     )
+    corpus_digest = ",".join(f"{t}:{c}" for t, c in corpus_terms.most_common(80))
+    stability_key = _analysis_stability_key(transcript_text, video_meta, corpus_digest) + "\n" + content_text[:8000]
+
+    _report("population_generation", "Generating 200,000 persona vectors", 30.0)
+    print("Generating 200,000 persona vectors...", file=sys.stderr)
+    personas, cohort_ids, trait_bits = generate_population(keyword_sets, weights, kw_to_idx, stability_key)
 
     _report("engagement_scoring", "Scoring personas with Ant engagement model", 50.0)
     print("Scoring personas with Ant engagement model...", file=sys.stderr)
@@ -1098,7 +1166,7 @@ def build_payload(
 
     _report("simulation", "Running scalable propagation simulation", 80.0)
     print("Running scalable local propagation simulation...", file=sys.stderr)
-    sim = simulate_population(probs, labels, cohort_ids, trait_bits, keyword_sets, brain_score)
+    sim = simulate_population(probs, labels, cohort_ids, trait_bits, keyword_sets, brain_score, stability_key)
 
     _report("insights", "Compiling insights and trends", 95.0)
     trends = [

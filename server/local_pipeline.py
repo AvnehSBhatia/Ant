@@ -67,10 +67,51 @@ REACTION_ORDER = ["comment", "like", "share", "follow", "saves", "strong_like", 
 POSITIVE_REACTIONS = {"like", "strong_like", "saves", "follow"}
 SHARE_TRIGGERS = {"share", "strong_like"}
 
+_DEFAULT_REACTION_PRIOR: dict[str, float] = {
+    "comment": 0.08,
+    "like": 0.08,
+    "share": 0.07,
+    "follow": 0.18,
+    "saves": 0.25,
+    "strong_like": 0.26,
+    "neutral": 0.08,
+}
+
+
+def _local_stability_key(
+    video_path: Path,
+    video_meta: dict[str, Any],
+    transcript_text: str,
+    signals: dict[str, Any],
+) -> str:
+    stats = (signals or {}).get("stats") or {}
+    seed_terms = " ".join((signals or {}).get("text_seed_terms") or [])[:4000]
+    parts = [
+        str(Path(video_path).resolve()),
+        str((video_meta or {}).get("video_key") or ""),
+        str((video_meta or {}).get("video_name") or ""),
+        (transcript_text or "")[:12_000],
+        seed_terms,
+        f"motion_mean={stats.get('motion_mean', 0):.6f}",
+        f"audio_rms={stats.get('audio_rms_mean', 0):.6f}",
+        f"scenes={stats.get('scene_count', 0)}",
+    ]
+    raw = "\n".join(parts)
+    return raw if raw.strip() else "local-default-stability"
+
+
+def _rng_from_stability_key(material: str, salt: int = 0) -> np.random.Generator:
+    digest = hashlib.blake2b(
+        f"viewlytics-sim-rng|{salt}|{material}".encode("utf-8"),
+        digest_size=32,
+    ).digest()
+    seeds = tuple(int.from_bytes(digest[i : i + 8], "little") % (2**63) for i in range(0, 32, 8))
+    return np.random.default_rng(np.random.SeedSequence(seeds))
+
+
 POPULATION_SIZE = int(os.environ.get("ANT_POPULATION_SIZE", "60000"))
 KEYWORD_SET_COUNT = 16
 KEYWORDS_PER_SET = 8
-RNG_SEED = 1776
 
 NIA_BASE = "https://apigcp.trynia.ai/v2"
 NIA_SOURCE_NAME = "Viewlytics TikTok Corpus"
@@ -651,12 +692,30 @@ def hashed_embedding(text: str, dim: int = 384) -> np.ndarray:
     return vec
 
 
+def _fallback_reaction_probs(personas: np.ndarray, text: str, labels: list[str]) -> np.ndarray:
+    nlab = len(labels)
+    prior = np.array([float(_DEFAULT_REACTION_PRIOR.get(name, 1.0 / max(1, nlab))) for name in labels], dtype=np.float64)
+    prior /= max(float(prior.sum()), 1e-12)
+    emb = hashed_embedding(text).astype(np.float64)
+    emb_feats = np.array([float(emb[i % emb.shape[0]]) for i in range(nlab)], dtype=np.float64)
+    pc = min(nlab, personas.shape[1])
+    pslice = personas[:, :pc].astype(np.float64)
+    if pc < nlab:
+        pslice = np.pad(pslice, ((0, 0), (0, nlab - pc)), mode="edge")
+    logits = np.log(prior + 1e-6)[None, :] + 0.55 * pslice + 0.32 * emb_feats[None, :]
+    logits -= np.max(logits, axis=1, keepdims=True)
+    exp = np.exp(logits)
+    denom = np.maximum(exp.sum(axis=1, keepdims=True), 1e-12)
+    return (exp / denom).astype(np.float32)
+
+
 def generate_population(
     keyword_sets: list[dict[str, Any]],
     weights: np.ndarray,
     kw_to_idx: dict[str, int],
+    stability_key: str,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    rng = np.random.default_rng(RNG_SEED)
+    rng = _rng_from_stability_key(stability_key, salt=2)
     per_set = POPULATION_SIZE // len(keyword_sets)
     vectors = np.empty((POPULATION_SIZE, 100), dtype=np.float32)
     cohort_ids = np.empty((POPULATION_SIZE,), dtype=np.int16)
@@ -717,9 +776,8 @@ def predict_reaction_probs(
 ) -> tuple[np.ndarray, list[str], str]:
     net, labels = load_engagement_model()
     if net is None or torch is None or F is None:
-        rng = np.random.default_rng(RNG_SEED)
-        raw = rng.dirichlet(np.array([0.08, 0.08, 0.07, 0.18, 0.25, 0.26, 0.08]), size=len(personas))
-        return raw.astype(np.float32), REACTION_ORDER, "fallback_dirichlet"
+        raw = _fallback_reaction_probs(personas, text, labels)
+        return raw, labels, "fallback_persona_softmax"
 
     emb = hashed_embedding(text)
     transcript = torch.from_numpy(emb).float().unsqueeze(0)
@@ -1514,9 +1572,10 @@ def simulate_population(
     trait_bits: np.ndarray,
     keyword_sets: list[dict[str, Any]],
     brain_score: float,
+    stability_key: str,
     progress_cb: Optional[Callable[[float], None]] = None,
 ) -> dict[str, Any]:
-    rng = np.random.default_rng(RNG_SEED + 11)
+    rng = _rng_from_stability_key(stability_key, salt=11)
     n = len(probs)
     reacted = np.zeros(n, dtype=np.bool_)
     queue: deque[tuple[int, int, int]] = deque()
@@ -1770,9 +1829,6 @@ def build_payload(
         keyword_sets = deterministic_sets
     nia_meta["keyword_sets_source"] = nia_keyword_sets_source
 
-    report("population_generation", f"Generating {POPULATION_SIZE:,} persona vectors", 32.0)
-    personas, cohort_ids, trait_bits = generate_population(keyword_sets, weights, kw_to_idx)
-
     seed_terms = " ".join(signals.get("text_seed_terms", []))
     content_text = " ".join([
         transcript_text,
@@ -1780,6 +1836,10 @@ def build_payload(
         _safe_text(video_meta.get("video_name") or ""),
         " ".join(term for term, _ in transcript_terms.most_common(80)),
     ])
+    stability_key = _local_stability_key(Path(video_path), video_meta, transcript_text, signals) + "\n" + content_text[:8000]
+
+    report("population_generation", f"Generating {POPULATION_SIZE:,} persona vectors", 32.0)
+    personas, cohort_ids, trait_bits = generate_population(keyword_sets, weights, kw_to_idx, stability_key)
 
     report("engagement_scoring", "Scoring personas with the engagement model", 50.0)
 
@@ -1797,7 +1857,9 @@ def build_payload(
     def _sim_progress(p: float) -> None:
         report("simulation", "Running propagation simulation", 82.0 + 12.0 * p)
 
-    sim = simulate_population(probs, labels, cohort_ids, trait_bits, keyword_sets, brain_score, progress_cb=_sim_progress)
+    sim = simulate_population(
+        probs, labels, cohort_ids, trait_bits, keyword_sets, brain_score, stability_key, progress_cb=_sim_progress
+    )
 
     report("insights", "Compiling insights and trends", 96.0)
     trends = [
