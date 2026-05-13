@@ -25,6 +25,9 @@ import {
   Grid2X2,
   Heart,
   Instagram,
+  Youtube,
+  Music2,
+  Loader2,
   Layers3,
   LineChart,
   Lock,
@@ -71,6 +74,9 @@ import {
   signInWithGoogle as authSignInWithGoogle,
   consumeOAuthRedirect as authConsumeOAuthRedirect,
   hasOAuthCallbackInUrl as authHasOAuthCallbackInUrl,
+  scrapeSocialProfile as authScrapeSocialProfile,
+  listAnalysisHistory as authListAnalysisHistory,
+  loadAnalysisRun as authLoadAnalysisRun,
 } from "./auth.js";
 
 const INSFORGE_ANALYSIS_FUNCTION_URL =
@@ -107,7 +113,8 @@ const dashboardNav = [
   { id: "dashboard", label: "Dashboard", Icon: Grid2X2 },
   { id: "simulations", label: "Simulations", Icon: Gauge },
   { id: "personas", label: "Personas", Icon: UsersRound },
-  { id: "trends", label: "Trends", Icon: LineChart }
+  { id: "trends", label: "Trends", Icon: LineChart },
+  { id: "history", label: "History", Icon: Clock3 }
 ];
 
 const tech = [
@@ -186,7 +193,7 @@ const backgroundPaths = [
 ];
 
 function useRoute() {
-  const validRoutes = new Set(["landing", "login", "share-info", "dashboard", "simulations", "personas", "trends", "flow"]);
+  const validRoutes = new Set(["landing", "login", "share-info", "dashboard", "simulations", "personas", "trends", "flow", "history"]);
   const getRoute = () => {
     const hashRoute = window.location.hash.replace("#", "") || "landing";
     return validRoutes.has(hashRoute) ? hashRoute : "dashboard";
@@ -207,7 +214,7 @@ function useRoute() {
   return [route, go];
 }
 
-const PROTECTED_ROUTES = new Set(["share-info", "dashboard", "simulations", "personas", "trends", "flow"]);
+const PROTECTED_ROUTES = new Set(["share-info", "dashboard", "simulations", "personas", "trends", "flow", "history"]);
 
 function useAuthState() {
   // If we just came back from an OAuth provider, the URL still has the code /
@@ -217,16 +224,34 @@ function useAuthState() {
   // null = unknown / loading, false = no user, object = user
   const [user, setUser] = useState((_stored || _oauthBusy) ? null : false);
   const [loading, setLoading] = useState(_stored || _oauthBusy);
+  // Goes true exactly once after a callback URL was consumed and produced a
+  // user. App watches this to fire a one-shot route nav into share-info so
+  // the user doesn't stay stranded on the landing page.
+  const [justAuthedFromOAuth, setJustAuthedFromOAuth] = useState(false);
 
   useEffect(() => {
     let alive = true;
     (async () => {
+      let oauthUser = null;
+      const hadOAuthInUrl = _oauthBusy;
       // First: drain any OAuth callback params from the URL into the session.
       try {
-        await authConsumeOAuthRedirect();
+        const consumed = await authConsumeOAuthRedirect();
+        oauthUser = consumed?.user || null;
       } catch { /* ignore — consumeOAuthRedirect already swallows */ }
 
       if (!alive) return;
+
+      // OAuth fast-path: the SDK callback already gave us a user object, no
+      // need for a second getCurrentUser round-trip (which was racing the
+      // refresh-cookie hydration and bouncing the user back to /#login).
+      if (oauthUser) {
+        setUser(oauthUser);
+        setLoading(false);
+        if (hadOAuthInUrl) setJustAuthedFromOAuth(true);
+        return;
+      }
+
       if (!hasStoredSession()) {
         setUser(false);
         setLoading(false);
@@ -237,6 +262,7 @@ function useAuthState() {
         const u = await authGetCurrentUser();
         if (!alive) return;
         setUser(u || false);
+        if (u && hadOAuthInUrl) setJustAuthedFromOAuth(true);
       } catch {
         if (!alive) return;
         setUser(false);
@@ -249,7 +275,7 @@ function useAuthState() {
     };
   }, []);
 
-  return { user, loading, setUser };
+  return { user, loading, setUser, justAuthedFromOAuth, clearJustAuthed: () => setJustAuthedFromOAuth(false) };
 }
 
 function readPendingRun() {
@@ -603,18 +629,34 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [displayRoute, setDisplayRoute] = useState(route);
   const [isExiting, setIsExiting] = useState(false);
-  const { user, loading, setUser } = useAuthState();
+  const { user, loading, setUser, justAuthedFromOAuth, clearJustAuthed } = useAuthState();
   const { data: intelligence, clear: clearIntelligence } = useIntelligenceData(user);
   const analysisRunner = useAnalysisRunner(intelligence);
   const activeIntelligence = analysisRunner.video ? analysisRunner.intelligence : intelligence;
 
+  // One-shot: when the OAuth callback finishes and yields a user, jump to
+  // share-info (or dashboard if profile is already filled). Without this the
+  // user landed at https://ants.ceo/ (no hash → route="landing") and stayed
+  // there.
+  useEffect(() => {
+    if (!justAuthedFromOAuth || !user || loading) return;
+    const profile = user.profile || {};
+    const hasProfile = profile.creator_info_confirmed_at
+      || profile.tiktok_url || profile.instagram_url || profile.company_site_url;
+    go(hasProfile ? "dashboard" : "share-info");
+    clearJustAuthed();
+  }, [justAuthedFromOAuth, user, loading, go, clearJustAuthed]);
+
   // Gate protected routes
   useEffect(() => {
     if (loading) return;
+    // Don't bounce while we still have an OAuth callback in flight — the
+    // OAuth-completion effect above will route us correctly in a moment.
+    if (justAuthedFromOAuth) return;
     if (!user && PROTECTED_ROUTES.has(route)) {
       go("login");
     }
-  }, [user, loading, route, go]);
+  }, [user, loading, route, go, justAuthedFromOAuth]);
 
   const handleSignedIn = (nextUser) => {
     setUser(nextUser || true);
@@ -692,6 +734,7 @@ function App() {
         {displayRoute === "personas" && <ExactPageShell active="personas" go={go} intelligence={activeIntelligence}><PersonasExact intelligence={activeIntelligence} /></ExactPageShell>}
         {displayRoute === "trends" && <ExactPageShell active="trends" go={go} intelligence={activeIntelligence}><TrendsExact intelligence={activeIntelligence} /></ExactPageShell>}
         {displayRoute === "flow" && <FlowPage go={go} intelligence={activeIntelligence} runner={analysisRunner} />}
+        {displayRoute === "history" && <ExactPageShell active="history" go={go} intelligence={activeIntelligence}><HistoryPage go={go} /></ExactPageShell>}
       </section>
     </main>
   );
@@ -1477,6 +1520,53 @@ function ShareInfoPage({ go, user, runner, onProfileSaved }) {
   const [companySiteUrl, setCompanySiteUrl] = useState(profile.company_site_url || "");
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  // Social-media autofill state.
+  const [autofillPlatform, setAutofillPlatform] = useState("tiktok");
+  const [autofillHandle, setAutofillHandle] = useState("");
+  const [autofillBusy, setAutofillBusy] = useState(false);
+  const [autofillError, setAutofillError] = useState("");
+  const [scrapedProfile, setScrapedProfile] = useState(null);
+  const [displayName, setDisplayName] = useState(profile.display_name || "");
+  const [followers, setFollowers] = useState(profile.followers || "");
+  const [niche, setNiche] = useState(profile.niche || "");
+
+  const runAutofill = async () => {
+    const handle = autofillHandle.trim();
+    if (!handle) {
+      setAutofillError("Enter a handle first.");
+      return;
+    }
+    setAutofillBusy(true);
+    setAutofillError("");
+    try {
+      const result = await authScrapeSocialProfile({ platform: autofillPlatform, handle });
+      if (!result.ok) {
+        const code = result.error?.code || "PLATFORM_ERROR";
+        const msg = result.error?.message || "Could not fetch profile.";
+        setAutofillError(
+          code === "RATE_LIMITED"
+            ? `${msg} You can also fill the fields manually.`
+            : code === "PRIVATE"
+              ? `${msg} Fill the fields manually instead.`
+              : msg,
+        );
+        return;
+      }
+      const sp = result.profile || {};
+      setScrapedProfile(sp);
+      setDisplayName(sp.display_name || displayName);
+      if (sp.followers) setFollowers(String(sp.followers));
+      if (Array.isArray(sp.niche_tags) && sp.niche_tags.length && !niche) {
+        setNiche(sp.niche_tags.slice(0, 3).join(", "));
+      }
+      if (autofillPlatform === "tiktok" && !tiktokUrl) setTiktokUrl(`https://tiktok.com/@${sp.handle || handle.replace(/^@/, "")}`);
+      if (autofillPlatform === "instagram" && !instagramUrl) setInstagramUrl(`https://instagram.com/${sp.handle || handle.replace(/^@/, "")}`);
+    } catch (e) {
+      setAutofillError(e?.message || "Autofill failed.");
+    } finally {
+      setAutofillBusy(false);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -1502,6 +1592,12 @@ function ShareInfoPage({ go, user, runner, onProfileSaved }) {
       tiktok_url: tiktokUrl.trim(),
       instagram_url: instagramUrl.trim(),
       company_site_url: companySiteUrl.trim(),
+      display_name: displayName.trim(),
+      followers: followers ? Number(followers) || 0 : 0,
+      niche: niche.trim(),
+      autofill_handle: autofillHandle.trim(),
+      autofill_platform: autofillPlatform,
+      autofill_snapshot: scrapedProfile || null,
       creator_info_confirmed_at: new Date().toISOString(),
     };
     try {
@@ -1511,12 +1607,21 @@ function ShareInfoPage({ go, user, runner, onProfileSaved }) {
         return;
       }
       onProfileSaved?.(saved.profile || nextProfile);
+      // Capture BEFORE claim — `claimPendingRun` clears `pendingRun` via
+      // `writePendingRun(null)` on success, so reading `runner?.pendingRun`
+      // afterwards always returns null and we'd misroute users back to the
+      // dashboard even though they DID just upload a video.
+      const hadPendingRun = Boolean(runner?.video || runner?.pendingRun);
       const claimed = await runner?.claimPendingRun?.(saved.profile || nextProfile);
       if (claimed && !claimed.ok) {
         setErrorMsg(claimed.error?.message || "Could not attach this analysis to your account.");
         return;
       }
-      go("dashboard");
+      // After a first-time upload-first claim, drop the user onto the
+      // simulations page so they SEE the video they just uploaded + the live
+      // (or finished) analysis. If there's no pending run (returning user just
+      // editing their profile), fall back to the dashboard.
+      go(hadPendingRun ? "simulations" : "dashboard");
     } catch (err) {
       setErrorMsg(err?.message || "Unexpected error.");
     } finally {
@@ -1532,7 +1637,105 @@ function ShareInfoPage({ go, user, runner, onProfileSaved }) {
         <form className="auth-card share-info-card" onSubmit={handleSubmit}>
           <div className="share-step-pill"><Check size={15} /> Account ready</div>
           <h1>Share creator info</h1>
-          <p>Confirm the channels we should use as context before opening your analysis.</p>
+          <p>Pull stats from your real social-media account, or fill the fields manually.</p>
+
+          <div className="autofill-block">
+            <div className="autofill-platforms" role="tablist" aria-label="Pick a platform">
+              {[
+                { id: "tiktok",    label: "TikTok",    Icon: Music2 },
+                { id: "instagram", label: "Instagram", Icon: Instagram },
+                { id: "youtube",   label: "YouTube",   Icon: Youtube },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={autofillPlatform === p.id}
+                  className={"autofill-platform" + (autofillPlatform === p.id ? " is-active" : "")}
+                  onClick={() => { setAutofillPlatform(p.id); setAutofillError(""); }}
+                >
+                  <p.Icon size={15} />
+                  <span>{p.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="autofill-row">
+              <div className="field autofill-input">
+                <AtSign size={17} />
+                <input
+                  type="text"
+                  placeholder={
+                    autofillPlatform === "tiktok"    ? "khaby.lame" :
+                    autofillPlatform === "instagram" ? "natgeo"     :
+                                                       "mkbhd"
+                  }
+                  value={autofillHandle}
+                  onChange={(e) => setAutofillHandle(e.target.value)}
+                  onBlur={() => { if (autofillHandle.trim() && !scrapedProfile && !autofillBusy) runAutofill(); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!autofillBusy && autofillHandle.trim()) runAutofill(); } }}
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                />
+              </div>
+              <button
+                type="button"
+                className="autofill-go"
+                onClick={runAutofill}
+                disabled={autofillBusy || !autofillHandle.trim()}
+              >
+                {autofillBusy ? <Loader2 size={14} className="autofill-spin" /> : <ArrowRight size={14} />}
+                <span>{autofillBusy ? "Fetching" : "Autofill"}</span>
+              </button>
+            </div>
+            {autofillError ? (
+              <div className="autofill-status is-error">{autofillError}</div>
+            ) : scrapedProfile ? (
+              <div className="autofill-status is-ok">
+                Pulled from <strong>{autofillPlatform}</strong>: <strong>{scrapedProfile.display_name}</strong> · {formatCount(scrapedProfile.followers)} followers · {formatCount(scrapedProfile.posts)} posts
+              </div>
+            ) : (
+              <div className="autofill-hint">We'll fetch followers, niche, and recent engagement straight from the platform.</div>
+            )}
+          </div>
+
+          <label>
+            <span>Display name</span>
+            <div className="field">
+              <UserPlus size={17} />
+              <input
+                type="text"
+                placeholder="What viewers see"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+              />
+            </div>
+          </label>
+          <label>
+            <span>Followers</span>
+            <div className="field">
+              <UsersRound size={17} />
+              <input
+                type="number"
+                min="0"
+                placeholder="e.g. 25400"
+                value={followers}
+                onChange={(e) => setFollowers(e.target.value)}
+              />
+            </div>
+          </label>
+          <label>
+            <span>Niche / category</span>
+            <div className="field">
+              <Sparkles size={17} />
+              <input
+                type="text"
+                placeholder="e.g. tech reviews, beauty"
+                value={niche}
+                onChange={(e) => setNiche(e.target.value)}
+              />
+            </div>
+          </label>
 
           <label>
             <span>TikTok</span>
@@ -2753,7 +2956,7 @@ function DashboardPage({ go, intelligence }) {
       <section className="dashboard-main">
         <div className="dash-topbar">
           <div>
-            <h1>{topVideo?.title || "Summer Launch Reel.mp4"}</h1>
+            <h1>{topVideo?.title || (intelligence?.summary?.video_name) || "Awaiting upload"}</h1>
             <p>
               {intelligence ? `Local TikTok corpus - ${sim?.persona_count != null ? formatCount(sim.persona_count) : ""} simulated personas` : "Awaiting cloud intelligence"}
             </p>
@@ -2781,11 +2984,11 @@ function DashboardPage({ go, intelligence }) {
           </div>
         </section>
 
-        {brainIsPerVideo(intelligence?.brain) && (brain?.geometry_frames?.length) ? (
+        {brainIsPerVideo(intelligence?.brain) ? (
           <article className="analytics-panel">
             <div className="panel-heading">
               <h2><Brain size={16} /> TribeV2 cortical activation (3D)</h2>
-              <span><i /> {dashboardBrainUrl ? "fsaverage5 interactive surface" : `${(brain?.geometry_frames || []).length} frames`} · {brain?.summary?.brain_vertices || brain?.shape_timesteps_vertices?.[1] || 0} vertices</span>
+              <span><i /> {dashboardAnimatedUrl ? "fsaverage5 animated render" : dashboardBrainUrl ? "fsaverage5 interactive surface" : `${(brain?.geometry_frames || []).length} frames`} · {brain?.summary?.brain_vertices || brain?.shape_timesteps_vertices?.[1] || 0} vertices</span>
             </div>
             <TribeBrain3D
               brain={brain}
@@ -2875,6 +3078,122 @@ function formatBytes(size = 0) {
   const exponent = Math.min(Math.floor(Math.log(size) / Math.log(1024)), units.length - 1);
   const value = size / 1024 ** exponent;
   return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
+}
+
+function HistoryPage({ go }) {
+  const [runs, setRuns] = useState(null);
+  const [error, setError] = useState("");
+  const [loadingId, setLoadingId] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    setError("");
+    setRuns(null);
+    authListAnalysisHistory()
+      .then((result) => {
+        if (!alive) return;
+        if (!result.ok) {
+          setError(result.error?.message || "Could not load history.");
+          setRuns([]);
+          return;
+        }
+        setRuns(result.runs || []);
+      })
+      .catch((e) => {
+        if (alive) {
+          setError(e?.message || "Could not load history.");
+          setRuns([]);
+        }
+      });
+    return () => { alive = false; };
+  }, []);
+
+  const handleLoad = async (runId) => {
+    setLoadingId(runId);
+    setError("");
+    try {
+      const result = await authLoadAnalysisRun(runId);
+      if (!result.ok) {
+        setError(result.error?.message || "Could not load that run.");
+        return;
+      }
+      const run = result.run || {};
+      const intelligence = run.intelligence || {};
+      if (!intelligence || Object.keys(intelligence).length === 0) {
+        setError("This run has no stored intelligence (analysis may have failed). Re-upload to re-analyze.");
+        return;
+      }
+      // Push the saved payload back into the dashboard via the same channel
+      // FlowPage/SSE uses, so HeroStat/RetentionCurve/etc. just light up.
+      try {
+        window.dispatchEvent(new CustomEvent("cloud-intelligence-updated", { detail: intelligence }));
+      } catch (_) { /* ignore */ }
+      go("dashboard");
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  return (
+    <div className="history-page" style={{ padding: "8px 0" }}>
+      <article className="analytics-panel">
+        <div className="panel-heading">
+          <h2><Clock3 size={16} /> Past analyses</h2>
+          <span><i /> {runs == null ? "loading..." : `${runs.length} runs`}</span>
+        </div>
+        {error ? <div className="auth-error" role="alert" style={{ marginBottom: 12 }}>{error}</div> : null}
+        {runs == null ? (
+          <p style={{ opacity: 0.7 }}>Loading your history...</p>
+        ) : runs.length === 0 ? (
+          <p style={{ opacity: 0.7 }}>No saved analyses yet. Run a new simulation to see it here.</p>
+        ) : (
+          <div className="history-list" style={{ display: "grid", gap: 10 }}>
+            {runs.map((run) => {
+              const summary = run.summary || {};
+              const completed = summary.completed_at || run.updated_at || run.created_at;
+              const date = completed ? new Date(completed).toLocaleString() : "—";
+              return (
+                <div
+                  key={run.id}
+                  className="history-card"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto",
+                    gap: 12,
+                    padding: "12px 14px",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 12,
+                    background: "rgba(255,255,255,0.02)",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <strong style={{ fontSize: 15 }}>{run.video_name || summary.video_name || "Untitled run"}</strong>
+                    <div style={{ display: "flex", gap: 14, marginTop: 4, fontSize: 12, opacity: 0.8, flexWrap: "wrap" }}>
+                      <span><Clock3 size={12} style={{ verticalAlign: "middle" }} /> {date}</span>
+                      {summary.virality_score != null ? <span>Virality {Number(summary.virality_score).toFixed(1)}/100</span> : null}
+                      {summary.mean_retention_proxy != null ? <span>Retention {formatPct(summary.mean_retention_proxy, 0)}</span> : null}
+                      {summary.total_shares != null ? <span>{formatCount(summary.total_shares)} shares</span> : null}
+                      <span className="status-pill" style={{ fontSize: 11 }}>{run.status}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={loadingId === run.id}
+                    onClick={() => handleLoad(run.id)}
+                    style={{ padding: "8px 14px" }}
+                  >
+                    {loadingId === run.id ? "Loading..." : "Load"} <ArrowRight size={14} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </article>
+    </div>
+  );
 }
 
 function FlowPage({ intelligence: parentIntelligence, runner }) {

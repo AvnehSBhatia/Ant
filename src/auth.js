@@ -200,28 +200,25 @@ export async function signIn({ email, password }) {
 // InsForge OAuth uses a PKCE flow with these specific endpoints:
 //   GET  /api/auth/oauth/google   (with redirect_uri + code_challenge query)
 //   POST /api/auth/oauth/exchange (body: {code, code_verifier})
-// We implement it manually via REST so behavior doesn't depend on which SDK
-// version is shipped.
-const PKCE_STORAGE_KEY = "insforge_pkce_verifier";
+//
+// Earlier revisions implemented this manually with raw fetch + localStorage so
+// behavior wouldn't depend on the SDK version. That broke the post-callback
+// session: after the manual exchange we wrote the access token to
+// localStorage but the SDK's in-memory tokenManager was never told. On the
+// freshly-loaded callback page, `auth.getCurrentUser()` saw an empty session,
+// fell back to `refreshSession()` over the httpOnly refresh cookie, and that
+// cookie didn't survive the cross-site context (g9jy59jq.us-west.insforge.app
+// → ants.ceo) — so getCurrentUser returned null, our wrapper wiped the token,
+// and the protected-route gate bounced the user back to /#login.
+//
+// Fix: drive both the start and the callback through the SDK. The SDK's
+// `signInWithOAuth` stores the PKCE verifier in sessionStorage and redirects
+// to Google for us, and its `detectAuthCallback` (which runs on first
+// construction of the Auth module) consumes `?insforge_code=…` automatically,
+// posting to /api/auth/oauth/exchange AND populating the tokenManager so
+// `getCurrentUser` works on the next call without depending on cross-site
+// refresh cookies.
 const PKCE_REDIRECT_KEY = "insforge_pkce_redirect_to";
-
-function _base64UrlEncode(bytes) {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function _generatePkceVerifier() {
-  const buf = new Uint8Array(64);
-  crypto.getRandomValues(buf);
-  return _base64UrlEncode(buf);
-}
-
-async function _pkceChallenge(verifier) {
-  const data = new TextEncoder().encode(verifier);
-  const hashBuf = await crypto.subtle.digest("SHA-256", data);
-  return _base64UrlEncode(new Uint8Array(hashBuf));
-}
 
 export async function signInWithGoogle({ redirectTo } = {}) {
   const target =
@@ -230,47 +227,20 @@ export async function signInWithGoogle({ redirectTo } = {}) {
   if (!target) {
     return { ok: false, error: { message: "Cannot start OAuth outside the browser." } };
   }
+  // Remember where the user wanted to land after sign-in. The SDK's PKCE
+  // verifier already rides in sessionStorage; this is just for hash routing.
+  try { localStorage.setItem(PKCE_REDIRECT_KEY, target); } catch { /* ignore */ }
 
-  // 1. Generate the PKCE pair.
-  let verifier, challenge;
+  const client = getInsforgeClient();
   try {
-    verifier = _generatePkceVerifier();
-    challenge = await _pkceChallenge(verifier);
-  } catch (e) {
-    return { ok: false, error: { message: "Could not generate PKCE: " + (e?.message || e) } };
-  }
-
-  // 2. Stash the verifier + the final landing route so the callback handler
-  //    can finish the exchange and route the user where they want to go.
-  try {
-    localStorage.setItem(PKCE_STORAGE_KEY, verifier);
-    localStorage.setItem(PKCE_REDIRECT_KEY, target);
-  } catch {
-    /* ignore — exchange may still work if verifier survives sessionStorage */
-  }
-
-  // 3. Ask InsForge for the Google authorization URL.
-  const startUrl =
-    `${baseUrl}/api/auth/oauth/google?` +
-    new URLSearchParams({ redirect_uri: target, code_challenge: challenge }).toString();
-  try {
-    const resp = await fetch(startUrl, {
-      method: "GET",
-      headers: { "x-api-key": anonKey, Accept: "application/json" },
+    const { error } = await client.auth.signInWithOAuth({
+      provider: "google",
+      redirectTo: target,
     });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => null);
-      return {
-        ok: false,
-        error: err?.error || { message: `OAuth start failed (${resp.status})` },
-      };
+    if (error) {
+      return { ok: false, error };
     }
-    const data = await resp.json().catch(() => null);
-    const authUrl = data?.authUrl || data?.url;
-    if (!authUrl) {
-      return { ok: false, error: { message: "OAuth start: no authUrl in response" } };
-    }
-    window.location.href = authUrl;
+    // On success the SDK has redirected us to Google.
     return { ok: true, redirected: true };
   } catch (e) {
     return { ok: false, error: { message: e?.message || "OAuth start request failed" } };
@@ -286,118 +256,81 @@ export function hasOAuthCallbackInUrl() {
   return /[?&#](insforge_code|code|access_token|refresh_token|provider_token)=/.test(window.location.href);
 }
 
-// Pull OAuth tokens / codes out of the URL the browser landed on after the
-// OAuth provider redirect, hand them to the SDK (or exchange via REST), store
-// the resulting access token, and clean the URL so a refresh doesn't re-trigger.
-// Safe to call unconditionally on mount — returns null if there's nothing to do.
+// Drain any OAuth callback params from the URL into the SDK session, mirror
+// the resulting access token into our localStorage shim (so direct edge
+// function fetches can attach `Authorization: Bearer …`), and clean up the
+// URL so a refresh doesn't re-trigger the exchange.
+//
+// The actual PKCE exchange is performed by the SDK's `detectAuthCallback`
+// (kicked off in the Auth constructor) — we just await it, then snapshot the
+// session token.
+//
+// Safe to call unconditionally on mount.
 export async function consumeOAuthRedirect() {
   if (typeof window === "undefined") return null;
   const href = window.location.href;
-  try { console.debug("[auth] consumeOAuthRedirect href=", href); } catch {}
   if (!/[?&#](insforge_code|code|access_token|refresh_token|provider_token)=/.test(href)) {
-    try { console.debug("[auth] consumeOAuthRedirect: no OAuth params in URL"); } catch {}
     return null;
   }
 
-  const url = new URL(href);
-  const search = url.searchParams;
-  // The hash may be `#dashboard?...` (route + params) or just `?...`. Split it.
-  const rawHash = url.hash.replace(/^#/, "");
-  let routeHash = rawHash;
-  let hashParamsStr = "";
-  const split = rawHash.search(/[?&]/);
-  if (split !== -1) {
-    routeHash = rawHash.slice(0, split);
-    hashParamsStr = rawHash.slice(split + 1);
-  } else if (/^(access_token|refresh_token|provider_token|insforge_code|code)=/.test(rawHash)) {
-    routeHash = "";
-    hashParamsStr = rawHash;
-  }
-  const hash = new URLSearchParams(hashParamsStr);
-
-  // InsForge canonical name is `insforge_code`. Fall back to `code` for tolerance.
-  const code =
-    search.get("insforge_code") || hash.get("insforge_code") ||
-    search.get("code") || hash.get("code");
-  const accessToken =
-    search.get("access_token") || hash.get("access_token");
-  const refreshToken =
-    search.get("refresh_token") || hash.get("refresh_token");
-
-  let token = accessToken || null;
-  let exchangedUser = null;
-
-  // Direct-token flow (rare with InsForge but supported).
-  if (token) {
-    try {
-      const client = getInsforgeClient();
-      const r =
-        client.auth.setSession?.({ access_token: token, refresh_token: refreshToken || "" }) ||
-        client.auth.setSession?.({ accessToken: token, refreshToken: refreshToken || "" });
-      if (r) await r;
-    } catch { /* ignore */ }
-  }
-
-  // PKCE flow: exchange the code with the stored verifier.
-  if (!token && code) {
-    let verifier = null;
-    try { verifier = localStorage.getItem(PKCE_STORAGE_KEY); } catch { /* ignore */ }
-    if (!verifier) {
-      try { console.debug("[auth] missing PKCE verifier — cannot exchange code"); } catch {}
-    } else {
+  // Force the SDK to instantiate so its constructor-time `detectAuthCallback`
+  // runs (it reads `insforge_code` from the URL, posts to /api/auth/oauth/
+  // exchange with the sessionStorage verifier, saves the session to the
+  // in-memory tokenManager, and strips the param via replaceState).
+  const client = getInsforgeClient();
+  try {
+    // The SDK assigns the in-flight callback promise to `authCallbackHandled`
+    // — `getCurrentUser` awaits it internally, so calling it here is the
+    // simplest way to block until the exchange completes.
+    const { data, error } = await client.auth.getCurrentUser();
+    let token = null;
+    let exchangedUser = data?.user || null;
+    if (!error && data?.user) {
+      // Pull the access token the SDK now has so direct fetches can use it.
+      // The SDK doesn't expose tokenManager publicly, so we go through the
+      // HTTP headers. Fall back gracefully if shape changes.
       try {
-        const resp = await fetch(`${baseUrl}/api/auth/oauth/exchange?client_type=web`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": anonKey,
-            Accept: "application/json",
-          },
-          credentials: "include", // accept the httpOnly refresh cookie even though we don't read it
-          body: JSON.stringify({ code, code_verifier: verifier }),
-        });
-        const body = await resp.json().catch(() => null);
-        try {
-          console.debug("[auth] exchange status=", resp.status, "body=", body);
-        } catch {}
-        if (resp.ok) {
-          token = body?.accessToken || body?.access_token || null;
-          exchangedUser = body?.user || null;
-          // Verifier is single-use.
-          try { localStorage.removeItem(PKCE_STORAGE_KEY); } catch {}
+        const headers = client.auth?.http?.getHeaders?.()
+          || client?.http?.getHeaders?.()
+          || {};
+        const authH = headers.Authorization || headers.authorization;
+        if (authH && typeof authH === "string" && authH.startsWith("Bearer ")) {
+          token = authH.slice(7);
         }
-      } catch (e) {
-        try { console.warn("[auth] exchange threw", e); } catch {}
+      } catch { /* fall through */ }
+    }
+    if (token) {
+      writeStoredToken(token);
+      // Don't resetClient() — the SDK we just used IS the one carrying the
+      // session in-memory. Building a fresh client would drop it.
+    }
+
+    // Restore the saved post-login route fragment.
+    let postLoginRoute = null;
+    try { postLoginRoute = localStorage.getItem(PKCE_REDIRECT_KEY); } catch {}
+    try { localStorage.removeItem(PKCE_REDIRECT_KEY); } catch {}
+    if (postLoginRoute) {
+      try {
+        const targetUrl = new URL(postLoginRoute);
+        const url = new URL(window.location.href);
+        const finalHash = targetUrl.hash || (token ? "#share-info" : "");
+        // SDK's cleanUrlParams already stripped insforge_code, but also clear
+        // any straggler OAuth-ish params that may have hitched along.
+        ["code", "state", "access_token", "refresh_token", "provider_token", "token_type", "expires_in", "expires_at"]
+          .forEach((k) => url.searchParams.delete(k));
+        const cleanedSearch = url.searchParams.toString() ? "?" + url.searchParams.toString() : "";
+        const newUrl = url.origin + url.pathname + cleanedSearch + finalHash;
+        window.history.replaceState({}, "", newUrl);
+      } catch {
+        /* leave URL as the SDK left it */
       }
     }
-  }
 
-  if (token) {
-    writeStoredToken(token);
-    resetClient();
+    return token ? { token, user: exchangedUser } : (exchangedUser ? { token: null, user: exchangedUser } : null);
+  } catch (e) {
+    try { console.warn("[auth] consumeOAuthRedirect threw", e); } catch {}
+    return null;
   }
-
-  // Strip OAuth params + restore the saved post-login route fragment.
-  ["insforge_code", "code", "state", "access_token", "refresh_token", "provider_token", "token_type", "expires_in", "expires_at"]
-    .forEach((k) => search.delete(k));
-  // Honor where the user originally wanted to land.
-  let postLoginRoute = null;
-  try { postLoginRoute = localStorage.getItem(PKCE_REDIRECT_KEY); } catch {}
-  try { localStorage.removeItem(PKCE_REDIRECT_KEY); } catch {}
-  let finalHash = routeHash ? "#" + routeHash : "";
-  if (token && postLoginRoute) {
-    try {
-      const r = new URL(postLoginRoute);
-      finalHash = r.hash || "#dashboard";
-    } catch {
-      finalHash = "#dashboard";
-    }
-  }
-  const cleanedSearch = search.toString() ? "?" + search.toString() : "";
-  const newUrl = url.origin + url.pathname + cleanedSearch + finalHash;
-  try { window.history.replaceState({}, "", newUrl); } catch {}
-
-  return token ? { token, user: exchangedUser } : null;
 }
 
 export async function signOut() {
@@ -416,14 +349,27 @@ export async function getCurrentUser() {
   try {
     const { data, error } = await client.auth.getCurrentUser();
     if (error || !data?.user) {
-      writeStoredToken(null);
-      resetClient();
+      // Only wipe the stored token if the server explicitly told us the
+      // session is bad (401/403 / invalid token). Transient network errors
+      // (5xx, fetch aborts) shouldn't sign the user out — that's what was
+      // causing the OAuth bounce when refresh-cookie retrieval failed
+      // intermittently or when called before the SDK's in-memory session
+      // had finished hydrating.
+      const code = error?.statusCode ?? error?.status;
+      if (code === 401 || code === 403) {
+        writeStoredToken(null);
+        resetClient();
+      }
       return null;
     }
     return data.user;
-  } catch {
-    writeStoredToken(null);
-    resetClient();
+  } catch (e) {
+    // Same here: don't wipe on a network/throw — let the next call retry.
+    const code = e?.statusCode ?? e?.status;
+    if (code === 401 || code === 403) {
+      writeStoredToken(null);
+      resetClient();
+    }
     return null;
   }
 }
@@ -440,6 +386,61 @@ export async function getCreatorProfile() {
     return { ok: true, profile: data.user.profile || {}, user: data.user };
   } catch (e) {
     return { ok: false, error: { message: e?.message || "Could not load profile." } };
+  }
+}
+
+const ANALYSIS_FUNCTION_URL =
+  import.meta.env.VITE_INSFORGE_ANALYSIS_FUNCTION_URL ||
+  "https://g9jy59jq.functions.insforge.app/viewlytics-analysis";
+
+export async function scrapeSocialProfile({ platform, handle }) {
+  try {
+    const response = await fetch(`${ANALYSIS_FUNCTION_URL.replace(/\/$/, "")}/profile-scrape`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ platform, handle }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.ok === false) {
+      return { ok: false, error: payload?.error || { code: "PLATFORM_ERROR", message: `Scrape failed (${response.status})` } };
+    }
+    return { ok: true, profile: payload.profile, cached: Boolean(payload.cached) };
+  } catch (e) {
+    return { ok: false, error: { code: "PLATFORM_ERROR", message: e?.message || "Network error" } };
+  }
+}
+
+export async function listAnalysisHistory() {
+  const token = readStoredToken();
+  if (!token) return { ok: false, error: { message: "Sign in to view your history." } };
+  try {
+    const response = await fetch(`${ANALYSIS_FUNCTION_URL.replace(/\/$/, "")}/history`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.ok === false) {
+      return { ok: false, error: payload?.error || { message: `History fetch failed (${response.status})` } };
+    }
+    return { ok: true, runs: payload.runs || [] };
+  } catch (e) {
+    return { ok: false, error: { message: e?.message || "Network error" } };
+  }
+}
+
+export async function loadAnalysisRun(runId) {
+  const token = readStoredToken();
+  if (!token) return { ok: false, error: { message: "Sign in to load past runs." } };
+  try {
+    const response = await fetch(`${ANALYSIS_FUNCTION_URL.replace(/\/$/, "")}/run/${encodeURIComponent(runId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.ok === false) {
+      return { ok: false, error: payload?.error || { message: `Run fetch failed (${response.status})` } };
+    }
+    return { ok: true, run: payload.run };
+  } catch (e) {
+    return { ok: false, error: { message: e?.message || "Network error" } };
   }
 }
 

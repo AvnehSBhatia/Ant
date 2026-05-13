@@ -705,6 +705,11 @@ async function createRun(req: Request) {
     };
   }
 
+  // Mint a claim token so the sync path can be claimed post-signup, just
+  // like the streaming path. Without this, anonymous demo runs were orphaned.
+  const syncClaimToken = randomClaimToken();
+  const syncClaimTokenHash = await sha256Hex(syncClaimToken);
+
   const record = {
     status: "completed",
     video_name: fileMeta.name,
@@ -718,6 +723,7 @@ async function createRun(req: Request) {
     current_stage: STAGES[STAGES.length - 1],
     summary,
     intelligence,
+    claim_token_hash: syncClaimTokenHash,
   };
   void errorMessage;
 
@@ -731,7 +737,7 @@ async function createRun(req: Request) {
     return json({ ok: false, stage: "database.insert", error: error.message || String(error), record }, 500);
   }
 
-  return json({ ok: true, run: data, stages: STAGES });
+  return json({ ok: true, run: data, claim_token: syncClaimToken, stages: STAGES });
 }
 
 async function claimRun(req: Request) {
@@ -878,6 +884,399 @@ async function latestRun(req: Request) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Social-media profile scraping. Public-page fetches; no API keys. Cached in
+// viewlytics_profile_cache (platform, handle) for 12h to avoid rate-limit pain.
+// ─────────────────────────────────────────────────────────────────────────────
+const PROFILE_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+function normalizeHandle(handle: string): string {
+  return String(handle || "").trim().replace(/^@/, "").replace(/\/+$/, "").toLowerCase();
+}
+
+async function fetchWithRetry(url: string, init: RequestInit, timeoutMs = 15000): Promise<Response> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...init, signal: ctl.signal });
+      clearTimeout(timer);
+      if (res.status >= 500 && attempt === 0) continue;
+      return res;
+    } catch (e) {
+      clearTimeout(timer);
+      if (attempt === 1) throw e;
+    }
+  }
+  throw new Error("unreachable");
+}
+
+function parseFollowersText(text: string): number | null {
+  // Handles "1.2M Followers", "12,345 followers", "12.3K", etc.
+  const m = String(text || "").replace(/,/g, "").match(/([\d.]+)\s*([KkMmBb])?/);
+  if (!m) return null;
+  const n = parseFloat(m[1]);
+  if (!isFinite(n)) return null;
+  const suffix = (m[2] || "").toLowerCase();
+  if (suffix === "k") return Math.round(n * 1_000);
+  if (suffix === "m") return Math.round(n * 1_000_000);
+  if (suffix === "b") return Math.round(n * 1_000_000_000);
+  return Math.round(n);
+}
+
+async function scrapeTikTok(handle: string) {
+  const h = normalizeHandle(handle);
+  const url = `https://www.tiktok.com/@${encodeURIComponent(h)}`;
+  const res = await fetchWithRetry(url, {
+    headers: {
+      "User-Agent": BROWSER_UA,
+      "Accept-Language": "en-US,en;q=0.9",
+      Accept: "text/html,application/xhtml+xml",
+    },
+  });
+  if (res.status === 404) return { ok: false, error: { code: "NOT_FOUND", message: "TikTok profile not found" } };
+  if (res.status === 429) return { ok: false, error: { code: "RATE_LIMITED", message: "TikTok rate-limited the request" } };
+  if (!res.ok) return { ok: false, error: { code: "PLATFORM_ERROR", message: `TikTok returned ${res.status}` } };
+  const html = await res.text();
+  const m = html.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m) return { ok: false, error: { code: "PLATFORM_ERROR", message: "Could not parse TikTok page" } };
+  let parsed: any;
+  try { parsed = JSON.parse(m[1]); } catch {
+    return { ok: false, error: { code: "PLATFORM_ERROR", message: "Invalid TikTok JSON" } };
+  }
+  // The user payload lives under __DEFAULT_SCOPE__["webapp.user-detail"]
+  const scope = parsed?.__DEFAULT_SCOPE__ || {};
+  const detail = scope["webapp.user-detail"];
+  if (!detail || detail.statusCode === 10221) {
+    return { ok: false, error: { code: "PRIVATE", message: "TikTok profile is private or restricted" } };
+  }
+  const userInfo = detail?.userInfo || {};
+  const user = userInfo.user || {};
+  const stats = userInfo.stats || {};
+  if (!user.uniqueId && !user.nickname) {
+    return { ok: false, error: { code: "NOT_FOUND", message: "TikTok user not found" } };
+  }
+  return {
+    ok: true,
+    profile: {
+      platform: "tiktok",
+      handle: user.uniqueId || h,
+      display_name: user.nickname || user.uniqueId || h,
+      followers: Math.max(0, Number(stats.followerCount || 0)),
+      following: Math.max(0, Number(stats.followingCount || 0)),
+      posts: Math.max(0, Number(stats.videoCount || 0)),
+      hearts: Math.max(0, Number(stats.heartCount || stats.heart || 0)),
+      engagement_pct: (() => {
+        const f = Math.max(0, Number(stats.followerCount || 0));
+        const h = Math.max(0, Number(stats.heartCount || stats.heart || 0));
+        const v = Math.max(1, Number(stats.videoCount || 1));
+        if (!f || !h) return null;
+        const ratio = (h / Math.max(1, f * v)) * 100;
+        if (!isFinite(ratio) || ratio < 0) return null;
+        return Math.min(100, Number(ratio.toFixed(2)));
+      })(),
+      avatar_url: user.avatarLarger || user.avatarMedium || null,
+      bio: user.signature || "",
+      niche_tags: [],
+      recent_videos: [],
+      verified: Boolean(user.verified),
+    },
+  };
+}
+
+async function scrapeInstagram(handle: string) {
+  const h = normalizeHandle(handle);
+  // Public web_profile_info endpoint — needs the magic app id header.
+  const url = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(h)}`;
+  const res = await fetchWithRetry(url, {
+    headers: {
+      "User-Agent": BROWSER_UA,
+      "x-ig-app-id": "936619743392459",
+      "Accept-Language": "en-US,en;q=0.9",
+      Accept: "*/*",
+    },
+  });
+  if (res.status === 404) return { ok: false, error: { code: "NOT_FOUND", message: "Instagram profile not found" } };
+  if (res.status === 429) return { ok: false, error: { code: "RATE_LIMITED", message: "Instagram rate-limited the request" } };
+  if (res.status === 401 || res.status === 403) {
+    // Fall back to og:description scrape.
+    return scrapeInstagramOg(h);
+  }
+  if (!res.ok) return { ok: false, error: { code: "PLATFORM_ERROR", message: `Instagram returned ${res.status}` } };
+  let payload: any;
+  try { payload = await res.json(); } catch {
+    return scrapeInstagramOg(h);
+  }
+  const u = payload?.data?.user;
+  if (!u) return scrapeInstagramOg(h);
+  if (u.is_private) return { ok: false, error: { code: "PRIVATE", message: "Instagram account is private" } };
+  return {
+    ok: true,
+    profile: {
+      platform: "instagram",
+      handle: u.username || h,
+      display_name: u.full_name || u.username || h,
+      followers: Number(u.edge_followed_by?.count || 0),
+      following: Number(u.edge_follow?.count || 0),
+      posts: Number(u.edge_owner_to_timeline_media?.count || 0),
+      engagement_pct: null,
+      avatar_url: u.profile_pic_url_hd || u.profile_pic_url || null,
+      bio: u.biography || "",
+      niche_tags: u.category_name ? [u.category_name] : [],
+      recent_videos: (u.edge_owner_to_timeline_media?.edges || []).slice(0, 6).map((edge: any) => ({
+        id: edge?.node?.id || null,
+        caption: edge?.node?.edge_media_to_caption?.edges?.[0]?.node?.text || "",
+        likes: Number(edge?.node?.edge_liked_by?.count || edge?.node?.edge_media_preview_like?.count || 0),
+        comments: Number(edge?.node?.edge_media_to_comment?.count || 0),
+        thumbnail_url: edge?.node?.thumbnail_src || null,
+      })),
+      verified: Boolean(u.is_verified),
+    },
+  };
+}
+
+async function scrapeInstagramOg(h: string) {
+  const url = `https://www.instagram.com/${encodeURIComponent(h)}/`;
+  const res = await fetchWithRetry(url, {
+    headers: { "User-Agent": BROWSER_UA, "Accept-Language": "en-US,en;q=0.9" },
+  });
+  if (res.status === 404) return { ok: false, error: { code: "NOT_FOUND", message: "Instagram profile not found" } };
+  if (!res.ok) return { ok: false, error: { code: "PLATFORM_ERROR", message: `Instagram fallback returned ${res.status}` } };
+  const html = await res.text();
+  const desc = html.match(/<meta property="og:description" content="([^"]+)"/)?.[1] || "";
+  const avatar = html.match(/<meta property="og:image" content="([^"]+)"/)?.[1] || null;
+  const title = html.match(/<meta property="og:title" content="([^"]+)"/)?.[1] || h;
+  // "1,234 Followers, 56 Following, 78 Posts - See Instagram photos and videos from..."
+  const followersMatch = desc.match(/([\d.,]+[KMB]?)\s+Followers/i);
+  const followingMatch = desc.match(/([\d.,]+[KMB]?)\s+Following/i);
+  const postsMatch = desc.match(/([\d.,]+[KMB]?)\s+Posts/i);
+  if (!followersMatch) return { ok: false, error: { code: "PRIVATE", message: "Instagram blocked the fetch — try again or enter manually" } };
+  return {
+    ok: true,
+    profile: {
+      platform: "instagram",
+      handle: h,
+      display_name: title.replace(/\s*\(@[^)]+\).*$/, "").trim() || h,
+      followers: parseFollowersText(followersMatch[1]) || 0,
+      following: followingMatch ? parseFollowersText(followingMatch[1]) || 0 : 0,
+      posts: postsMatch ? parseFollowersText(postsMatch[1]) || 0 : 0,
+      engagement_pct: null,
+      avatar_url: avatar,
+      bio: "",
+      niche_tags: [],
+      recent_videos: [],
+      verified: false,
+    },
+  };
+}
+
+async function scrapeYouTube(handle: string) {
+  const h = normalizeHandle(handle);
+  const url = `https://www.youtube.com/@${encodeURIComponent(h)}/about`;
+  const res = await fetchWithRetry(url, {
+    headers: {
+      "User-Agent": BROWSER_UA,
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (res.status === 404) return { ok: false, error: { code: "NOT_FOUND", message: "YouTube channel not found" } };
+  if (res.status === 429) return { ok: false, error: { code: "RATE_LIMITED", message: "YouTube rate-limited the request" } };
+  if (!res.ok) return { ok: false, error: { code: "PLATFORM_ERROR", message: `YouTube returned ${res.status}` } };
+  const html = await res.text();
+  const m = html.match(/var ytInitialData\s*=\s*(\{[\s\S]*?\});\s*<\/script>/);
+  if (!m) return { ok: false, error: { code: "PLATFORM_ERROR", message: "Could not parse YouTube page" } };
+  let data: any;
+  try { data = JSON.parse(m[1]); } catch {
+    return { ok: false, error: { code: "PLATFORM_ERROR", message: "Invalid YouTube JSON" } };
+  }
+  const header = data?.header?.c4TabbedHeaderRenderer || data?.header?.pageHeaderRenderer || {};
+  const meta = data?.metadata?.channelMetadataRenderer || {};
+  // Subscriber + video count varies by rollout. Strategy:
+  //   1. Try the legacy c4TabbedHeaderRenderer fields.
+  //   2. Deep-walk ytInitialData for any string ending in "subscribers"
+  //      / "subscriber" / "videos" — catches the newer pageHeaderViewModel
+  //      format where data lives in metadataRows[].metadataParts[].text.content.
+  //   3. Regex-fallback against the raw HTML for "X subscribers".
+  const legacySubText =
+    header?.subscriberCountText?.simpleText ||
+    header?.subscriberCountText?.accessibility?.accessibilityData?.label ||
+    header?.subscriberCountText?.runs?.map((r: any) => r.text).join("") ||
+    "";
+  const legacyVideoText = header?.videosCountText?.runs?.map((r: any) => r.text).join("") || "";
+
+  function deepFindCount(matchRe: RegExp): string {
+    const stack: any[] = [data];
+    const seen = new WeakSet<object>();
+    while (stack.length) {
+      const x = stack.pop();
+      if (x == null) continue;
+      if (typeof x === "string") {
+        if (matchRe.test(x)) return x;
+        continue;
+      }
+      if (typeof x !== "object") continue;
+      if (seen.has(x)) continue;
+      seen.add(x);
+      if (Array.isArray(x)) {
+        for (const v of x) stack.push(v);
+      } else {
+        for (const v of Object.values(x)) stack.push(v);
+      }
+    }
+    return "";
+  }
+
+  const subscriberText =
+    legacySubText ||
+    deepFindCount(/subscribers?\b/i) ||
+    (html.match(/([\d.,]+\s*[KMB]?)\s+subscribers?/i)?.[1]
+      ? `${html.match(/([\d.,]+\s*[KMB]?)\s+subscribers?/i)![1]} subscribers`
+      : "");
+  const videoText =
+    legacyVideoText ||
+    deepFindCount(/\bvideos?\b/i) ||
+    "";
+
+  const followers = parseFollowersText(subscriberText) || 0;
+  const posts = parseFollowersText(videoText) || 0;
+  return {
+    ok: true,
+    profile: {
+      platform: "youtube",
+      handle: meta.vanityChannelUrl?.split("/@").pop() || h,
+      display_name: meta.title || header?.title || h,
+      followers,
+      following: 0,
+      posts,
+      engagement_pct: null,
+      avatar_url: header?.avatar?.thumbnails?.slice(-1)?.[0]?.url || meta?.avatar?.thumbnails?.slice(-1)?.[0]?.url || null,
+      bio: meta.description || "",
+      niche_tags: meta.keywords ? String(meta.keywords).split(/\s+/).slice(0, 6) : [],
+      recent_videos: [],
+      verified: false,
+    },
+  };
+}
+
+async function scrapeProfile(platform: string, handle: string) {
+  const p = String(platform || "").toLowerCase();
+  if (p === "tiktok") return scrapeTikTok(handle);
+  if (p === "instagram") return scrapeInstagram(handle);
+  if (p === "youtube") return scrapeYouTube(handle);
+  return { ok: false, error: { code: "PLATFORM_ERROR", message: `Unsupported platform: ${platform}` } };
+}
+
+async function profileScrapeRoute(req: Request): Promise<Response> {
+  const body = await req.json().catch(() => ({}));
+  const platform = String((body as any)?.platform || "").toLowerCase();
+  const handle = normalizeHandle(String((body as any)?.handle || ""));
+  if (!platform || !handle) {
+    return json({ ok: false, error: { code: "PLATFORM_ERROR", message: "platform and handle are required" } }, 400, req);
+  }
+  if (!["tiktok", "instagram", "youtube"].includes(platform)) {
+    return json({ ok: false, error: { code: "PLATFORM_ERROR", message: "Unsupported platform" } }, 400, req);
+  }
+  const client = getClient(req);
+  // Check cache first.
+  try {
+    const { data: cached } = await client.database
+      .from("viewlytics_profile_cache")
+      .select("profile,error,fetched_at")
+      .eq("platform", platform)
+      .eq("handle", handle)
+      .limit(1);
+    const row = Array.isArray(cached) ? cached[0] : null;
+    if (row?.fetched_at) {
+      const age = Date.now() - new Date((row as any).fetched_at).getTime();
+      if (age < PROFILE_CACHE_TTL_MS && row.profile && Object.keys(row.profile).length) {
+        return json({ ok: true, cached: true, profile: row.profile }, 200, req);
+      }
+    }
+  } catch (_) { /* non-fatal */ }
+
+  let result: any;
+  try {
+    result = await scrapeProfile(platform, handle);
+  } catch (e) {
+    result = { ok: false, error: { code: "PLATFORM_ERROR", message: e instanceof Error ? e.message : String(e) } };
+  }
+
+  // Persist cache. The InsForge SDK's .from().insert() builder is lazy and
+  // only actually executes when you tack `.select()` (or `.single()`) onto the
+  // chain — without it the call resolves silently but never hits the DB. This
+  // is the same pattern the runs-table writes use. Errors get console.warn'd.
+  if (result?.ok && result.profile) {
+    try {
+      const row = {
+        platform,
+        handle,
+        profile: result.profile,
+        error: null as string | null,
+        fetched_at: new Date().toISOString(),
+      };
+      // Primary key is (platform, handle) after the 2026-05-13 migration that
+      // dropped the bigserial id (the anon role lacked USAGE on its sequence).
+      // Delete-then-insert is a portable upsert that works without onConflict.
+      await client.database
+        .from("viewlytics_profile_cache")
+        .delete()
+        .eq("platform", platform)
+        .eq("handle", handle)
+        .select();
+      const { error: insErr } = await client.database
+        .from("viewlytics_profile_cache")
+        .insert(row)
+        .select()
+        .single();
+      if (insErr) console.warn("profile_cache insert failed:", insErr);
+    } catch (e) {
+      console.warn("profile_cache persist threw:", e);
+    }
+  }
+
+  if (!result?.ok) {
+    return json(result, 200, req);
+  }
+  return json({ ok: true, cached: false, profile: result.profile }, 200, req);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// History — list user's past analysis runs, plus single-run fetch.
+// ─────────────────────────────────────────────────────────────────────────────
+async function historyRoute(req: Request): Promise<Response> {
+  const user = await getAuthedUser(req);
+  if (!user?.id) return json({ ok: false, error: { message: "Authentication required." } }, 401, req);
+  const client = getClient(req);
+  const { data, error } = await client.database
+    .from("viewlytics_analysis_runs")
+    .select("id,status,video_name,video_size,video_type,video_url,summary,created_at,updated_at,claimed_at,profile_snapshot")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) return json({ ok: false, stage: "database.select", error: error.message || String(error) }, 500, req);
+  return json({ ok: true, runs: Array.isArray(data) ? data : [] }, 200, req);
+}
+
+async function runByIdRoute(req: Request, runId: string): Promise<Response> {
+  const user = await getAuthedUser(req);
+  if (!user?.id) return json({ ok: false, error: { message: "Authentication required." } }, 401, req);
+  const client = getClient(req);
+  const { data, error } = await client.database
+    .from("viewlytics_analysis_runs")
+    .select("id,status,phase,progress,current_stage,video_name,video_size,video_type,video_url,video_key,summary,intelligence,created_at,updated_at,claimed_at,profile_snapshot,user_id")
+    .eq("id", runId)
+    .limit(1);
+  if (error) return json({ ok: false, stage: "database.select", error: error.message || String(error) }, 500, req);
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row) return json({ ok: false, error: { message: "Run not found." } }, 404, req);
+  if ((row as any).user_id !== user.id) {
+    return json({ ok: false, error: { message: "This analysis is not attached to your account." } }, 403, req);
+  }
+  return json({ ok: true, run: row }, 200, req);
+}
+
 // Proxy interactive brain renders from the Vast box. The frontend embeds these
 // at same-origin URLs so the Vast token / raw Vast IP stay server-side.
 // Matches /brain/<name>.(html|mp4|gif|webm) under the edge function path.
@@ -944,10 +1343,18 @@ export default async function handler(req: Request): Promise<Response> {
       return proxyBrainAsset(req, brainMatch[1]);
     }
   }
+  // History list + single-run fetch (GET, authed).
+  {
+    const url = new URL(req.url);
+    if (req.method === "GET" && url.pathname.endsWith("/history")) return historyRoute(req);
+    const runMatch = url.pathname.match(/\/run\/([A-Za-z0-9-]+)$/);
+    if (req.method === "GET" && runMatch) return runByIdRoute(req, runMatch[1]);
+  }
   if (req.method === "GET") return latestRun(req);
   if (req.method === "POST") {
     const url = new URL(req.url);
     if (url.pathname.endsWith("/claim")) return claimRun(req);
+    if (url.pathname.endsWith("/profile-scrape")) return profileScrapeRoute(req);
     const wantsStream =
       url.searchParams.get("stream") === "1" ||
       (req.headers.get("accept") || "").includes("text/event-stream");
