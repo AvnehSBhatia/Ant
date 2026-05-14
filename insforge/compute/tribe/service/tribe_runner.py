@@ -403,6 +403,20 @@ def _video_duration_sec(path: Path) -> float:
         clip.close()
 
 
+def _tr_sec_for_video_duration(video_sec: float) -> float:
+    """Seconds between retained brain timesteps vs video length.
+
+    1 s spacing for the first 30 s of content, then +1 s each additional 30 s
+    (e.g. 30 s → 1, 60 s → 2, 90 s → 3), matching ``ceil(duration / 30)``.
+    """
+    return float(max(1, math.ceil(float(video_sec) / 30.0)))
+
+
+def _segments_by_indices(segments, indices: np.ndarray) -> list:
+    """Materialize segment rows at the given indices (list-like or ndarray)."""
+    return [segments[int(i)] for i in indices]
+
+
 def _load_model() -> "TribeModel":
     _hf = _hf_feature_device()
     return TribeModel.from_pretrained(
@@ -427,8 +441,7 @@ def run_video_to_payload(video_path: Path) -> dict:
 
     inference_video = _downscale_video_to_480p(video_path)
     video_sec = _video_duration_sec(inference_video)
-    tr_sec = 1.0
-    n_keep = max(1, math.ceil(video_sec / tr_sec))
+    tr_sec = _tr_sec_for_video_duration(video_sec)
 
     model = _load_model()
     model.remove_empty_segments = False
@@ -437,8 +450,15 @@ def run_video_to_payload(video_path: Path) -> dict:
     with torch.inference_mode():
         preds, segments = model.predict(events=df)
     n_raw = int(preds.shape[0])
-    preds = np.asarray(preds[:n_keep])
-    segments = segments[:n_keep]
+    preds = np.asarray(preds)
+    # Model emits dense ~1 Hz rows along wall time; when tr_sec > 1, subsample
+    # every tr_sec seconds instead of truncating to the first n_keep rows only.
+    step = max(1, int(round(tr_sec)))
+    last_exclusive = min(n_raw, int(math.ceil(video_sec)))
+    idx = np.arange(0, last_exclusive, step, dtype=int)
+    preds = preds[idx]
+    segments = _segments_by_indices(segments, idx)
+    n_keep = int(preds.shape[0])
 
     peaks = _build_peak_activity(
         preds,
