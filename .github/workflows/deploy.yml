@@ -1,0 +1,148 @@
+name: Deploy to InsForge
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel any in-flight deploys when a new commit lands.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false  # let in-flight deploys finish; only queue one extra
+
+env:
+  INSFORGE_PROJECT_ID: 88d12fb0-5299-4efc-b8ab-c42bbc11a658
+  INSFORGE_ORG_ID: 2d3c16b8-db67-4e06-984c-e7b2c7dfe87d
+  NODE_VERSION: '20'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      functions: ${{ steps.filter.outputs.functions }}
+      migrations: ${{ steps.filter.outputs.migrations }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: filter
+        run: |
+          set -e
+          # Compare against parent commit. If first commit on branch, deploy everything.
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          else
+            CHANGED=$(git ls-files)
+          fi
+          echo "Changed files:"
+          echo "$CHANGED"
+          # Frontend if anything in src/, public/, index.html, package.json, vite.config.js, .vercelignore changed
+          if echo "$CHANGED" | grep -qE '^(src/|public/|index\.html|package(-lock)?\.json|vite\.config\.|\.vercelignore)'; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
+          fi
+          # Functions if anything in insforge/functions/ changed
+          if echo "$CHANGED" | grep -qE '^insforge/functions/'; then
+            echo "functions=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "functions=false" >> "$GITHUB_OUTPUT"
+          fi
+          # Migrations
+          if echo "$CHANGED" | grep -qE '^migrations/'; then
+            echo "migrations=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "migrations=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  migrations:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Log in to InsForge
+        run: npx --yes @insforge/cli login --email --json
+        env:
+          INSFORGE_EMAIL: ${{ secrets.INSFORGE_EMAIL }}
+          INSFORGE_PASSWORD: ${{ secrets.INSFORGE_PASSWORD }}
+      - name: Link project
+        run: |
+          npx --yes @insforge/cli link \
+            --project-id "$INSFORGE_PROJECT_ID" \
+            --org-id "$INSFORGE_ORG_ID"
+      - name: Apply migrations
+        run: npx --yes @insforge/cli db migrations up --all -y
+
+  functions:
+    needs: [detect-changes, migrations]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.functions == 'true' &&
+      (needs.migrations.result == 'success' || needs.migrations.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Log in to InsForge
+        run: npx --yes @insforge/cli login --email --json
+        env:
+          INSFORGE_EMAIL: ${{ secrets.INSFORGE_EMAIL }}
+          INSFORGE_PASSWORD: ${{ secrets.INSFORGE_PASSWORD }}
+      - name: Link project
+        run: |
+          npx --yes @insforge/cli link \
+            --project-id "$INSFORGE_PROJECT_ID" \
+            --org-id "$INSFORGE_ORG_ID"
+      - name: Deploy viewlytics-analysis edge function
+        run: npx --yes @insforge/cli functions deploy viewlytics-analysis
+
+  frontend:
+    needs: [detect-changes, migrations, functions]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.frontend == 'true' &&
+      (needs.migrations.result == 'success' || needs.migrations.result == 'skipped') &&
+      (needs.functions.result == 'success' || needs.functions.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install deps
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Strip backend dirs so the zip fits InsForge's 100MB cap
+        run: |
+          # The frontend deploy doesn't need the Python server, the Vast tribe
+          # service, the agents skills doc, or local scratch dirs. Same trick
+          # we run manually each deploy.
+          rm -rf server insforge/compute insforge/branches .agents _scan _remote .qa
+          du -sh ./* 2>/dev/null | sort -hr | head -8
+      - name: Log in to InsForge
+        run: npx --yes @insforge/cli login --email --json
+        env:
+          INSFORGE_EMAIL: ${{ secrets.INSFORGE_EMAIL }}
+          INSFORGE_PASSWORD: ${{ secrets.INSFORGE_PASSWORD }}
+      - name: Link project
+        run: |
+          npx --yes @insforge/cli link \
+            --project-id "$INSFORGE_PROJECT_ID" \
+            --org-id "$INSFORGE_ORG_ID"
+      - name: Deploy frontend
+        run: npx --yes @insforge/cli deployments deploy .
+      - name: Verify live bundle hash
+        run: |
+          sleep 8
+          curl -s --max-time 10 "https://ants.ceo/?cb=$(date +%s)" \
+            | grep -oE 'index-[A-Za-z0-9_]+\.(js|css)' \
+            | sort -u
