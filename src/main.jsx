@@ -391,9 +391,13 @@ function useAnalysisRunner(parentIntelligence) {
     const form = new FormData();
     form.append("video", file);
     const url = `${INSFORGE_ANALYSIS_FUNCTION_URL}${INSFORGE_ANALYSIS_FUNCTION_URL.includes("?") ? "&" : "?"}stream=1`;
+    const token = getStoredAccessToken();
     const response = await fetch(url, {
       method: "POST",
-      headers: { Accept: "text/event-stream" },
+      headers: {
+        Accept: "text/event-stream",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: form,
     });
     if (!response.ok || !response.body) {
@@ -439,7 +443,14 @@ function useAnalysisRunner(parentIntelligence) {
       video_type: metadata.type,
     };
     const url = `${INSFORGE_ANALYSIS_FUNCTION_URL}${INSFORGE_ANALYSIS_FUNCTION_URL.includes("?") ? "&" : "?"}stream=1`;
-    const options = { method: "POST", headers: { Accept: "text/event-stream" } };
+    const token = getStoredAccessToken();
+    const options = {
+      method: "POST",
+      headers: {
+        Accept: "text/event-stream",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    };
     if (file) {
       const form = new FormData();
       form.append("metadata", JSON.stringify(requestMetadata));
@@ -3134,59 +3145,81 @@ function HistoryPage({ go }) {
     }
   };
 
+  const completedRuns = Array.isArray(runs) ? runs.filter((run) => run.status === "completed") : [];
+  const avgVirality = completedRuns.length
+    ? completedRuns.reduce((sum, run) => sum + Number(run.summary?.virality_score || 0), 0) / completedRuns.length
+    : 0;
+  const avgRetention = completedRuns.length
+    ? completedRuns.reduce((sum, run) => sum + Number(run.summary?.mean_retention_proxy || 0), 0) / completedRuns.length
+    : 0;
+  const totalShares = completedRuns.reduce((sum, run) => sum + Number(run.summary?.total_shares || 0), 0);
+
   return (
-    <div className="history-page" style={{ padding: "8px 0" }}>
+    <div className="history-page">
       <article className="analytics-panel">
         <div className="panel-heading">
           <h2><Clock3 size={16} /> Past analyses</h2>
           <span><i /> {runs == null ? "loading..." : `${runs.length} runs`}</span>
         </div>
-        {error ? <div className="auth-error" role="alert" style={{ marginBottom: 12 }}>{error}</div> : null}
+        <div className="history-summary-grid" aria-label="History summary">
+          <MetricCard label="Completed runs" value={runs == null ? null : completedRuns.length} note={runs == null ? "" : `${runs.length} total uploads`} />
+          <MetricCard label="Avg virality" value={completedRuns.length ? avgVirality.toFixed(1) : null} suffix={completedRuns.length ? "/100" : ""} note="Across completed videos" />
+          <MetricCard label="Avg retention" value={completedRuns.length ? avgRetention.toFixed(1) : null} suffix={completedRuns.length ? "%" : ""} note="Mean retention proxy" />
+          <MetricCard label="Projected shares" value={completedRuns.length ? formatCount(totalShares) : null} note="Stored run summaries" />
+        </div>
+        {error ? <div className="auth-error history-error" role="alert">{error}</div> : null}
         {runs == null ? (
-          <p style={{ opacity: 0.7 }}>Loading your history...</p>
+          <div className="history-empty"><Loader2 size={18} className="autofill-spin" /> Loading your history...</div>
         ) : runs.length === 0 ? (
-          <p style={{ opacity: 0.7 }}>No saved analyses yet. Run a new simulation to see it here.</p>
+          <div className="history-empty">
+            <Video size={22} />
+            <strong>No saved analyses yet</strong>
+            <span>Run a new simulation while signed in and it will appear here.</span>
+          </div>
         ) : (
-          <div className="history-list" style={{ display: "grid", gap: 10 }}>
+          <div className="history-list">
             {runs.map((run) => {
               const summary = run.summary || {};
               const completed = summary.completed_at || run.updated_at || run.created_at;
               const date = completed ? new Date(completed).toLocaleString() : "—";
+              const title = run.video_name || summary.video_name || "Untitled run";
+              const videoSize = Number(run.video_size || summary.video_size || 0);
+              const videoType = run.video_type || summary.video_type || "video";
+              const canLoad = run.status === "completed";
               return (
-                <div
-                  key={run.id}
-                  className="history-card"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto",
-                    gap: 12,
-                    padding: "12px 14px",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: 12,
-                    background: "rgba(255,255,255,0.02)",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <strong style={{ fontSize: 15 }}>{run.video_name || summary.video_name || "Untitled run"}</strong>
-                    <div style={{ display: "flex", gap: 14, marginTop: 4, fontSize: 12, opacity: 0.8, flexWrap: "wrap" }}>
-                      <span><Clock3 size={12} style={{ verticalAlign: "middle" }} /> {date}</span>
-                      {summary.virality_score != null ? <span>Virality {Number(summary.virality_score).toFixed(1)}/100</span> : null}
-                      {summary.mean_retention_proxy != null ? <span>Retention {formatPct(summary.mean_retention_proxy, 0)}</span> : null}
-                      {summary.total_shares != null ? <span>{formatCount(summary.total_shares)} shares</span> : null}
-                      <span className="status-pill" style={{ fontSize: 11 }}>{run.status}</span>
+                <article key={run.id} className="history-card">
+                  <div className="history-card-main">
+                    <div className="history-card-title">
+                      <span className="history-video-icon"><Film size={17} /></span>
+                      <div>
+                        <strong>{title}</strong>
+                        <small><Clock3 size={12} /> {date}</small>
+                      </div>
                     </div>
+                    <div className="history-meta-row">
+                      <span>{formatBytes(videoSize)}</span>
+                      <span>{videoType}</span>
+                      {summary.scenes != null ? <span>{formatCount(summary.scenes)} scenes</span> : null}
+                      {summary.persona_count != null ? <span>{formatCount(summary.persona_count)} personas</span> : null}
+                      <span className={`history-status ${run.status || "unknown"}`}>{run.status || "unknown"}</span>
+                    </div>
+                  </div>
+                  <div className="history-metric-row" aria-label={`Performance for ${title}`}>
+                    <span><strong>{summary.virality_score != null ? Number(summary.virality_score).toFixed(1) : "—"}</strong><small>Virality</small></span>
+                    <span><strong>{summary.mean_retention_proxy != null ? formatPct(summary.mean_retention_proxy, 0) : "—"}</strong><small>Retention</small></span>
+                    <span><strong>{summary.positive_rate_pct != null ? formatPct(summary.positive_rate_pct, 0) : "—"}</strong><small>Positive</small></span>
+                    <span><strong>{summary.total_shares != null ? formatCount(summary.total_shares) : "—"}</strong><small>Shares</small></span>
                   </div>
                   <button
                     type="button"
-                    className="primary-button"
-                    disabled={loadingId === run.id}
+                    className="primary-button history-load-button"
+                    disabled={!canLoad || loadingId === run.id}
                     onClick={() => handleLoad(run.id)}
-                    style={{ padding: "8px 14px" }}
+                    title={canLoad ? "View stored results" : "This run is not complete yet"}
                   >
-                    {loadingId === run.id ? "Loading..." : "Load"} <ArrowRight size={14} />
+                    {loadingId === run.id ? "Loading..." : "View results"} <ArrowRight size={14} />
                   </button>
-                </div>
+                </article>
               );
             })}
           </div>
