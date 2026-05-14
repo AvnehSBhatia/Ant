@@ -340,8 +340,10 @@ async function proxyAntServerStream(req: Request): Promise<Response> {
   const outForm = new FormData();
   outForm.append("video", videoFile, videoFile.name || "video.mp4");
   const client = getClient();
+  const user = await getAuthedUser(req);
+  const claimedAt = user?.id ? new Date().toISOString() : null;
   const claimToken = randomClaimToken();
-  const claimTokenHash = await sha256Hex(claimToken);
+  const claimTokenHash = user?.id ? null : await sha256Hex(claimToken);
   let runId: string | number | null = null;
   const fileMeta = {
     name: videoFile.name || "Uploaded source video",
@@ -361,6 +363,8 @@ async function proxyAntServerStream(req: Request): Promise<Response> {
         progress: 0,
         current_stage: "Uploading",
         claim_token_hash: claimTokenHash,
+        user_id: user?.id || null,
+        claimed_at: claimedAt,
       })
       .select()
       .single();
@@ -392,7 +396,11 @@ async function proxyAntServerStream(req: Request): Promise<Response> {
   const merged = new ReadableStream({
     async start(controller) {
       controller.enqueue(
-        enc.encode(`data: ${JSON.stringify({ type: "run", run_id: runId, claim_token: claimToken })}\n\n`),
+        enc.encode(`data: ${JSON.stringify({
+          type: "run",
+          run_id: runId,
+          ...(user?.id ? { user_id: user.id, claimed_at: claimedAt } : { claim_token: claimToken }),
+        })}\n\n`),
       );
       const reader = upstream.body!.getReader();
       const decoder = new TextDecoder();
@@ -469,9 +477,11 @@ async function proxyAntServerStream(req: Request): Promise<Response> {
 
 async function createRunStream(req: Request) {
   if (!ANALYZE_SERVICE_URL) {
-    return json({ ok: false, error: "ANALYZE_SERVICE_URL not configured" }, 500);
+    return json({ ok: false, error: "ANALYZE_SERVICE_URL not configured" }, 500, req);
   }
   const client = getClient();
+  const user = await getAuthedUser(req);
+  const claimedAt = user?.id ? new Date().toISOString() : null;
   const { file, fileMeta } = await parseRequestPayload(req);
 
   // 1. Upload first (must happen before stream so video URL is real).
@@ -487,7 +497,7 @@ async function createRunStream(req: Request) {
   // 2. Insert placeholder row immediately so frontend has a run id even before compute finishes.
   let runId: string | number | null = null;
   const claimToken = randomClaimToken();
-  const claimTokenHash = await sha256Hex(claimToken);
+  const claimTokenHash = user?.id ? null : await sha256Hex(claimToken);
   try {
     const { data, error } = await client.database
       .from("viewlytics_analysis_runs")
@@ -503,6 +513,8 @@ async function createRunStream(req: Request) {
         progress: 0,
         current_stage: "Uploading",
         claim_token_hash: claimTokenHash,
+        user_id: user?.id || null,
+        claimed_at: claimedAt,
       })
       .select()
       .single();
@@ -530,7 +542,7 @@ async function createRunStream(req: Request) {
 
   if (!upstream.ok || !upstream.body) {
     const text = await upstream.text().catch(() => "");
-    return json({ ok: false, stage: "compute.stream", error: text || `compute ${upstream.status}` }, 502);
+    return json({ ok: false, stage: "compute.stream", error: text || `compute ${upstream.status}` }, 502, req);
   }
 
   // 4. Single-reader pump: forward upstream bytes to client AND parse SSE for DB writes
@@ -541,7 +553,12 @@ async function createRunStream(req: Request) {
       // Inject leading 'run' event with the runId for frontend reference.
       controller.enqueue(
         enc.encode(
-          `event: run\ndata: ${JSON.stringify({ run_id: runId, claim_token: claimToken, video_url: uploaded.url || null, video_key: uploaded.key || null })}\n\n`,
+          `event: run\ndata: ${JSON.stringify({
+            run_id: runId,
+            video_url: uploaded.url || null,
+            video_key: uploaded.key || null,
+            ...(user?.id ? { user_id: user.id, claimed_at: claimedAt } : { claim_token: claimToken }),
+          })}\n\n`,
         ),
       );
       const reader = upstream.body!.getReader();
@@ -637,7 +654,7 @@ async function createRunStream(req: Request) {
   return new Response(merged, {
     status: 200,
     headers: {
-      ...corsHeaders,
+      ...corsFor(req),
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       "Connection": "keep-alive",
@@ -648,6 +665,8 @@ async function createRunStream(req: Request) {
 
 async function createRun(req: Request) {
   const client = getClient();
+  const user = await getAuthedUser(req);
+  const claimedAt = user?.id ? new Date().toISOString() : null;
   const { file, fileMeta } = await parseRequestPayload(req);
 
   let uploaded: { key?: string; url?: string } = {};
@@ -705,10 +724,10 @@ async function createRun(req: Request) {
     };
   }
 
-  // Mint a claim token so the sync path can be claimed post-signup, just
-  // like the streaming path. Without this, anonymous demo runs were orphaned.
+  // Anonymous runs get a claim token so they can be attached post-signup.
+  // Authenticated runs are owned immediately by user_id instead.
   const syncClaimToken = randomClaimToken();
-  const syncClaimTokenHash = await sha256Hex(syncClaimToken);
+  const syncClaimTokenHash = user?.id ? null : await sha256Hex(syncClaimToken);
 
   const record = {
     status: "completed",
@@ -724,6 +743,8 @@ async function createRun(req: Request) {
     summary,
     intelligence,
     claim_token_hash: syncClaimTokenHash,
+    user_id: user?.id || null,
+    claimed_at: claimedAt,
   };
   void errorMessage;
 
@@ -737,7 +758,12 @@ async function createRun(req: Request) {
     return json({ ok: false, stage: "database.insert", error: error.message || String(error), record }, 500);
   }
 
-  return json({ ok: true, run: data, claim_token: syncClaimToken, stages: STAGES });
+  return json({
+    ok: true,
+    run: data,
+    ...(user?.id ? { user_id: user.id, claimed_at: claimedAt } : { claim_token: syncClaimToken }),
+    stages: STAGES,
+  }, 200, req);
 }
 
 async function claimRun(req: Request) {
