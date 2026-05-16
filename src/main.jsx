@@ -3896,7 +3896,12 @@ function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
   const realIntelligence = runner?.intelligence || parentIntelligence;
   const cloudStatus = runner?.cloudStatus;
   const livePct = runner?.liveStage?.pct;
-  const hasLiveRun = Boolean(runner?.video) && (cloudStatus === "syncing" || cloudStatus === "synced" || runner?.streamActive);
+  // "Live run" means *currently streaming* — not "ever finished a run".
+  // Including cloudStatus === "synced" here was the bug: after a run finished,
+  // every fresh mount of SimulationFlowPage thought a stream was active and
+  // auto-advanced to results, so clicking Simulations from the sidebar dumped
+  // you on the old results screen instead of letting you start a new run.
+  const hasLiveRun = Boolean(runner?.video) && (cloudStatus === "syncing" || runner?.streamActive === true);
 
   // Initial step: only honor a *live* in-flight stream. Don't auto-jump to
   // results just because a past run's intelligence is still in memory — the
@@ -4196,27 +4201,22 @@ function SimulationResultsStage({ onRunAgain, onSaveReport, intelligence }) {
   const sim = intelligence?.simulation || {};
   const brain = intelligence?.brain || {};
 
-  const viralityScore = sim.virality_score != null ? Math.round(Number(sim.virality_score)) : 82;
-  const viralityLabel = viralityScore >= 80 ? "Strong potential" : viralityScore >= 60 ? "Solid signal" : "Needs work";
+  const viralityScore = sim.virality_score != null ? Math.round(Number(sim.virality_score)) : null;
+  const viralityLabel = viralityScore == null
+    ? "Awaiting score"
+    : viralityScore >= 80 ? "Strong potential" : viralityScore >= 60 ? "Solid signal" : "Needs work";
   const holdPct = brain?.summary?.mean_retention_proxy != null
     ? Math.round(Number(brain.summary.mean_retention_proxy))
-    : 67;
-  const holdNote = holdPct >= 65 ? "Good" : holdPct >= 45 ? "Mixed" : "Weak";
+    : null;
+  const holdNote = holdPct == null ? "—" : holdPct >= 65 ? "Good" : holdPct >= 45 ? "Mixed" : "Weak";
 
   const rawInsights = intelligence?.insights;
-  const fallbackInsights = [
-    "Strong visual hook in first 2s",
-    "Clear value established early",
-    "Fast pacing through 0-7s",
-    "Relatable problem & payoff",
-    "Good CTA and community fit",
-  ];
-  const decisions = (Array.isArray(rawInsights) && rawInsights.length
+  const decisions = (Array.isArray(rawInsights)
     ? rawInsights.map((i) => (typeof i === "string" ? i : i?.headline || i?.text || i?.title)).filter(Boolean)
-    : fallbackInsights
+    : []
   ).slice(0, 5);
 
-  let segments;
+  let segments = [];
   if (Array.isArray(sim.cohorts) && sim.cohorts.length) {
     const cohorts = sim.cohorts.slice(0, 4);
     const totalWeight = cohorts.reduce((acc, c) => acc + (Number(c.viewers) || Number(c.virality_score) || 1), 0) || 1;
@@ -4224,22 +4224,28 @@ function SimulationResultsStage({ onRunAgain, onSaveReport, intelligence }) {
       const weight = Number(c.viewers) || Number(c.virality_score) || 1;
       return [c.name || "Cohort", `${Math.max(1, Math.round((weight / totalWeight) * 100))}%`];
     });
-  } else {
-    segments = [["Aspiring creators", "48%"], ["Solopreneurs", "26%"], ["Side hustlers", "16%"], ["Small business owners", "10%"]];
   }
 
   return (
     <section className="sim-results-screen">
       <header className="sim-results-head">
         <div><span><Check size={16} /></span><h1>Simulation complete</h1><p>Here’s what we predicted.</p></div>
-        <nav><button className="exact-yellow-button" type="button" onClick={onSaveReport}>Save report</button><button className="exact-dark-button" type="button" onClick={onRunAgain}><Repeat2 size={15} /> Run another simulation</button></nav>
+        <nav><button className="exact-yellow-button" type="button" onClick={onSaveReport} disabled={!intelligence}>Save report</button><button className="exact-dark-button" type="button" onClick={onRunAgain}><Repeat2 size={15} /> Run another simulation</button></nav>
       </header>
       <div className="sim-results-grid">
-        <article className="sim-result-card sim-result-hold"><span>Predicted 3s hold</span><strong>{holdPct}<small>%</small></strong><p>{holdNote}</p><em>▲ 15% vs. industry</em></article>
-        <article className="sim-result-card sim-result-gauge"><span>Virality score</span><ExactViralityGauge score={viralityScore} label={viralityLabel} /></article>
+        <article className="sim-result-card sim-result-hold"><span>Predicted 3s hold</span><strong>{holdPct != null ? holdPct : "—"}{holdPct != null ? <small>%</small> : null}</strong><p>{holdNote}</p></article>
+        <article className="sim-result-card sim-result-gauge"><span>Virality score</span><ExactViralityGauge score={viralityScore != null ? viralityScore : "—"} label={viralityLabel} /></article>
         <article className="sim-result-card sim-result-chart"><span>Retention curve</span><SimulationRetentionChart curve={brain?.retention_curve} /></article>
-        <article className="sim-result-card sim-result-segments"><span>Audience segments</span>{segments.map(([name, value]) => <p key={name}><b>{name}</b><i><em style={{ width: value }} /></i><strong>{value}</strong></p>)}</article>
-        <article className="sim-result-card sim-result-decisions"><span>Key decisions</span>{decisions.map((text) => <p key={text}><Check size={14} /> {text}</p>)}</article>
+        <article className="sim-result-card sim-result-segments">
+          <span>Audience segments</span>
+          {segments.length ? segments.map(([name, value]) => <p key={name}><b>{name}</b><i><em style={{ width: value }} /></i><strong>{value}</strong></p>)
+            : <p className="sim-empty-note">Awaiting cohort breakdown.</p>}
+        </article>
+        <article className="sim-result-card sim-result-decisions">
+          <span>Key decisions</span>
+          {decisions.length ? decisions.map((text) => <p key={text}><Check size={14} /> {text}</p>)
+            : <p className="sim-empty-note">Awaiting qualitative insights.</p>}
+        </article>
       </div>
     </section>
   );
