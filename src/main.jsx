@@ -3250,18 +3250,93 @@ function RealPageInsights({ active, data }) {
   );
 }
 
-function ExactDashboardPage({ go }) {
+function ExactDashboardPage({ go, intelligence }) {
   const [isLaunching, setIsLaunching] = useState(false);
-  const rows = [
-    ["Gen Z trend-seekers", "82%", "82", "Low", "good"],
-    ["Budget-conscious buyers", "64%", "64", "Low", "good"],
-    ["Creator peers", "76%", "78", "Medium", "warn"],
-    ["Skeptical scrollers", "41%", "41", "High", "bad"]
-  ];
   const handleRunSimulation = () => {
     setIsLaunching(true);
     window.setTimeout(() => go("flow"), 620);
   };
+  const handleExport = () => {
+    if (!intelligence) return;
+    const blob = new Blob([JSON.stringify(intelligence, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stem = (intelligence?.summary?.video_name || intelligence?.videos?.top?.[0]?.title || "report")
+      .replace(/\.[^.]*$/, "").replace(/[^A-Za-z0-9._-]+/g, "-");
+    a.href = url;
+    a.download = `ant-viewlytics-${stem}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const sim = intelligence?.simulation || {};
+  const brain = intelligence?.brain || {};
+  const topVideo = intelligence?.videos?.top?.[0];
+  const hasData = Boolean(intelligence);
+
+  const videoTitle = topVideo?.title
+    || sim.video_name
+    || intelligence?.summary?.video_name
+    || (hasData ? "Latest analysis" : "Awaiting first analysis");
+
+  const personaCount = sim.persona_count != null ? Number(sim.persona_count) : null;
+  const viralityScore = sim.virality_score != null ? Math.round(Number(sim.virality_score)) : null;
+  const dropoffRisk = sim.dropoff_risk_pct != null ? Math.round(Number(sim.dropoff_risk_pct)) : null;
+  const meanRetention = brain?.summary?.mean_retention_proxy != null
+    ? Math.round(Number(brain.summary.mean_retention_proxy))
+    : null;
+
+  const retentionCurve = Array.isArray(brain?.retention_curve) ? brain.retention_curve : null;
+  let hold3s = null;
+  if (retentionCurve && retentionCurve.length >= 4) {
+    // Curve is normalised 0..1 retention proxy at each second index.
+    hold3s = Math.round(Math.max(0, Math.min(1, Number(retentionCurve[3]) || 0)) * 100);
+  } else if (meanRetention != null) {
+    hold3s = meanRetention;
+  }
+
+  const completedAt = intelligence?.summary?.completed_at || intelligence?.summary?.generated_at;
+  const completedDate = completedAt
+    ? new Date(completedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    : null;
+
+  const cohorts = Array.isArray(sim.cohorts) ? sim.cohorts.slice(0, 6) : [];
+
+  const insights = Array.isArray(intelligence?.insights) ? intelligence.insights : [];
+  const decisionList = insights
+    .map((i) => (typeof i === "string" ? i : i?.headline || i?.text || i?.title))
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const toneFor = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "warn";
+    if (n >= 70) return "good";
+    if (n >= 45) return "warn";
+    return "bad";
+  };
+  const fmtCount = (v) => {
+    if (v == null || Number.isNaN(Number(v))) return "—";
+    const n = Number(v);
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 10_000) return `${(n / 1_000).toFixed(0)}K`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return n.toLocaleString();
+  };
+  const viralityNote = viralityScore == null
+    ? null
+    : viralityScore >= 80 ? "Strong" : viralityScore >= 60 ? "Solid" : viralityScore >= 40 ? "Mixed" : "Weak";
+  const holdNote = hold3s == null
+    ? null
+    : hold3s >= 65 ? "Good" : hold3s >= 45 ? "Mixed" : "Weak";
+  const dropoffNote = dropoffRisk == null
+    ? null
+    : dropoffRisk <= 20 ? "Low" : dropoffRisk <= 45 ? "Medium" : "High";
+  const viewerNote = cohorts.length
+    ? `Across ${cohorts.length} cohort${cohorts.length === 1 ? "" : "s"}`
+    : null;
 
   return (
     <div className={`page exact-dark-page exact-dashboard-page ${isLaunching ? "is-launching-flow" : ""}`}>
@@ -3279,64 +3354,97 @@ function ExactDashboardPage({ go }) {
             <button type="button" onClick={() => go("simulations")}><Gauge size={17} /> Simulations</button>
             <button type="button" onClick={() => go("personas")}><UsersRound size={17} /> Personas</button>
           </nav>
-          <div className="exact-creator-card">
+          <button className="exact-creator-card" type="button" onClick={() => go("history")} aria-label="Open history">
             <img src={exactDarkAssets.avatar} alt="" />
             <div><strong>Creator Lab</strong><span>Pro Plan</span></div>
             <ChevronRight size={17} />
-          </div>
+          </button>
         </aside>
 
         <main className="exact-dashboard-main">
-          <div className="exact-dashboard-hero-intro">
-            <span>Live colony model</span>
-            <strong>10,000 synthetic viewers mapped this reel in 38 seconds.</strong>
-            <i />
-          </div>
+          {hasData ? (
+            <div className="exact-dashboard-hero-intro">
+              <span>Live colony model</span>
+              <strong>
+                {personaCount != null
+                  ? `${fmtCount(personaCount)} synthetic viewers mapped this reel.`
+                  : "Latest analysis is ready."}
+              </strong>
+              <i />
+            </div>
+          ) : (
+            <div className="exact-dashboard-hero-intro exact-dashboard-hero-empty">
+              <span>No analysis yet</span>
+              <strong>Run a simulation to populate this dashboard.</strong>
+              <i />
+            </div>
+          )}
           <header className="exact-dashboard-header">
             <div>
-              <h1>Summer Launch Reel.mp4 <span>Completed</span></h1>
-              <p>May 18, 2024 · 10,000 simulated viewers</p>
+              <h1>{videoTitle} {hasData ? <span>Completed</span> : <span className="status-pending">Awaiting upload</span>}</h1>
+              <p>
+                {completedDate ? `${completedDate} · ` : ""}
+                {personaCount != null ? `${fmtCount(personaCount)} simulated viewers` : "Run a simulation to populate metrics"}
+              </p>
             </div>
             <div className="exact-dashboard-actions">
-              <button type="button"><Share2 size={15} /> Share</button>
-              <button type="button">Export <Download size={15} /></button>
-              <button className="kebab" type="button"><MoreVertical size={18} /></button>
+              <button type="button" disabled={!hasData}><Share2 size={15} /> Share</button>
+              <button type="button" onClick={handleExport} disabled={!hasData}>Export <Download size={15} /></button>
+              <button className="kebab" type="button" onClick={handleRunSimulation} aria-label="Run another simulation"><MoreVertical size={18} /></button>
             </div>
           </header>
 
           <section className="exact-metrics-row">
-            <ExactMetricCard title="Virality Score" value="82" suffix="/100" note="Strong" spark />
-            <ExactMetricCard title="Predicted 3s Hold" value="67" suffix="%" note="Good" />
-            <ExactMetricCard title="Drop-off Risk" value="18" suffix="%" note="Low" />
-            <ExactMetricCard title="Simulated Viewers" value="10,000" note="Across 4 cohorts" />
+            <ExactMetricCard title="Virality Score" value={viralityScore != null ? String(viralityScore) : "—"} suffix={viralityScore != null ? "/100" : ""} note={viralityNote} spark />
+            <ExactMetricCard title="Predicted 3s Hold" value={hold3s != null ? String(hold3s) : "—"} suffix={hold3s != null ? "%" : ""} note={holdNote} />
+            <ExactMetricCard title="Drop-off Risk" value={dropoffRisk != null ? String(dropoffRisk) : "—"} suffix={dropoffRisk != null ? "%" : ""} note={dropoffNote} />
+            <ExactMetricCard title="Simulated Viewers" value={personaCount != null ? fmtCount(personaCount) : "—"} note={viewerNote} />
           </section>
 
           <section className="exact-dashboard-middle">
             <article className="exact-panel exact-retention-large">
               <div className="exact-panel-head"><h2>Retention over time (by second)</h2><span><i /> This video</span></div>
-              <ExactRetentionLargeChart />
+              <ExactRetentionLargeChart curve={retentionCurve} hold3s={hold3s} />
             </article>
             <article className="exact-panel exact-stayed-card">
-              <h2>Why they stayed</h2>
-              {["Strong visual hook in the first 2s", "Clear value shown early", "Fast pacing through 0-7s", "Relatable problem & payoff", "Good energy and edit rhythm"].map((text) => (
-                <p key={text}><Check size={15} /> {text}</p>
-              ))}
-              <button type="button">See all insights <ArrowRight size={16} /></button>
+              <h2>{hasData ? "Why they stayed" : "Insights"}</h2>
+              {decisionList.length ? (
+                decisionList.map((text) => (
+                  <p key={text}><Check size={15} /> {text}</p>
+                ))
+              ) : (
+                <p className="exact-empty-line"><i /> {hasData ? "No qualitative insights captured for this run." : "Run a simulation to see what drove retention."}</p>
+              )}
+              {decisionList.length ? <button type="button" onClick={() => go("simulations")}>See all insights <ArrowRight size={16} /></button> : null}
             </article>
           </section>
 
           <section className="exact-panel exact-persona-table">
             <h2>Performance by persona</h2>
             <div className="table-head"><span>Persona</span><span>Trend</span><span>3s Hold</span><span>Virality</span><span>Drop-off Risk</span></div>
-            {rows.map(([name, hold, virality, risk, tone], index) => (
-              <div className="table-row" key={name}>
-                <span className="persona-name"><i><UsersRound size={14} /></i>{name}</span>
-                <ExactTinySpark index={index} />
-                <span>{hold}</span>
-                <span className={`virality ${tone}`}>{virality}<small>/100</small></span>
-                <span className={`risk ${tone}`}>{risk}</span>
-              </div>
-            ))}
+            {cohorts.length ? cohorts.map((cohort, index) => {
+              const name = cohort?.name || cohort?.label || `Cohort ${index + 1}`;
+              const v = cohort?.virality_score ?? cohort?.virality ?? cohort?.score;
+              const h = cohort?.hold_3s_pct ?? cohort?.hold ?? cohort?.three_s_hold;
+              const r = cohort?.dropoff_risk_pct ?? cohort?.dropoff ?? cohort?.risk;
+              const viralityNum = v != null ? Math.round(Number(v)) : null;
+              const holdDisplay = h != null ? `${Math.round(Number(h))}%` : "—";
+              const riskDisplay = r != null
+                ? (Number(r) <= 20 ? "Low" : Number(r) <= 45 ? "Medium" : "High")
+                : "—";
+              const tone = toneFor(viralityNum != null ? viralityNum : 0);
+              return (
+                <div className="table-row" key={`${name}-${index}`}>
+                  <span className="persona-name"><i><UsersRound size={14} /></i>{name}</span>
+                  <ExactTinySpark index={index} />
+                  <span>{holdDisplay}</span>
+                  <span className={`virality ${tone}`}>{viralityNum != null ? viralityNum : "—"}<small>/100</small></span>
+                  <span className={`risk ${tone}`}>{riskDisplay}</span>
+                </div>
+              );
+            }) : (
+              <div className="exact-empty-row">No cohort breakdown yet — run a simulation to populate.</div>
+            )}
           </section>
         </main>
       </section>
@@ -3369,26 +3477,60 @@ function ExactTinySpark({ index = 0 }) {
   );
 }
 
-function ExactRetentionLargeChart() {
+function ExactRetentionLargeChart({ curve, hold3s }) {
+  const useReal = Array.isArray(curve) && curve.length >= 4;
+  const left = 58;
+  const right = 742;
+  const top = 38;
+  const bottom = 226;
+
+  let linePath = "M58 38 C88 38 103 50 126 65 C154 82 172 70 198 86 C228 104 250 102 276 113 C304 125 322 148 352 156 C383 164 405 152 430 166 C462 184 490 187 522 197 C558 209 590 210 620 219 C662 230 699 227 742 228";
+  let areaPath = "M58 38 C88 38 103 50 126 65 C154 82 172 70 198 86 C228 104 250 102 276 113 C304 125 322 148 352 156 C383 164 405 152 430 166 C462 184 490 187 522 197 C558 209 590 210 620 219 C662 230 699 227 742 228 L742 226 L58 226 Z";
+
+  // The "3s hold" vertical marker sits at the 3-second mark. For the
+  // hand-tuned demo path that's x=270 / y=112. For the real curve we
+  // compute it from the data.
+  let holdX = 270;
+  let holdY = 112;
+
+  if (useReal) {
+    const pts = curve.map((v, i) => {
+      const ratio = curve.length === 1 ? 0 : i / (curve.length - 1);
+      const x = left + ratio * (right - left);
+      const norm = Math.max(0, Math.min(1, Number(v) || 0));
+      const y = top + (1 - norm) * (bottom - top);
+      return [x, y];
+    });
+    const head = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+    const tail = pts.slice(1).map(([x, y]) => `L${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+    linePath = `${head} ${tail}`;
+    areaPath = `${linePath} L${pts[pts.length - 1][0].toFixed(1)} ${bottom} L${pts[0][0].toFixed(1)} ${bottom} Z`;
+
+    // 3s marker — clamp to range
+    const idx3 = Math.min(3, curve.length - 1);
+    holdX = pts[idx3][0];
+    holdY = pts[idx3][1];
+  }
+
   return (
     <div className="exact-large-chart">
       <svg viewBox="0 0 760 245" preserveAspectRatio="none" aria-hidden="true">
-        {[42, 88, 134, 180, 226].map((y) => <line key={`h-${y}`} x1="58" x2="742" y1={y} y2={y} />)}
-        {[58, 230, 402, 574, 742].map((x) => <line key={`v-${x}`} x1={x} x2={x} y1="32" y2="226" />)}
-        <path className="exact-chart-area" d="M58 38 C88 38 103 50 126 65 C154 82 172 70 198 86 C228 104 250 102 276 113 C304 125 322 148 352 156 C383 164 405 152 430 166 C462 184 490 187 522 197 C558 209 590 210 620 219 C662 230 699 227 742 228 L742 226 L58 226 Z" />
-        <path className="exact-chart-line large" d="M58 38 C88 38 103 50 126 65 C154 82 172 70 198 86 C228 104 250 102 276 113 C304 125 322 148 352 156 C383 164 405 152 430 166 C462 184 490 187 522 197 C558 209 590 210 620 219 C662 230 699 227 742 228" />
-        <line className="hold-line" x1="270" x2="270" y1="32" y2="226" />
-        <circle className="hold-dot" cx="270" cy="112" r="6" />
+        {[42, 88, 134, 180, 226].map((y) => <line key={`h-${y}`} x1={left} x2={right} y1={y} y2={y} />)}
+        {[58, 230, 402, 574, 742].map((x) => <line key={`v-${x}`} x1={x} x2={x} y1="32" y2={bottom} />)}
+        <path className="exact-chart-area" d={areaPath} />
+        <path className="exact-chart-line large" d={linePath} />
+        <line className="hold-line" x1={holdX.toFixed(1)} x2={holdX.toFixed(1)} y1="32" y2={bottom} />
+        <circle className="hold-dot" cx={holdX.toFixed(1)} cy={holdY.toFixed(1)} r="6" />
       </svg>
       <div className="large-y"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div>
       <div className="large-x"><span>0s</span><span>3s</span><span>6s</span><span>9s</span><span>12s</span><span>15s</span></div>
-      <div className="large-callout"><span>3s hold</span><strong>67%</strong></div>
+      <div className="large-callout"><span>3s hold</span><strong>{hold3s != null ? `${hold3s}%` : "—"}</strong></div>
     </div>
   );
 }
 
 function DashboardPage({ go, intelligence }) {
-  return <ExactDashboardPage go={go} />;
+  return <ExactDashboardPage go={go} intelligence={intelligence} />;
 
   const sim = intelligence?.simulation || {};
   const brain = intelligence?.brain || {};
