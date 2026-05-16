@@ -3341,16 +3341,21 @@ function ExactDashboardPage({ go, intelligence, runner }) {
     ? new Date(completedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
     : null;
 
-  const cohorts = Array.isArray(sim.cohorts) ? sim.cohorts.slice(0, 6) : [];
+  const allCohorts = Array.isArray(sim.cohorts) ? sim.cohorts : [];
+  const cohorts = allCohorts.slice(0, 6);
 
-  // Decisions: prefer explicit insights[]; fall back to top_traits names so
-  // the panel still says *something* when the analyzer didn't emit headlines.
+  // Decisions: prefer explicit insights[] (analyzer emits { title, detail, tone }),
+  // fall back to top_traits and then brain.peak_moments so the panel always
+  // has something concrete to say when the run completes.
   let decisionList = [];
   if (Array.isArray(intelligence?.insights) && intelligence.insights.length) {
-    decisionList = intelligence.insights
-      .map((i) => (typeof i === "string" ? i : i?.headline || i?.text || i?.title))
-      .filter(Boolean)
-      .slice(0, 5);
+    decisionList = intelligence.insights.map((i) => {
+      if (typeof i === "string") return i;
+      const title = i?.title || i?.headline;
+      const detail = i?.detail || i?.text;
+      if (title && detail) return `${title} — ${detail}`;
+      return title || detail || null;
+    }).filter(Boolean).slice(0, 5);
   } else if (Array.isArray(sim.top_traits) && sim.top_traits.length) {
     decisionList = sim.top_traits.slice(0, 5).map((t) => {
       const trait = String(t?.trait || "trait").replace(/_/g, " ");
@@ -3390,8 +3395,8 @@ function ExactDashboardPage({ go, intelligence, runner }) {
   const dropoffNote = dropoffRisk == null
     ? null
     : dropoffRisk <= 20 ? "Low" : dropoffRisk <= 45 ? "Medium" : "High";
-  const viewerNote = cohorts.length
-    ? `Across ${cohorts.length} cohort${cohorts.length === 1 ? "" : "s"}`
+  const viewerNote = allCohorts.length
+    ? `Across ${allCohorts.length} cohort${allCohorts.length === 1 ? "" : "s"}`
     : null;
 
   return (
@@ -3507,28 +3512,28 @@ function ExactDashboardPage({ go, intelligence, runner }) {
             <h2>Performance by persona</h2>
             <div className="table-head"><span>Persona</span><span>Trend</span><span>3s Hold</span><span>Virality</span><span>Drop-off Risk</span></div>
             {cohorts.length ? cohorts.map((cohort, index) => {
+              // Real cohort fields from the Vast simulator:
+              //   label / personas / positive_rate_pct / share_rate_pct / top_reaction
+              // There's no per-cohort 3s hold or drop-off, so we proxy:
+              //   hold     = positive_rate_pct (engaged ⇒ stayed)
+              //   virality = positive_rate_pct
+              //   risk     = High if positive < 45, Medium if < 60, Low otherwise
               const name = cohort?.label || cohort?.name || `Cohort ${index + 1}`;
-              // Real cohort fields (from Vast simulator): label / personas /
-              // positive_rate_pct / share_rate_pct. Use positive_rate as the
-              // virality proxy and (100 - positive_rate) as the drop-off risk.
               const positive = cohort?.positive_rate_pct ?? cohort?.virality_score ?? cohort?.virality;
               const explicitHold = cohort?.hold_3s_pct ?? cohort?.three_s_hold;
-              const share = cohort?.share_rate_pct;
-              const viralityNum = positive != null ? Math.round(Number(positive)) : null;
+              const positiveNum = positive != null ? Math.round(Number(positive)) : null;
+              const viralityNum = positiveNum;
               const holdNum = explicitHold != null
                 ? Math.round(Number(explicitHold))
-                : positive != null
-                  ? Math.round(Math.max(0, Math.min(100, Number(positive))))
-                  : null;
-              const riskNum = cohort?.dropoff_risk_pct != null
-                ? Math.round(Number(cohort.dropoff_risk_pct))
-                : positive != null
-                  ? Math.round(Math.max(0, Math.min(100, 100 - Number(positive))))
-                  : null;
+                : positiveNum;
               const holdDisplay = holdNum != null ? `${holdNum}%` : "—";
-              const riskDisplay = riskNum == null
-                ? "—"
-                : riskNum <= 20 ? "Low" : riskNum <= 45 ? "Medium" : "High";
+              let riskDisplay = "—";
+              if (cohort?.dropoff_risk_pct != null) {
+                const r = Math.round(Number(cohort.dropoff_risk_pct));
+                riskDisplay = r <= 20 ? "Low" : r <= 45 ? "Medium" : "High";
+              } else if (positiveNum != null) {
+                riskDisplay = positiveNum >= 60 ? "Low" : positiveNum >= 45 ? "Medium" : "High";
+              }
               const tone = toneFor(viralityNum != null ? viralityNum : 0);
               return (
                 <div className="table-row" key={`${name}-${index}`}>
