@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 56" fill="none">
+  <style>
+    .body { fill: #fff; }
+    .legs, .antennae {
+      fill: none;
+      stroke: #fff;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .legs { stroke-width: 5; }
+    .antennae { stroke-width: 4.4; }
+    .frame-a { animation: stepA .34s steps(1, end) infinite; }
+    .frame-b { animation: stepB .34s steps(1, end) infinite; }
+    .core { animation: bob .34s ease-in-out infinite; transform-origin: 48px 28px; }
+    @keyframes stepA {
+      0%, 49.9% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    @keyframes stepB {
+      0%, 49.9% { opacity: 0; }
+      50%, 100% { opacity: 1; }
+    }
+    @keyframes bob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-1.5px); }
+    }
+  </style>
+  <g class="frame-a legs">
+    <path d="M38 28 C28 22 17 17 7 17"/>
+    <path d="M39 34 C28 37 20 44 9 49"/>
+    <path d="M48 27 C46 19 43 10 39 4"/>
+    <path d="M52 31 C55 40 61 47 69 53"/>
+    <path d="M59 23 C68 17 77 11 88 9"/>
+    <path d="M61 27 C73 28 82 34 91 42"/>
+  </g>
+  <g class="frame-b legs">
+    <path d="M37 29 C28 33 18 31 7 25"/>
+    <path d="M40 33 C31 27 23 40 16 51"/>
+    <path d="M48 27 C53 18 52 10 49 3"/>
+    <path d="M52 31 C48 40 50 48 57 54"/>
+    <path d="M59 23 C70 23 79 17 90 13"/>
+    <path d="M60 28 C70 35 80 36 92 32"/>
+  </g>
+  <g class="core">
+    <g class="body">
+      <ellipse cx="24" cy="33" rx="14" ry="10" transform="rotate(-13 24 33)"/>
+      <circle cx="43" cy="29" r="8.3"/>
+      <ellipse cx="60" cy="24" rx="11" ry="8.4" transform="rotate(-10 60 24)"/>
+    </g>
+    <g class="antennae">
+      <path d="M65 19 C68 10 76 4 88 3"/>
+      <path d="M62 18 C62 10 66 5 74 2"/>
+    </g>
+  </g>
+</svg>

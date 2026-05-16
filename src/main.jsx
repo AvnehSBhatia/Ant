@@ -170,6 +170,80 @@ const atomic = {
   }
 };
 
+const loginAssets = {
+  ants: "/assets/login-generated/white-ant-glyphs.png",
+  icons: [
+    "/assets/login-generated/creator-icon-test.png",
+    "/assets/login-generated/creator-icon-audience.png",
+    "/assets/login-generated/creator-icon-growth.png"
+  ],
+  emblem: "/assets/login-generated/lab-emblem.png",
+  walkingAnt: "/assets/login-generated/minimal-ant-walk-cycle.svg"
+};
+
+const exactDarkAssets = {
+  antLogo: "/assets/exact-dark/ant-logo.png",
+  waves: "/assets/exact-dark/login-waves.png",
+  avatar: "/assets/exact-dark/creator-avatar.png",
+  poster: "/assets/atomic/video-poster.png"
+};
+
+const simulationFlowAssets = {
+  storyboard: "/assets/simulation-flow/gpt-storyboard.png",
+  frames: [
+    "/assets/simulation-flow/frame-1-intake.png",
+    "/assets/simulation-flow/frame-2-upload.png",
+    "/assets/simulation-flow/frame-3-running.png",
+    "/assets/simulation-flow/frame-4-results.png"
+  ],
+  walkingAnt: "/assets/login-generated/minimal-ant-walk-cycle.svg"
+};
+
+const loginTrailPaths = [
+  "M766 84 C842 82 898 132 914 206 C930 284 878 350 908 428 C930 486 970 528 950 612",
+  "M94 616 C160 558 238 544 304 488 C354 446 384 392 454 372",
+  "M828 20 C875 34 910 57 944 94",
+  "M710 606 C750 525 727 466 790 392 C850 321 930 292 958 214 C984 144 946 82 878 48"
+];
+
+const loginRouteAnts = [
+  { path: 0, scale: 0.14, dur: "15s", delay: "-1.6s", opacity: 0.82 },
+  { path: 0, scale: 0.12, dur: "15s", delay: "-4.2s", opacity: 0.66 },
+  { path: 0, scale: 0.13, dur: "15s", delay: "-6.5s", opacity: 0.7 },
+  { path: 0, scale: 0.12, dur: "15s", delay: "-9.1s", opacity: 0.62 },
+  { path: 0, scale: 0.13, dur: "15s", delay: "-11.4s", opacity: 0.74 },
+  { path: 1, scale: 0.13, dur: "18s", delay: "-3.2s", opacity: 0.66 },
+  { path: 1, scale: 0.11, dur: "18s", delay: "-7.6s", opacity: 0.58 },
+  { path: 1, scale: 0.12, dur: "18s", delay: "-12.1s", opacity: 0.58 },
+  { path: 2, scale: 0.11, dur: "11s", delay: "-2.2s", opacity: 0.56 },
+  { path: 2, scale: 0.12, dur: "11s", delay: "-7.1s", opacity: 0.6 },
+  { path: 3, scale: 0.14, dur: "16.6s", delay: "-2.3s", opacity: 0.8 },
+  { path: 3, scale: 0.12, dur: "16.6s", delay: "-5.4s", opacity: 0.66 },
+  { path: 3, scale: 0.12, dur: "16.6s", delay: "-7.8s", opacity: 0.68 },
+  { path: 3, scale: 0.13, dur: "16.6s", delay: "-10.8s", opacity: 0.7 },
+  { path: 3, scale: 0.13, dur: "16.6s", delay: "-13.1s", opacity: 0.72 }
+];
+
+const simulationRunAnts = [
+  { path: 0, scale: 0.25, dur: "13.5s", delay: "-1.1s", opacity: 0.8 },
+  { path: 0, scale: 0.21, dur: "13.5s", delay: "-3.8s", opacity: 0.62 },
+  { path: 0, scale: 0.23, dur: "13.5s", delay: "-7.5s", opacity: 0.7 },
+  { path: 0, scale: 0.2, dur: "13.5s", delay: "-10.8s", opacity: 0.58 },
+  { path: 1, scale: 0.24, dur: "15s", delay: "-2.3s", opacity: 0.76 },
+  { path: 1, scale: 0.2, dur: "15s", delay: "-5.8s", opacity: 0.58 },
+  { path: 1, scale: 0.22, dur: "15s", delay: "-9.6s", opacity: 0.66 },
+  { path: 1, scale: 0.2, dur: "15s", delay: "-12.4s", opacity: 0.56 },
+  { path: 2, scale: 0.25, dur: "16.5s", delay: "-3.3s", opacity: 0.82 },
+  { path: 2, scale: 0.22, dur: "16.5s", delay: "-6.7s", opacity: 0.62 },
+  { path: 2, scale: 0.2, dur: "16.5s", delay: "-10.2s", opacity: 0.6 },
+  { path: 2, scale: 0.23, dur: "16.5s", delay: "-14.1s", opacity: 0.72 },
+  { path: 3, scale: 0.24, dur: "14.4s", delay: "-2.2s", opacity: 0.76 },
+  { path: 3, scale: 0.21, dur: "14.4s", delay: "-6.7s", opacity: 0.58 },
+  { path: 3, scale: 0.23, dur: "14.4s", delay: "-10.1s", opacity: 0.7 },
+  { path: 4, scale: 0.21, dur: "17s", delay: "-4.5s", opacity: 0.6 },
+  { path: 4, scale: 0.24, dur: "17s", delay: "-12.2s", opacity: 0.76 }
+];
+
 const heroPaths = [
   "M278 142 C398 58 514 92 642 54 C748 24 847 42 948 80",
   "M270 185 C402 126 515 148 640 138 C758 128 842 156 960 144",
@@ -214,7 +288,7 @@ function useRoute() {
   return [route, go];
 }
 
-const PROTECTED_ROUTES = new Set(["share-info", "dashboard", "simulations", "personas", "trends", "flow", "history"]);
+const PROTECTED_ROUTES = new Set(["share-info", "simulations", "personas", "trends", "history"]);
 
 function useAuthState() {
   // If we just came back from an OAuth provider, the URL still has the code /
@@ -945,6 +1019,119 @@ function MarkerAsset({ name, className = "" }) {
   return <img className={`marker-asset ${className}`} src={atomic.marker[name]} alt="" />;
 }
 
+function MinimalAntMark({ className = "", style = {} }) {
+  return (
+    <svg
+      className={`minimal-ant-mark ${className}`}
+      style={style}
+      viewBox="0 0 96 56"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g className="minimal-ant-legs">
+        <path d="M38 28 C28 22 17 17 7 17" />
+        <path d="M39 34 C28 37 20 44 9 49" />
+        <path d="M48 27 C46 19 43 10 39 4" />
+        <path d="M52 31 C55 40 61 47 69 53" />
+        <path d="M59 23 C68 17 77 11 88 9" />
+        <path d="M61 27 C73 28 82 34 91 42" />
+      </g>
+      <g className="minimal-ant-body">
+        <ellipse cx="24" cy="33" rx="14" ry="10" transform="rotate(-13 24 33)" />
+        <circle cx="43" cy="29" r="8.3" />
+        <ellipse cx="60" cy="24" rx="11" ry="8.4" transform="rotate(-10 60 24)" />
+      </g>
+      <g className="minimal-ant-antennae">
+        <path d="M65 19 C68 10 76 4 88 3" />
+        <path d="M62 18 C62 10 66 5 74 2" />
+      </g>
+    </svg>
+  );
+}
+
+function LoginGeneratedAnt({ className = "", style = {} }) {
+  return (
+    <MinimalAntMark
+      className={`login-generated-ant ${className}`}
+      style={style}
+    />
+  );
+}
+
+function LoginRouteAntShape({ scale }) {
+  const width = 96 * scale;
+  const height = 56 * scale;
+  return (
+    <image
+      className="login-route-ant-image"
+      href={loginAssets.walkingAnt}
+      x={-width / 2}
+      y={-height / 2}
+      width={width}
+      height={height}
+      preserveAspectRatio="xMidYMid meet"
+    />
+  );
+}
+
+function LoginPathAnts({ lit = false }) {
+  const idPrefix = lit ? "login-lit-trail" : "login-base-trail";
+  return (
+    <svg className={`login-path-ants ${lit ? "login-path-ants-lit" : "login-path-ants-base"}`} viewBox="0 0 1000 650" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        {loginTrailPaths.map((path, index) => (
+          <path id={`${idPrefix}-${index}`} key={index} d={path} />
+        ))}
+      </defs>
+      {loginRouteAnts.map((ant, index) => (
+        <g className="login-route-ant" key={`${idPrefix}-ant-${index}`} opacity="0">
+          <animateMotion dur={ant.dur} begin={ant.delay} repeatCount="indefinite" rotate="auto">
+            <mpath href={`#${idPrefix}-${ant.path}`} />
+          </animateMotion>
+          <animate
+            attributeName="opacity"
+            values={`0;${ant.opacity};${ant.opacity};0`}
+            keyTimes="0;0.16;0.82;1"
+            dur={ant.dur}
+            begin={ant.delay}
+            repeatCount="indefinite"
+          />
+          <LoginRouteAntShape scale={ant.scale} />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function ExactAntMark({ className = "" }) {
+  return (
+    <MinimalAntMark
+      className={`exact-ant-mark ${className}`}
+    />
+  );
+}
+
+function CreatorLabIcon({ index = 0 }) {
+  return (
+    <img
+      className="creator-lab-generated-icon"
+      src={loginAssets.icons[index] || loginAssets.icons[0]}
+      alt=""
+      aria-hidden="true"
+    />
+  );
+}
+
+function LoginWaveField() {
+  return (
+    <>
+      <span className="login-wave-field login-wave-base" aria-hidden="true" />
+      <span className="login-wave-field login-wave-lit" aria-hidden="true" />
+    </>
+  );
+}
+
 function RouteAnts({
   id,
   paths,
@@ -1041,6 +1228,8 @@ function ColonyBackdrop({ id }) {
 }
 
 function LandingPage({ go, user, runner }) {
+  return <ExactLandingPage go={go} />;
+
   const landingRef = useRef(null);
   const inputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -1211,11 +1400,116 @@ function HeroSimulationVisual() {
   );
 }
 
+function ExactLandingPage({ go }) {
+  return (
+    <div className="page exact-dark-page exact-landing-page">
+      <section className="exact-dark-frame exact-landing-frame">
+        <header className="exact-landing-nav">
+          <ExactBrand />
+          <nav>
+            <button type="button" onClick={() => go("login")}>Sign in</button>
+            <button className="exact-yellow-button nav-cta" type="button" onClick={() => go("flow")}>Run a simulation</button>
+          </nav>
+        </header>
+
+        <div className="exact-landing-content">
+          <section className="exact-landing-copy">
+            <h1>Predict the post before you post.</h1>
+            <p>Synthetic viewer swarms test your video for retention, sentiment, and virality in under 60 seconds.</p>
+            <div className="exact-landing-actions">
+              <button className="exact-yellow-button" type="button" onClick={() => go("flow")}>
+                Run a simulation <ExactAntMark className="button-ant" />
+              </button>
+              <button className="exact-dark-button" type="button">
+                View demo <Play size={14} fill="currentColor" />
+              </button>
+            </div>
+          </section>
+
+          <ExactVideoPreview />
+
+          <section className="exact-landing-analytics">
+            <article className="exact-panel exact-retention-card">
+              <h2>Retention curve</h2>
+              <ExactRetentionMiniChart />
+            </article>
+            <article className="exact-panel exact-virality-card">
+              <h2>Virality prediction</h2>
+              <ExactViralityGauge />
+            </article>
+          </section>
+        </div>
+
+        <div className="exact-powered">Powered by <span>colony intelligence.</span></div>
+        <ExactAntMark className="exact-corner-ant" />
+      </section>
+    </div>
+  );
+}
+
+function ExactBrand() {
+  return (
+    <div className="exact-brand">
+      <ExactAntMark />
+      <span>Ant</span>
+    </div>
+  );
+}
+
+function ExactVideoPreview() {
+  return (
+    <article className="exact-video-card">
+      <img src={exactDarkAssets.poster} alt="" />
+      <button className="exact-play" type="button" aria-label="Play video"><Play size={25} fill="currentColor" /></button>
+      <div className="exact-video-social">
+        <span><Heart size={26} fill="currentColor" /><small>12.4K</small></span>
+        <span><MessageSquare size={24} fill="currentColor" /><small>842</small></span>
+        <span><Share2 size={24} fill="currentColor" /><small>1.2K</small></span>
+      </div>
+      <div className="exact-video-progress">
+        <span>0:07 / 0:15</span>
+        <i><b /></i>
+      </div>
+    </article>
+  );
+}
+
+function ExactRetentionMiniChart() {
+  return (
+    <div className="exact-mini-chart">
+      <svg viewBox="0 0 338 142" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" x2="338" y1="30" y2="30" />
+        <line x1="0" x2="338" y1="78" y2="78" />
+        <line x1="0" x2="338" y1="126" y2="126" />
+        <path className="exact-chart-line" d="M2 28 C26 36 38 38 55 50 C72 63 91 61 109 64 C132 69 145 80 171 77 C193 75 207 81 221 91 C241 104 257 104 276 109 C300 115 313 126 336 126" />
+        <circle cx="221" cy="91" r="6" />
+      </svg>
+      <div className="exact-chart-callout">67% <span>at 3s</span></div>
+      <div className="exact-chart-y"><span>100%</span><span>50%</span><span>0%</span></div>
+      <div className="exact-chart-x"><span>0s</span><span>5s</span><span>10s</span><span>15s</span></div>
+    </div>
+  );
+}
+
+function ExactViralityGauge() {
+  return (
+    <div className="exact-gauge">
+      <svg viewBox="0 0 220 128" aria-hidden="true">
+        <path className="gauge-track" d="M32 104 A78 78 0 0 1 188 104" />
+        <path className="gauge-value" d="M32 104 A78 78 0 0 1 158 42" />
+      </svg>
+      <div>
+        <p className="exact-gauge-score"><strong>82</strong><span>/100</span></p>
+        <small>Strong potential</small>
+      </div>
+    </div>
+  );
+}
+
 function LoginPage({ go, onSignedIn }) {
   // step is one of: "signup" | "login" | "verify"
-  // Default lands on signup per product direction; users who already have an
-  // account can flip to "login" via the tab below.
-  const [step, setStep] = useState("signup");
+  // The visual mockup is a login-first screen; signup remains one tab away.
+  const [step, setStep] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1338,14 +1632,53 @@ function LoginPage({ go, onSignedIn }) {
     }
   };
 
+  const handleLoginPointerMove = useCallback((event) => {
+    const shell = event.currentTarget;
+    const rect = shell.getBoundingClientRect();
+    const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+    const y = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
+    shell.style.setProperty("--mx", `${x}px`);
+    shell.style.setProperty("--my", `${y}px`);
+    shell.style.setProperty("--rx", `${((y / rect.height) - 0.5) * -4.8}deg`);
+    shell.style.setProperty("--ry", `${((x / rect.width) - 0.5) * 5.8}deg`);
+  }, []);
+
+  const handleLoginPointerLeave = useCallback((event) => {
+    const shell = event.currentTarget;
+    shell.style.setProperty("--mx", "74%");
+    shell.style.setProperty("--my", "42%");
+    shell.style.setProperty("--rx", "0deg");
+    shell.style.setProperty("--ry", "0deg");
+  }, []);
+
   return (
-    <div className="page login-page">
-      <div className="auth-background"><img src={atomic.pattern} alt="" /></div>
-      <section className="auth-panel">
-        <Brand />
+    <div className="page login-page ant-login-page">
+      <section
+        className="login-mockup-shell"
+        onPointerMove={handleLoginPointerMove}
+        onPointerLeave={handleLoginPointerLeave}
+      >
+        <LoginWaveField />
+        <span className="login-center-divider" aria-hidden="true" />
+        <svg className="login-dotted-trails" viewBox="0 0 1000 650" preserveAspectRatio="none" aria-hidden="true">
+          {loginTrailPaths.map((path, index) => <path d={path} key={`trail-${index}`} />)}
+        </svg>
+        <svg className="login-dotted-trails login-dotted-trails-lit" viewBox="0 0 1000 650" preserveAspectRatio="none" aria-hidden="true">
+          {loginTrailPaths.map((path, index) => <path d={path} key={`trail-lit-${index}`} />)}
+        </svg>
+
+        <LoginPathAnts />
+        <LoginPathAnts lit />
+
+        <div className="login-brand-minimal">
+          <LoginGeneratedAnt index={10} className="login-brand-ant" />
+          <span>Ant</span>
+        </div>
+
+        <section className="auth-panel login-auth-zone">
 
         {step === "verify" ? (
-          <form className="auth-card auth-step-verify" onSubmit={handleVerifySubmit}>
+          <form className="auth-card login-auth-card auth-step-verify" onSubmit={handleVerifySubmit}>
             <h1>Check your email</h1>
             {verifyMethod === "link" ? (
               <p>We sent a verification link to <strong>{email}</strong>. Click it and we'll log you in automatically once you confirm.</p>
@@ -1408,13 +1741,13 @@ function LoginPage({ go, onSignedIn }) {
             </div>
           </form>
         ) : (
-          <form className="auth-card" onSubmit={handleSubmit}>
+          <form className="auth-card login-auth-card" onSubmit={handleSubmit}>
             <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-              <button type="button" className={step === "signup" ? "active" : ""} onClick={() => goToTab("signup")}>Sign up</button>
               <button type="button" className={step === "login" ? "active" : ""} onClick={() => goToTab("login")}>Log in</button>
+              <button type="button" className={step === "signup" ? "active" : ""} onClick={() => goToTab("signup")}>Sign up</button>
             </div>
             <h1>{step === "signup" ? "Create your account" : "Welcome back"}</h1>
-            <p>{step === "signup" ? "Test ideas before you post" : "Sign in to your creator lab"}</p>
+            <p>{step === "signup" ? "Create your creator lab" : "Create your creator lab."}</p>
 
             <label>
               <span>Email</span>
@@ -1499,27 +1832,21 @@ function LoginPage({ go, onSignedIn }) {
               )}
             </small>
 
-            <div className="login-ant-route">
-              <RouteAnts
-                id="login"
-                paths={["M20 50 C190 16 342 82 522 50 C674 20 800 22 980 50"]}
-                count={34}
-                className="login-routes"
-                fast
-                viewBox="0 0 1000 100"
-              />
-            </div>
             <small>By continuing, you agree to our Terms of Service and Privacy Policy.</small>
           </form>
         )}
       </section>
 
-      <aside className="auth-value">
+      <aside className="auth-value login-value-panel">
+        <img className="login-lab-emblem" src={loginAssets.emblem} alt="" />
         <h2>Create your creator lab</h2>
-        <p><FlaskConical size={16} /> Test ideas before you post</p>
-        <p><UsersRound size={16} /> Understand your audience</p>
-        <p><WandSparkles size={16} /> Grow with data, not guesswork</p>
+        <div className="login-benefits">
+          <p><CreatorLabIcon index={0} /> Test ideas before you post</p>
+          <p><CreatorLabIcon index={1} /> Understand your audience</p>
+          <p><CreatorLabIcon index={2} /> Grow with data, not guesswork</p>
+        </div>
       </aside>
+      </section>
     </div>
   );
 }
@@ -2927,7 +3254,147 @@ function RealPageInsights({ active, data }) {
   );
 }
 
+function ExactDashboardPage({ go }) {
+  const [isLaunching, setIsLaunching] = useState(false);
+  const rows = [
+    ["Gen Z trend-seekers", "82%", "82", "Low", "good"],
+    ["Budget-conscious buyers", "64%", "64", "Low", "good"],
+    ["Creator peers", "76%", "78", "Medium", "warn"],
+    ["Skeptical scrollers", "41%", "41", "High", "bad"]
+  ];
+  const handleRunSimulation = () => {
+    setIsLaunching(true);
+    window.setTimeout(() => go("flow"), 620);
+  };
+
+  return (
+    <div className={`page exact-dark-page exact-dashboard-page ${isLaunching ? "is-launching-flow" : ""}`}>
+      <section className="exact-dark-frame exact-dashboard-frame">
+        <div className="exact-dashboard-intro-glow" aria-hidden="true">
+          <span />
+          <i />
+          <b />
+        </div>
+        <aside className="exact-dashboard-sidebar">
+          <ExactBrand />
+          <button className="exact-new-sim" type="button" onClick={handleRunSimulation}><span>+</span> New simulation</button>
+          <nav>
+            <button className="active" type="button"><Grid2X2 size={17} /> Dashboard</button>
+            <button type="button" onClick={() => go("simulations")}><Gauge size={17} /> Simulations</button>
+            <button type="button" onClick={() => go("personas")}><UsersRound size={17} /> Personas</button>
+            <button type="button" onClick={() => go("trends")}><LineChart size={17} /> Trends</button>
+          </nav>
+          <div className="exact-creator-card">
+            <img src={exactDarkAssets.avatar} alt="" />
+            <div><strong>Creator Lab</strong><span>Pro Plan</span></div>
+            <ChevronRight size={17} />
+          </div>
+        </aside>
+
+        <main className="exact-dashboard-main">
+          <div className="exact-dashboard-hero-intro">
+            <span>Live colony model</span>
+            <strong>10,000 synthetic viewers mapped this reel in 38 seconds.</strong>
+            <i />
+          </div>
+          <header className="exact-dashboard-header">
+            <div>
+              <h1>Summer Launch Reel.mp4 <span>Completed</span></h1>
+              <p>May 18, 2024 · 10,000 simulated viewers</p>
+            </div>
+            <div className="exact-dashboard-actions">
+              <button type="button"><Share2 size={15} /> Share</button>
+              <button type="button">Export <Download size={15} /></button>
+              <button className="kebab" type="button"><MoreVertical size={18} /></button>
+            </div>
+          </header>
+
+          <section className="exact-metrics-row">
+            <ExactMetricCard title="Virality Score" value="82" suffix="/100" note="Strong" spark />
+            <ExactMetricCard title="Predicted 3s Hold" value="67" suffix="%" note="Good" />
+            <ExactMetricCard title="Drop-off Risk" value="18" suffix="%" note="Low" />
+            <ExactMetricCard title="Simulated Viewers" value="10,000" note="Across 4 cohorts" />
+          </section>
+
+          <section className="exact-dashboard-middle">
+            <article className="exact-panel exact-retention-large">
+              <div className="exact-panel-head"><h2>Retention over time (by second)</h2><span><i /> This video</span></div>
+              <ExactRetentionLargeChart />
+            </article>
+            <article className="exact-panel exact-stayed-card">
+              <h2>Why they stayed</h2>
+              {["Strong visual hook in the first 2s", "Clear value shown early", "Fast pacing through 0-7s", "Relatable problem & payoff", "Good energy and edit rhythm"].map((text) => (
+                <p key={text}><Check size={15} /> {text}</p>
+              ))}
+              <button type="button">See all insights <ArrowRight size={16} /></button>
+            </article>
+          </section>
+
+          <section className="exact-panel exact-persona-table">
+            <h2>Performance by persona</h2>
+            <div className="table-head"><span>Persona</span><span>Trend</span><span>3s Hold</span><span>Virality</span><span>Drop-off Risk</span></div>
+            {rows.map(([name, hold, virality, risk, tone], index) => (
+              <div className="table-row" key={name}>
+                <span className="persona-name"><i><UsersRound size={14} /></i>{name}</span>
+                <ExactTinySpark index={index} />
+                <span>{hold}</span>
+                <span className={`virality ${tone}`}>{virality}<small>/100</small></span>
+                <span className={`risk ${tone}`}>{risk}</span>
+              </div>
+            ))}
+          </section>
+        </main>
+      </section>
+    </div>
+  );
+}
+
+function ExactMetricCard({ title, value, suffix = "", note, spark = false }) {
+  return (
+    <article className="exact-panel exact-metric-card">
+      <span>{title}</span>
+      <div><strong>{value}</strong>{suffix && <small>{suffix}</small>}</div>
+      <p>{note}</p>
+      {spark ? <ExactTinySpark /> : null}
+    </article>
+  );
+}
+
+function ExactTinySpark({ index = 0 }) {
+  const paths = [
+    "M2 28 C13 22 18 26 28 21 C42 14 51 26 62 18 C73 10 84 18 96 11 C108 4 118 12 130 8",
+    "M2 20 C14 25 22 18 34 22 C45 26 54 14 66 19 C78 23 86 12 99 16 C112 20 119 14 130 18",
+    "M2 25 C16 18 24 28 36 20 C48 13 58 24 70 19 C83 14 90 23 102 18 C114 13 120 20 130 16",
+    "M2 17 C14 26 27 21 38 28 C50 34 61 22 74 26 C88 30 96 20 109 23 C120 26 124 18 130 20"
+  ];
+  return (
+    <svg className="exact-tiny-spark" viewBox="0 0 132 36" preserveAspectRatio="none" aria-hidden="true">
+      <path d={paths[index % paths.length]} />
+    </svg>
+  );
+}
+
+function ExactRetentionLargeChart() {
+  return (
+    <div className="exact-large-chart">
+      <svg viewBox="0 0 760 245" preserveAspectRatio="none" aria-hidden="true">
+        {[42, 88, 134, 180, 226].map((y) => <line key={`h-${y}`} x1="58" x2="742" y1={y} y2={y} />)}
+        {[58, 230, 402, 574, 742].map((x) => <line key={`v-${x}`} x1={x} x2={x} y1="32" y2="226" />)}
+        <path className="exact-chart-area" d="M58 38 C88 38 103 50 126 65 C154 82 172 70 198 86 C228 104 250 102 276 113 C304 125 322 148 352 156 C383 164 405 152 430 166 C462 184 490 187 522 197 C558 209 590 210 620 219 C662 230 699 227 742 228 L742 226 L58 226 Z" />
+        <path className="exact-chart-line large" d="M58 38 C88 38 103 50 126 65 C154 82 172 70 198 86 C228 104 250 102 276 113 C304 125 322 148 352 156 C383 164 405 152 430 166 C462 184 490 187 522 197 C558 209 590 210 620 219 C662 230 699 227 742 228" />
+        <line className="hold-line" x1="270" x2="270" y1="32" y2="226" />
+        <circle className="hold-dot" cx="270" cy="112" r="6" />
+      </svg>
+      <div className="large-y"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div>
+      <div className="large-x"><span>0s</span><span>3s</span><span>6s</span><span>9s</span><span>12s</span><span>15s</span></div>
+      <div className="large-callout"><span>3s hold</span><strong>67%</strong></div>
+    </div>
+  );
+}
+
 function DashboardPage({ go, intelligence }) {
+  return <ExactDashboardPage go={go} />;
+
   const sim = intelligence?.simulation || {};
   const brain = intelligence?.brain || {};
   const topVideo = intelligence?.videos?.top?.[0];
@@ -3229,7 +3696,271 @@ function HistoryPage({ go }) {
   );
 }
 
-function FlowPage({ intelligence: parentIntelligence, runner }) {
+function SimulationFlowPage({ go }) {
+  const inputRef = useRef(null);
+  const [step, setStep] = useState("intake");
+  const [uploadedName, setUploadedName] = useState("");
+  const [progress, setProgress] = useState(23);
+  const [finishing, setFinishing] = useState(false);
+  const workflow = ["Uploaded", "Analysis", "Simulating 200k viewers", "Creating TribeV2 brain scan", "Finish"];
+  const activeIndex = step === "intake"
+    ? 0
+    : step === "upload"
+      ? 1
+      : step === "morphing"
+        ? 2
+        : step === "running"
+        ? progress >= 96
+          ? 4
+          : progress >= 74
+            ? 3
+            : 2
+        : 4;
+
+  useEffect(() => {
+    if (step !== "running") return undefined;
+    setProgress(23);
+    setFinishing(false);
+    const ticks = [36, 49, 63, 78, 91, 100];
+    const timers = ticks.map((value, index) => window.setTimeout(() => {
+      setProgress(value);
+      if (value === 100) {
+        setFinishing(true);
+        window.setTimeout(() => setStep("results"), 1280);
+      }
+    }, 760 + index * 740));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== "morphing") return undefined;
+    const timer = window.setTimeout(() => setStep("running"), 1220);
+    return () => window.clearTimeout(timer);
+  }, [step]);
+
+  const startUpload = (file) => {
+    setUploadedName(file?.name || "Summer Launch Reel.mp4");
+    setStep("morphing");
+  };
+
+  return (
+    <div className={`page exact-dark-page sim-flow-page sim-step-${step} ${finishing ? "is-finishing" : ""}`}>
+      <section className="exact-dark-frame sim-flow-frame">
+        <SimulationFlowSidebar go={go} />
+        <main className="sim-flow-main">
+          {step === "intake" ? <SimulationBusinessIntake onContinue={() => setStep("upload")} /> : null}
+          {step === "upload" ? <SimulationUploadStage inputRef={inputRef} onUpload={startUpload} /> : null}
+          {step === "morphing" ? <SimulationMorphStage workflow={workflow} uploadedName={uploadedName} /> : null}
+          {step === "running" ? <SimulationRunningStage workflow={workflow} activeIndex={activeIndex} progress={progress} uploadedName={uploadedName} /> : null}
+          {step === "results" ? <SimulationResultsStage onRunAgain={() => setStep("intake")} /> : null}
+          <input
+            ref={inputRef}
+            className="sim-flow-file"
+            type="file"
+            accept="video/*"
+            onChange={(event) => startUpload(event.target.files?.[0])}
+          />
+        </main>
+      </section>
+    </div>
+  );
+}
+
+function SimulationFlowSidebar({ go }) {
+  return (
+    <aside className="sim-flow-sidebar">
+      <ExactBrand />
+      <button className="sim-flow-new" type="button"><span>+</span> New simulation</button>
+      <nav>
+        <button type="button" onClick={() => go?.("dashboard")}><Grid2X2 size={15} /> Dashboard</button>
+        <button type="button" className="active"><Gauge size={15} /> Simulations</button>
+        <button type="button" onClick={() => go?.("personas")}><UsersRound size={15} /> Personas</button>
+        <button type="button" onClick={() => go?.("trends")}><LineChart size={15} /> Trends</button>
+      </nav>
+      <div className="sim-flow-creator">
+        <img src={exactDarkAssets.avatar} alt="" />
+        <div><strong>Creator Lab</strong><span>Pro Plan</span></div>
+        <ChevronRight size={14} />
+      </div>
+    </aside>
+  );
+}
+
+function SimulationBusinessIntake({ onContinue }) {
+  const signals = [
+    ["Attention patterns", "Early scroll behavior and drop-offs", Sparkles],
+    ["Emotional response", "Sentiment, resonance, and reactions", BrainCircuit],
+    ["Content resonance", "Themes, hooks, and payoff moments", Target],
+    ["Audience fit", "How well it matches your ICP", UsersRound],
+    ["Tribe potential", "Likelihood to build engaged community", Network]
+  ];
+  return (
+    <section className="sim-intake-screen">
+      <div className="sim-screen-title">
+        <h1>Tell us what you make</h1>
+        <p>Help us understand your brand and audience.</p>
+      </div>
+      <div className="sim-intake-grid">
+        <article className="sim-form-card">
+          <label><span>YouTube handle</span><div className="sim-input"><span className="sim-platform-badge sim-youtube"><Youtube size={13} /></span><input defaultValue="@CreatorLab" /></div></label>
+          <label><span>Instagram Reels handle</span><div className="sim-input"><span className="sim-platform-badge sim-instagram"><Instagram size={13} /></span><input defaultValue="@creatorlab" /></div></label>
+          <label><span>TikTok handle</span><div className="sim-input"><span className="sim-platform-badge sim-tiktok"><Music2 size={13} /></span><input defaultValue="@creatorlab" /></div></label>
+          <label><span>Ideal customer profile (ICP)</span><div className="sim-select-row"><strong>Aspiring creators & solopreneurs</strong><ChevronRight size={14} /></div></label>
+          <label><span>What do you do?</span><div className="sim-textarea-wrap"><textarea defaultValue="I help creators grow their audience and monetize their content." /><em>55/120</em></div></label>
+          <button className="exact-yellow-button sim-wide-button" type="button" onClick={onContinue}>Continue</button>
+        </article>
+        <article className="sim-signal-card">
+          <h2>Audience signals we’ll analyze</h2>
+          <p>We use these signals to predict retention, sentiment, and virality.</p>
+          <div>
+            {signals.map(([title, copy, Icon]) => (
+              <section key={title}>
+                <Icon size={17} />
+                <span><strong>{title}</strong><small>{copy}</small></span>
+              </section>
+            ))}
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function SimulationStatusStrip({ workflow, activeIndex }) {
+  return (
+    <div className="sim-status-strip">
+      {workflow.map((label, index) => {
+        const done = index < activeIndex;
+        const active = index === activeIndex;
+        return (
+          <section className={`${done ? "done" : ""} ${active ? "active" : ""}`} key={label}>
+            <i>{done ? <Check size={12} /> : index + 1}</i>
+            <span><strong>{label}</strong><small>{done ? "Complete" : active ? "In progress" : "Pending"}</small></span>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function SimulationUploadStage({ inputRef, onUpload }) {
+  const workflow = ["Business profile", "Upload", "Analysis", "Simulating", "Brain scan", "Finish"];
+  return (
+    <section className="sim-upload-screen">
+      <SimulationStatusStrip workflow={workflow} activeIndex={1} />
+      <div className="sim-wave-field" aria-hidden="true" />
+      <article className="sim-upload-bubble">
+        <img src={exactDarkAssets.poster} alt="" />
+        <button className="sim-upload-icon" type="button" onClick={() => inputRef.current?.click()}><Upload size={22} /></button>
+        <h1>Drop launch reel</h1>
+        <p>MP4 up to 60s · Max 500MB</p>
+        <button className="exact-yellow-button" type="button" onClick={() => inputRef.current?.click()}>Choose file</button>
+        <button className="sim-demo-link" type="button" onClick={() => onUpload(null)}>Use demo reel</button>
+      </article>
+    </section>
+  );
+}
+
+function SimulationMorphStage({ workflow, uploadedName }) {
+  return (
+    <section className="sim-morph-screen">
+      <SimulationStatusStrip workflow={workflow} activeIndex={2} />
+      <div className="sim-wave-field" aria-hidden="true" />
+      <SimulationAntSwarm intro />
+      <article className="sim-morph-bubble" aria-label="Video morphing into simulation lens">
+        <img src={exactDarkAssets.poster} alt="" />
+        <div className="sim-morph-upload-copy">
+          <Upload size={22} />
+          <strong>Uploaded</strong>
+          <span>{uploadedName || "Summer Launch Reel.mp4"}</span>
+        </div>
+        <div className="sim-morph-run-copy">
+          <strong>23%</strong>
+          <span>Simulating 200k viewers</span>
+        </div>
+      </article>
+    </section>
+  );
+}
+
+function SimulationRunningStage({ workflow, activeIndex, progress, uploadedName }) {
+  return (
+    <section className="sim-running-screen">
+      <SimulationStatusStrip workflow={workflow} activeIndex={activeIndex} />
+      <div className="sim-wave-field" aria-hidden="true" />
+      <SimulationAntSwarm />
+      <article className="sim-run-bubble">
+        <img src={exactDarkAssets.poster} alt="" />
+        <div><strong>{progress}%</strong><span>{progress < 74 ? "Simulating 200k viewers" : "Creating TribeV2 brain scan"}</span></div>
+        <small>{uploadedName || "Summer Launch Reel.mp4"}</small>
+      </article>
+    </section>
+  );
+}
+
+function SimulationAntSwarm({ intro = false }) {
+  const paths = [
+    "M-26 176 C62 112 150 168 236 130 C288 106 334 116 392 148",
+    "M70 426 C156 360 226 432 300 334 C354 262 420 302 462 244",
+    "M548 286 C636 226 722 254 790 190 C850 136 928 142 1020 166",
+    "M546 336 C638 330 704 408 776 360 C826 326 878 348 946 314",
+    "M596 426 C680 490 780 426 866 486 C914 520 962 502 1018 458"
+  ];
+  return (
+    <svg className={`sim-ant-swarm ${intro ? "sim-ant-swarm-intro" : ""}`} viewBox="0 0 1000 560" preserveAspectRatio="none" aria-hidden="true">
+      <defs>{paths.map((path, index) => <path id={`sim-ant-path-${index}`} d={path} key={index} />)}</defs>
+      {paths.map((path, index) => <path className="sim-ant-line" d={path} key={`line-${index}`} />)}
+      {simulationRunAnts.map((ant, index) => {
+        const width = 96 * ant.scale;
+        const height = 56 * ant.scale;
+        return (
+          <g className="sim-route-ant" key={index} opacity="0">
+            <animateMotion dur={ant.dur} begin={ant.delay} repeatCount="indefinite" rotate="auto">
+              <mpath href={`#sim-ant-path-${ant.path}`} />
+            </animateMotion>
+            <animate attributeName="opacity" values={`0;${ant.opacity};${ant.opacity};0`} keyTimes="0;0.16;0.84;1" dur={ant.dur} begin={ant.delay} repeatCount="indefinite" />
+            <image href={simulationFlowAssets.walkingAnt} x={-width / 2} y={-height / 2} width={width} height={height} preserveAspectRatio="xMidYMid meet" />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function SimulationResultsStage({ onRunAgain }) {
+  const segments = [["Aspiring creators", "48%"], ["Solopreneurs", "26%"], ["Side hustlers", "16%"], ["Small business owners", "10%"]];
+  return (
+    <section className="sim-results-screen">
+      <header className="sim-results-head">
+        <div><span><Check size={16} /></span><h1>Simulation complete</h1><p>Here’s what we predicted.</p></div>
+        <nav><button className="exact-yellow-button" type="button">Save report</button><button className="exact-dark-button" type="button" onClick={onRunAgain}><Repeat2 size={15} /> Run another simulation</button></nav>
+      </header>
+      <div className="sim-results-grid">
+        <article className="sim-result-card sim-result-hold"><span>Predicted 3s hold</span><strong>67<small>%</small></strong><p>Good</p><em>▲ 15% vs. industry</em></article>
+        <article className="sim-result-card sim-result-gauge"><span>Virality score</span><ExactViralityGauge /></article>
+        <article className="sim-result-card sim-result-chart"><span>Retention curve</span><SimulationRetentionChart /></article>
+        <article className="sim-result-card sim-result-segments"><span>Audience segments</span>{segments.map(([name, value]) => <p key={name}><b>{name}</b><i><em style={{ width: value }} /></i><strong>{value}</strong></p>)}</article>
+        <article className="sim-result-card sim-result-decisions"><span>Key decisions</span>{["Strong visual hook in first 2s", "Clear value established early", "Fast pacing through 0-7s", "Relatable problem & payoff", "Good CTA and community fit"].map((text) => <p key={text}><Check size={14} /> {text}</p>)}</article>
+      </div>
+    </section>
+  );
+}
+
+function SimulationRetentionChart() {
+  return (
+    <svg className="sim-retention-chart" viewBox="0 0 520 210" preserveAspectRatio="none" aria-hidden="true">
+      {[42, 84, 126, 168].map((y) => <line key={y} x1="54" x2="500" y1={y} y2={y} />)}
+      <path className="sim-chart-area" d="M54 26 C92 30 112 42 142 62 C174 84 202 72 232 94 C266 120 298 118 328 132 C366 151 394 158 432 170 C462 180 482 186 500 190 L500 196 L54 196 Z" />
+      <path className="sim-chart-line" d="M54 26 C92 30 112 42 142 62 C174 84 202 72 232 94 C266 120 298 118 328 132 C366 151 394 158 432 170 C462 180 482 186 500 190" />
+      <circle cx="362" cy="149" r="5" />
+      <text x="22" y="30">100%</text><text x="28" y="90">75%</text><text x="28" y="144">50%</text><text x="34" y="198">0%</text>
+    </svg>
+  );
+}
+
+function FlowPage({ go, intelligence: parentIntelligence, runner }) {
+  return <SimulationFlowPage go={go} />;
+
   const inputRef = useRef(null);
   const reelRef = useRef(null);
   const reelStateRef = useRef({ offset: 0, velocity: 0 });
