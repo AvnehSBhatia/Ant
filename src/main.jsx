@@ -3306,16 +3306,32 @@ function ExactDashboardPage({ go, intelligence, runner }) {
 
   const personaCount = sim.persona_count != null ? Number(sim.persona_count) : null;
   const viralityScore = sim.virality_score != null ? Math.round(Number(sim.virality_score)) : null;
-  const dropoffRisk = sim.dropoff_risk_pct != null ? Math.round(Number(sim.dropoff_risk_pct)) : null;
+  const dropoffRisk = sim.dropoff_risk_pct != null
+    ? Math.round(Number(sim.dropoff_risk_pct))
+    : sim.positive_rate_pct != null
+      ? Math.max(0, Math.min(100, Math.round(100 - Number(sim.positive_rate_pct))))
+      : null;
   const meanRetention = brain?.summary?.mean_retention_proxy != null
     ? Math.round(Number(brain.summary.mean_retention_proxy))
     : null;
 
-  const retentionCurve = Array.isArray(brain?.retention_curve) ? brain.retention_curve : null;
+  // retention_curve items are objects: { time_sec, retention (0-100), activity_l2 }
+  // Older runs might send raw numbers — handle both.
+  const rawCurve = Array.isArray(brain?.retention_curve) ? brain.retention_curve : null;
+  const retentionPoints = rawCurve
+    ? rawCurve.map((p) => {
+        if (p && typeof p === "object") {
+          const v = Number(p.retention ?? p.engagement ?? p.value);
+          return Number.isFinite(v) ? v : null;
+        }
+        const n = Number(p);
+        // legacy 0..1 format → scale to 0..100
+        return Number.isFinite(n) ? (n <= 1.5 ? n * 100 : n) : null;
+      }).filter((v) => v != null)
+    : null;
   let hold3s = null;
-  if (retentionCurve && retentionCurve.length >= 4) {
-    // Curve is normalised 0..1 retention proxy at each second index.
-    hold3s = Math.round(Math.max(0, Math.min(1, Number(retentionCurve[3]) || 0)) * 100);
+  if (retentionPoints && retentionPoints.length >= 4) {
+    hold3s = Math.round(Math.max(0, Math.min(100, retentionPoints[3])));
   } else if (meanRetention != null) {
     hold3s = meanRetention;
   }
@@ -3327,11 +3343,28 @@ function ExactDashboardPage({ go, intelligence, runner }) {
 
   const cohorts = Array.isArray(sim.cohorts) ? sim.cohorts.slice(0, 6) : [];
 
-  const insights = Array.isArray(intelligence?.insights) ? intelligence.insights : [];
-  const decisionList = insights
-    .map((i) => (typeof i === "string" ? i : i?.headline || i?.text || i?.title))
-    .filter(Boolean)
-    .slice(0, 5);
+  // Decisions: prefer explicit insights[]; fall back to top_traits names so
+  // the panel still says *something* when the analyzer didn't emit headlines.
+  let decisionList = [];
+  if (Array.isArray(intelligence?.insights) && intelligence.insights.length) {
+    decisionList = intelligence.insights
+      .map((i) => (typeof i === "string" ? i : i?.headline || i?.text || i?.title))
+      .filter(Boolean)
+      .slice(0, 5);
+  } else if (Array.isArray(sim.top_traits) && sim.top_traits.length) {
+    decisionList = sim.top_traits.slice(0, 5).map((t) => {
+      const trait = String(t?.trait || "trait").replace(/_/g, " ");
+      const conviction = t?.positive_rate_pct != null ? `${Math.round(Number(t.positive_rate_pct))}% positive` : null;
+      const pass = t?.share_rate_pct != null ? `${Math.round(Number(t.share_rate_pct))}% pass-along` : null;
+      return [trait, conviction, pass].filter(Boolean).join(" · ");
+    });
+  } else if (Array.isArray(brain?.peak_moments) && brain.peak_moments.length) {
+    decisionList = brain.peak_moments.slice(0, 5).map((p) => {
+      const region = p?.region || "Unmapped cortex";
+      const t = p?.time_sec != null ? `${Number(p.time_sec).toFixed(1)}s` : null;
+      return [t, region].filter(Boolean).join(" · ");
+    });
+  }
 
   const toneFor = (v) => {
     const n = Number(v);
@@ -3455,7 +3488,7 @@ function ExactDashboardPage({ go, intelligence, runner }) {
           <section className="exact-dashboard-middle">
             <article className="exact-panel exact-retention-large">
               <div className="exact-panel-head"><h2>Retention over time (by second)</h2><span><i /> This video</span></div>
-              <ExactRetentionLargeChart curve={retentionCurve} hold3s={hold3s} />
+              <ExactRetentionLargeChart curve={retentionPoints} hold3s={hold3s} />
             </article>
             <article className="exact-panel exact-stayed-card">
               <h2>{hasData ? "Why they stayed" : "Insights"}</h2>
@@ -3474,15 +3507,28 @@ function ExactDashboardPage({ go, intelligence, runner }) {
             <h2>Performance by persona</h2>
             <div className="table-head"><span>Persona</span><span>Trend</span><span>3s Hold</span><span>Virality</span><span>Drop-off Risk</span></div>
             {cohorts.length ? cohorts.map((cohort, index) => {
-              const name = cohort?.name || cohort?.label || `Cohort ${index + 1}`;
-              const v = cohort?.virality_score ?? cohort?.virality ?? cohort?.score;
-              const h = cohort?.hold_3s_pct ?? cohort?.hold ?? cohort?.three_s_hold;
-              const r = cohort?.dropoff_risk_pct ?? cohort?.dropoff ?? cohort?.risk;
-              const viralityNum = v != null ? Math.round(Number(v)) : null;
-              const holdDisplay = h != null ? `${Math.round(Number(h))}%` : "—";
-              const riskDisplay = r != null
-                ? (Number(r) <= 20 ? "Low" : Number(r) <= 45 ? "Medium" : "High")
-                : "—";
+              const name = cohort?.label || cohort?.name || `Cohort ${index + 1}`;
+              // Real cohort fields (from Vast simulator): label / personas /
+              // positive_rate_pct / share_rate_pct. Use positive_rate as the
+              // virality proxy and (100 - positive_rate) as the drop-off risk.
+              const positive = cohort?.positive_rate_pct ?? cohort?.virality_score ?? cohort?.virality;
+              const explicitHold = cohort?.hold_3s_pct ?? cohort?.three_s_hold;
+              const share = cohort?.share_rate_pct;
+              const viralityNum = positive != null ? Math.round(Number(positive)) : null;
+              const holdNum = explicitHold != null
+                ? Math.round(Number(explicitHold))
+                : positive != null
+                  ? Math.round(Math.max(0, Math.min(100, Number(positive))))
+                  : null;
+              const riskNum = cohort?.dropoff_risk_pct != null
+                ? Math.round(Number(cohort.dropoff_risk_pct))
+                : positive != null
+                  ? Math.round(Math.max(0, Math.min(100, 100 - Number(positive))))
+                  : null;
+              const holdDisplay = holdNum != null ? `${holdNum}%` : "—";
+              const riskDisplay = riskNum == null
+                ? "—"
+                : riskNum <= 20 ? "Low" : riskNum <= 45 ? "Medium" : "High";
               const tone = toneFor(viralityNum != null ? viralityNum : 0);
               return (
                 <div className="table-row" key={`${name}-${index}`}>
@@ -3529,6 +3575,7 @@ function ExactTinySpark({ index = 0 }) {
 }
 
 function ExactRetentionLargeChart({ curve, hold3s }) {
+  // curve is an array of numbers in 0..100 (parsed upstream from retention_curve)
   const useReal = Array.isArray(curve) && curve.length >= 4;
   const left = 58;
   const right = 742;
@@ -3538,9 +3585,6 @@ function ExactRetentionLargeChart({ curve, hold3s }) {
   let linePath = "M58 38 C88 38 103 50 126 65 C154 82 172 70 198 86 C228 104 250 102 276 113 C304 125 322 148 352 156 C383 164 405 152 430 166 C462 184 490 187 522 197 C558 209 590 210 620 219 C662 230 699 227 742 228";
   let areaPath = "M58 38 C88 38 103 50 126 65 C154 82 172 70 198 86 C228 104 250 102 276 113 C304 125 322 148 352 156 C383 164 405 152 430 166 C462 184 490 187 522 197 C558 209 590 210 620 219 C662 230 699 227 742 228 L742 226 L58 226 Z";
 
-  // The "3s hold" vertical marker sits at the 3-second mark. For the
-  // hand-tuned demo path that's x=270 / y=112. For the real curve we
-  // compute it from the data.
   let holdX = 270;
   let holdY = 112;
 
@@ -3548,7 +3592,7 @@ function ExactRetentionLargeChart({ curve, hold3s }) {
     const pts = curve.map((v, i) => {
       const ratio = curve.length === 1 ? 0 : i / (curve.length - 1);
       const x = left + ratio * (right - left);
-      const norm = Math.max(0, Math.min(1, Number(v) || 0));
+      const norm = Math.max(0, Math.min(1, (Number(v) || 0) / 100));
       const y = top + (1 - norm) * (bottom - top);
       return [x, y];
     });
@@ -4219,10 +4263,12 @@ function SimulationResultsStage({ onRunAgain, onSaveReport, intelligence }) {
   let segments = [];
   if (Array.isArray(sim.cohorts) && sim.cohorts.length) {
     const cohorts = sim.cohorts.slice(0, 4);
-    const totalWeight = cohorts.reduce((acc, c) => acc + (Number(c.viewers) || Number(c.virality_score) || 1), 0) || 1;
+    // Cohort population is stored as `personas` (sometimes `viewers`).
+    const totalWeight = cohorts.reduce((acc, c) => acc + (Number(c.personas) || Number(c.viewers) || 1), 0) || 1;
     segments = cohorts.map((c) => {
-      const weight = Number(c.viewers) || Number(c.virality_score) || 1;
-      return [c.name || "Cohort", `${Math.max(1, Math.round((weight / totalWeight) * 100))}%`];
+      const weight = Number(c.personas) || Number(c.viewers) || 1;
+      const name = c.label || c.name || "Cohort";
+      return [name, `${Math.max(1, Math.round((weight / totalWeight) * 100))}%`];
     });
   }
 
@@ -4252,17 +4298,29 @@ function SimulationResultsStage({ onRunAgain, onSaveReport, intelligence }) {
 }
 
 function SimulationRetentionChart({ curve }) {
-  // When we have a real retention curve, redraw the path from points; else
-  // keep the hand-tuned demo curve.
-  const useReal = Array.isArray(curve) && curve.length >= 4;
+  // curve is the raw brain.retention_curve array from the analyzer.
+  // Each item is either an object { time_sec, retention (0-100), activity_l2 }
+  // or a bare 0..1 number from older runs. Normalize to a 0..1 list first.
+  const normalized = Array.isArray(curve)
+    ? curve.map((p) => {
+        if (p && typeof p === "object") {
+          const v = Number(p.retention ?? p.engagement ?? p.value);
+          if (!Number.isFinite(v)) return null;
+          return v > 1.5 ? v / 100 : v;
+        }
+        const n = Number(p);
+        if (!Number.isFinite(n)) return null;
+        return n > 1.5 ? n / 100 : n;
+      }).filter((v) => v != null)
+    : [];
+  const useReal = normalized.length >= 4;
   let linePath = "M54 26 C92 30 112 42 142 62 C174 84 202 72 232 94 C266 120 298 118 328 132 C366 151 394 158 432 170 C462 180 482 186 500 190";
   let areaPath = "M54 26 C92 30 112 42 142 62 C174 84 202 72 232 94 C266 120 298 118 328 132 C366 151 394 158 432 170 C462 180 482 186 500 190 L500 196 L54 196 Z";
   if (useReal) {
-    const pts = curve.map((v, i) => {
-      const ratio = curve.length === 1 ? 0 : i / (curve.length - 1);
+    const pts = normalized.map((v, i) => {
+      const ratio = normalized.length === 1 ? 0 : i / (normalized.length - 1);
       const x = 54 + ratio * (500 - 54);
-      // curve values are 0..1 (retention proxy); flip Y so 1 → top.
-      const norm = Math.max(0, Math.min(1, Number(v) || 0));
+      const norm = Math.max(0, Math.min(1, v));
       const y = 26 + (1 - norm) * (196 - 26);
       return [x, y];
     });
