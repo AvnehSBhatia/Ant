@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Film,
   Gauge,
+  Grid2X2,
   Heart,
   Info,
   LineChart,
@@ -73,10 +74,9 @@ function buildClusterData(personasList) {
 }
 
 const navItems = [
+  { id: "dashboard", label: "Dashboard", Icon: Grid2X2 },
   { id: "simulations", label: "Simulations", Icon: Gauge },
-  { id: "videos", label: "Videos", Icon: Film },
-  { id: "personas", label: "Personas", Icon: UsersRound, active: true },
-  { id: "trends", label: "Trends", Icon: LineChart }
+  { id: "personas", label: "Personas", Icon: UsersRound, active: true }
 ];
 
 const tunnelPaths = [
@@ -512,9 +512,10 @@ function DemographicsPanel() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ go }) {
   const navigate = (id) => {
-    window.location.hash = id;
+    if (go) go(id);
+    else window.location.hash = id;
   };
 
   return (
@@ -555,7 +556,7 @@ function Sidebar() {
   );
 }
 
-export default function PersonasExact({ intelligence }) {
+export default function PersonasExact({ intelligence, go }) {
   const simulation = intelligence?.simulation;
   const cohorts = simulation?.cohorts || [];
   const topTraits = simulation?.top_traits || [];
@@ -615,7 +616,7 @@ export default function PersonasExact({ intelligence }) {
 
   return (
     <main className="personas-exact">
-      <Sidebar />
+      <Sidebar go={go} />
       <section className="pe-workspace">
         <header className="pe-page-header">
           <div>

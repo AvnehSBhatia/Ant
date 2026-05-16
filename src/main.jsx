@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import PersonasExact from "./generated-pages/PersonasExact.jsx";
-import TrendsExact from "./generated-pages/TrendsExact.jsx";
 import TribeBrain3D from "./TribeBrain3D.jsx";
 import {
   Activity,
@@ -267,7 +266,7 @@ const backgroundPaths = [
 ];
 
 function useRoute() {
-  const validRoutes = new Set(["landing", "login", "dashboard", "simulations", "personas", "trends", "flow", "history"]);
+  const validRoutes = new Set(["landing", "login", "dashboard", "simulations", "personas", "flow", "history"]);
   const getRoute = () => {
     const hashRoute = window.location.hash.replace("#", "") || "landing";
     return validRoutes.has(hashRoute) ? hashRoute : "dashboard";
@@ -288,7 +287,7 @@ function useRoute() {
   return [route, go];
 }
 
-const PROTECTED_ROUTES = new Set(["simulations", "personas", "trends", "history"]);
+const PROTECTED_ROUTES = new Set(["simulations", "personas", "history"]);
 
 function useAuthState() {
   // If we just came back from an OAuth provider, the URL still has the code /
@@ -813,11 +812,10 @@ function App() {
         {displayRoute === "landing" && <LandingPage go={go} user={user} runner={analysisRunner} />}
         {displayRoute === "login" && <LoginPage go={go} onSignedIn={handleSignedIn} />}
         {displayRoute === "dashboard" && <DashboardPage go={go} intelligence={activeIntelligence} />}
-        {displayRoute === "simulations" && <ExactPageShell active="simulations" go={go} intelligence={activeIntelligence}><FlowPage go={go} embedded intelligence={activeIntelligence} runner={analysisRunner} /></ExactPageShell>}
-        {displayRoute === "personas" && <ExactPageShell active="personas" go={go} intelligence={activeIntelligence}><PersonasExact intelligence={activeIntelligence} /></ExactPageShell>}
-        {displayRoute === "trends" && <ExactPageShell active="trends" go={go} intelligence={activeIntelligence}><TrendsExact intelligence={activeIntelligence} /></ExactPageShell>}
+        {displayRoute === "simulations" && <FlowPage go={go} intelligence={activeIntelligence} runner={analysisRunner} />}
+        {displayRoute === "personas" && <PersonasExact go={go} intelligence={activeIntelligence} />}
         {displayRoute === "flow" && <FlowPage go={go} intelligence={activeIntelligence} runner={analysisRunner} />}
-        {displayRoute === "history" && <ExactPageShell active="history" go={go} intelligence={activeIntelligence}><HistoryPage go={go} /></ExactPageShell>}
+        {displayRoute === "history" && <HistoryPage go={go} />}
       </section>
     </main>
   );
@@ -3280,7 +3278,6 @@ function ExactDashboardPage({ go }) {
             <button className="active" type="button"><Grid2X2 size={17} /> Dashboard</button>
             <button type="button" onClick={() => go("simulations")}><Gauge size={17} /> Simulations</button>
             <button type="button" onClick={() => go("personas")}><UsersRound size={17} /> Personas</button>
-            <button type="button" onClick={() => go("trends")}><LineChart size={17} /> Trends</button>
           </nav>
           <div className="exact-creator-card">
             <img src={exactDarkAssets.avatar} alt="" />
@@ -3620,6 +3617,10 @@ function HistoryPage({ go }) {
   const totalShares = completedRuns.reduce((sum, run) => sum + Number(run.summary?.total_shares || 0), 0);
 
   return (
+    <div className="page exact-dark-page sim-flow-page sim-step-history">
+      <section className="exact-dark-frame sim-flow-frame">
+        <SimulationFlowSidebar go={go} active="history" onNewSimulation={() => go?.("simulations")} />
+        <main className="sim-flow-main sim-flow-main-history">
     <div className="history-page">
       <article className="analytics-panel">
         <div className="panel-heading">
@@ -3691,6 +3692,9 @@ function HistoryPage({ go }) {
         )}
       </article>
     </div>
+        </main>
+      </section>
+    </div>
   );
 }
 
@@ -3701,12 +3705,11 @@ function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
   const livePct = runner?.liveStage?.pct;
   const hasLiveRun = Boolean(runner?.video) && (cloudStatus === "syncing" || cloudStatus === "synced" || runner?.streamActive);
 
-  // Initial step: derived from runner state so reloading on /flow with an
-  // in-flight or finished run lands on the right screen.
+  // Initial step: only honor a *live* in-flight stream. Don't auto-jump to
+  // results just because a past run's intelligence is still in memory — the
+  // user clicking "Simulations" in the sidebar expects a fresh intake screen.
   const [step, setStep] = useState(() => {
-    if (realIntelligence) return "results";
     if (hasLiveRun) return "running";
-    if (runner?.video) return "morphing";
     return "intake";
   });
   const [uploadedName, setUploadedName] = useState(runner?.video?.name || "");
@@ -3734,20 +3737,21 @@ function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
             : 2
         : 4;
 
-  // Auto-advance step as the real run progresses.
+  // Auto-advance step as the real run progresses. We only promote to
+  // "results" if the user is currently watching the run (step === "running"
+  // or "morphing") — otherwise sidebar clicks would dump them on the old
+  // results screen instead of letting them start fresh.
   useEffect(() => {
-    if (realIntelligence && step !== "results") {
+    if (realIntelligence && (step === "running" || step === "morphing")) {
       setFinishing(true);
       const t = window.setTimeout(() => setStep("results"), 600);
       return () => window.clearTimeout(t);
     }
-    if (hasLiveRun && step !== "running" && step !== "results") {
+    if (hasLiveRun && step !== "running" && step !== "results" && step !== "morphing") {
       setStep("running");
-    } else if (runner?.video && step === "intake") {
-      setStep("morphing");
     }
     return undefined;
-  }, [realIntelligence, hasLiveRun, runner?.video, step]);
+  }, [realIntelligence, hasLiveRun, step]);
 
   // Demo progress only when there is no real run — runs once on entering
   // the running step.
@@ -3833,16 +3837,16 @@ function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
   );
 }
 
-function SimulationFlowSidebar({ go, onNewSimulation }) {
+function SimulationFlowSidebar({ go, onNewSimulation, active = "simulations" }) {
+  const cls = (id) => (active === id ? "active" : "");
   return (
     <aside className="sim-flow-sidebar">
       <ExactBrand />
       <button className="sim-flow-new" type="button" onClick={onNewSimulation}><span>+</span> New simulation</button>
       <nav>
-        <button type="button" onClick={() => go?.("dashboard")}><Grid2X2 size={15} /> Dashboard</button>
-        <button type="button" className="active"><Gauge size={15} /> Simulations</button>
-        <button type="button" onClick={() => go?.("personas")}><UsersRound size={15} /> Personas</button>
-        <button type="button" onClick={() => go?.("trends")}><LineChart size={15} /> Trends</button>
+        <button type="button" className={cls("dashboard")} onClick={() => go?.("dashboard")}><Grid2X2 size={15} /> Dashboard</button>
+        <button type="button" className={cls("simulations")} onClick={() => go?.("simulations")}><Gauge size={15} /> Simulations</button>
+        <button type="button" className={cls("personas")} onClick={() => go?.("personas")}><UsersRound size={15} /> Personas</button>
       </nav>
       <button className="sim-flow-creator" type="button" onClick={() => go?.("history")} aria-label="Open history">
         <img src={exactDarkAssets.avatar} alt="" />
