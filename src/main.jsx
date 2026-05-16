@@ -267,7 +267,7 @@ const backgroundPaths = [
 ];
 
 function useRoute() {
-  const validRoutes = new Set(["landing", "login", "share-info", "dashboard", "simulations", "personas", "trends", "flow", "history"]);
+  const validRoutes = new Set(["landing", "login", "dashboard", "simulations", "personas", "trends", "flow", "history"]);
   const getRoute = () => {
     const hashRoute = window.location.hash.replace("#", "") || "landing";
     return validRoutes.has(hashRoute) ? hashRoute : "dashboard";
@@ -288,7 +288,7 @@ function useRoute() {
   return [route, go];
 }
 
-const PROTECTED_ROUTES = new Set(["share-info", "simulations", "personas", "trends", "history"]);
+const PROTECTED_ROUTES = new Set(["simulations", "personas", "trends", "history"]);
 
 function useAuthState() {
   // If we just came back from an OAuth provider, the URL still has the code /
@@ -720,17 +720,14 @@ function App() {
   const activeIntelligence = analysisRunner.video ? analysisRunner.intelligence : intelligence;
 
   // One-shot: when the OAuth callback finishes and yields a user, jump to
-  // share-info (or dashboard if profile is already filled). Without this the
-  // user landed at https://ants.ceo/ (no hash → route="landing") and stayed
-  // there.
+  // the dashboard. Auto-claim any orphaned upload-first run so it shows up
+  // in their history without forcing them through a separate share-info step.
   useEffect(() => {
     if (!justAuthedFromOAuth || !user || loading) return;
-    const profile = user.profile || {};
-    const hasProfile = profile.creator_info_confirmed_at
-      || profile.tiktok_url || profile.instagram_url || profile.company_site_url;
-    go(hasProfile ? "dashboard" : "share-info");
+    analysisRunner?.claimPendingRun?.({}).catch(() => {});
+    go("dashboard");
     clearJustAuthed();
-  }, [justAuthedFromOAuth, user, loading, go, clearJustAuthed]);
+  }, [justAuthedFromOAuth, user, loading, go, clearJustAuthed, analysisRunner]);
 
   // Gate protected routes
   useEffect(() => {
@@ -745,7 +742,9 @@ function App() {
 
   const handleSignedIn = (nextUser) => {
     setUser(nextUser || true);
-    go("share-info");
+    // Auto-attach the upload-first orphan run, if any, to the new user.
+    analysisRunner?.claimPendingRun?.({}).catch(() => {});
+    go("dashboard");
   };
 
   const handleProfileSaved = (profile) => {
@@ -813,7 +812,6 @@ function App() {
       <section className={`page-stage ${isExiting ? "is-exiting" : "is-entering"}`} key={displayRoute}>
         {displayRoute === "landing" && <LandingPage go={go} user={user} runner={analysisRunner} />}
         {displayRoute === "login" && <LoginPage go={go} onSignedIn={handleSignedIn} />}
-        {displayRoute === "share-info" && <ShareInfoPage go={go} user={user} runner={analysisRunner} onProfileSaved={handleProfileSaved} />}
         {displayRoute === "dashboard" && <DashboardPage go={go} intelligence={activeIntelligence} />}
         {displayRoute === "simulations" && <ExactPageShell active="simulations" go={go} intelligence={activeIntelligence}><FlowPage go={go} embedded intelligence={activeIntelligence} runner={analysisRunner} /></ExactPageShell>}
         {displayRoute === "personas" && <ExactPageShell active="personas" go={go} intelligence={activeIntelligence}><PersonasExact intelligence={activeIntelligence} /></ExactPageShell>}
@@ -1243,7 +1241,7 @@ function LandingPage({ go, user, runner }) {
   const continueAfterUpload = (file) => {
     if (!file) return;
     const started = runner?.analyzeFile?.(file);
-    if (started) go(user ? "share-info" : "login");
+    if (started) go(user ? "dashboard" : "login");
   };
   const handleDrop = (event) => {
     event.preventDefault();
@@ -1306,14 +1304,14 @@ function LandingPage({ go, user, runner }) {
                   <i />
                   {runner.liveStage?.label || "Processing"}
                 </span>
-                <button className="auth-link-button" type="button" onClick={() => go(user ? "share-info" : "login")}>
+                <button className="auth-link-button" type="button" onClick={() => go(user ? "dashboard" : "login")}>
                   Continue <ArrowRight size={15} />
                 </button>
               </div>
             ) : null}
           </div>
           <div className="hero-actions hero-actions-secondary">
-            <button className="secondary-button" onClick={() => go(user ? "share-info" : "login")}>
+            <button className="secondary-button" onClick={() => go(user ? "dashboard" : "login")}>
               {runner?.video ? "Continue setup" : "Sign in"}
               <ArrowRight size={17} />
             </button>
@@ -1491,7 +1489,7 @@ function ExactRetentionMiniChart() {
   );
 }
 
-function ExactViralityGauge() {
+function ExactViralityGauge({ score = 82, label = "Strong potential" }) {
   return (
     <div className="exact-gauge">
       <svg viewBox="0 0 220 128" aria-hidden="true">
@@ -1499,8 +1497,8 @@ function ExactViralityGauge() {
         <path className="gauge-value" d="M32 104 A78 78 0 0 1 158 42" />
       </svg>
       <div>
-        <p className="exact-gauge-score"><strong>82</strong><span>/100</span></p>
-        <small>Strong potential</small>
+        <p className="exact-gauge-score"><strong>{score}</strong><span>/100</span></p>
+        <small>{label}</small>
       </div>
     </div>
   );
@@ -1564,7 +1562,7 @@ function LoginPage({ go, onSignedIn }) {
         return;
       }
       if (onSignedIn) onSignedIn(result.user || true);
-      else go("share-info");
+      else go("dashboard");
     } catch (err) {
       setErrorMsg(err?.message || "Unexpected error.");
     } finally {
@@ -1589,7 +1587,7 @@ function LoginPage({ go, onSignedIn }) {
         return;
       }
       if (onSignedIn) onSignedIn(result.user || true);
-      else go("share-info");
+      else go("dashboard");
     } catch (err) {
       setErrorMsg(err?.message || "Unexpected error.");
     } finally {
@@ -1623,7 +1621,7 @@ function LoginPage({ go, onSignedIn }) {
       const u = await authGetCurrentUser();
       if (u) {
         if (onSignedIn) onSignedIn(u);
-        else go("share-info");
+        else go("dashboard");
         return;
       }
       setErrorMsg("Still waiting on verification. Click the link in your inbox first.");
@@ -3696,12 +3694,31 @@ function HistoryPage({ go }) {
   );
 }
 
-function SimulationFlowPage({ go }) {
+function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
   const inputRef = useRef(null);
-  const [step, setStep] = useState("intake");
-  const [uploadedName, setUploadedName] = useState("");
-  const [progress, setProgress] = useState(23);
+  const realIntelligence = runner?.intelligence || parentIntelligence;
+  const cloudStatus = runner?.cloudStatus;
+  const livePct = runner?.liveStage?.pct;
+  const hasLiveRun = Boolean(runner?.video) && (cloudStatus === "syncing" || cloudStatus === "synced" || runner?.streamActive);
+
+  // Initial step: derived from runner state so reloading on /flow with an
+  // in-flight or finished run lands on the right screen.
+  const [step, setStep] = useState(() => {
+    if (realIntelligence) return "results";
+    if (hasLiveRun) return "running";
+    if (runner?.video) return "morphing";
+    return "intake";
+  });
+  const [uploadedName, setUploadedName] = useState(runner?.video?.name || "");
   const [finishing, setFinishing] = useState(false);
+  // Demo-mode progress when there's no real run streaming — keeps the
+  // anim alive for the marketing/landing flow.
+  const [fakeProgress, setFakeProgress] = useState(23);
+
+  // Real progress comes from cloud SSE if we have it; otherwise fall back
+  // to the canned demo sequence.
+  const progress = livePct != null && hasLiveRun ? Math.max(23, Math.min(100, Math.round(livePct))) : fakeProgress;
+
   const workflow = ["Uploaded", "Analysis", "Simulating 200k viewers", "Creating TribeV2 brain scan", "Finish"];
   const activeIndex = step === "intake"
     ? 0
@@ -3717,48 +3734,98 @@ function SimulationFlowPage({ go }) {
             : 2
         : 4;
 
+  // Auto-advance step as the real run progresses.
   useEffect(() => {
-    if (step !== "running") return undefined;
-    setProgress(23);
+    if (realIntelligence && step !== "results") {
+      setFinishing(true);
+      const t = window.setTimeout(() => setStep("results"), 600);
+      return () => window.clearTimeout(t);
+    }
+    if (hasLiveRun && step !== "running" && step !== "results") {
+      setStep("running");
+    } else if (runner?.video && step === "intake") {
+      setStep("morphing");
+    }
+    return undefined;
+  }, [realIntelligence, hasLiveRun, runner?.video, step]);
+
+  // Demo progress only when there is no real run — runs once on entering
+  // the running step.
+  useEffect(() => {
+    if (step !== "running" || hasLiveRun) return undefined;
+    setFakeProgress(23);
     setFinishing(false);
     const ticks = [36, 49, 63, 78, 91, 100];
     const timers = ticks.map((value, index) => window.setTimeout(() => {
-      setProgress(value);
+      setFakeProgress(value);
       if (value === 100) {
         setFinishing(true);
         window.setTimeout(() => setStep("results"), 1280);
       }
     }, 760 + index * 740));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [step]);
+  }, [step, hasLiveRun]);
 
   useEffect(() => {
-    if (step !== "morphing") return undefined;
+    if (step !== "morphing" || hasLiveRun) return undefined;
     const timer = window.setTimeout(() => setStep("running"), 1220);
     return () => window.clearTimeout(timer);
-  }, [step]);
+  }, [step, hasLiveRun]);
 
   const startUpload = (file) => {
-    setUploadedName(file?.name || "Summer Launch Reel.mp4");
+    const displayName = file?.name || "Summer Launch Reel.mp4";
+    setUploadedName(displayName);
+    if (file && runner?.analyzeFile) {
+      // Real upload to the cloud edge fn — auto-advances via the runner state effect.
+      runner.analyzeFile(file);
+    }
     setStep("morphing");
+  };
+
+  const handleNewSimulation = () => {
+    setStep("intake");
+    setUploadedName("");
+    setFakeProgress(23);
+    setFinishing(false);
+  };
+
+  const handleSaveReport = () => {
+    const data = realIntelligence || {
+      generated_at: new Date().toISOString(),
+      video_name: uploadedName || null,
+      note: "Demo report — no live intelligence captured.",
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stem = (uploadedName || "report").replace(/\.[^.]*$/, "");
+    a.href = url;
+    a.download = `ant-viewlytics-${stem}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className={`page exact-dark-page sim-flow-page sim-step-${step} ${finishing ? "is-finishing" : ""}`}>
       <section className="exact-dark-frame sim-flow-frame">
-        <SimulationFlowSidebar go={go} />
+        <SimulationFlowSidebar go={go} onNewSimulation={handleNewSimulation} />
         <main className="sim-flow-main">
           {step === "intake" ? <SimulationBusinessIntake onContinue={() => setStep("upload")} /> : null}
           {step === "upload" ? <SimulationUploadStage inputRef={inputRef} onUpload={startUpload} /> : null}
           {step === "morphing" ? <SimulationMorphStage workflow={workflow} uploadedName={uploadedName} /> : null}
-          {step === "running" ? <SimulationRunningStage workflow={workflow} activeIndex={activeIndex} progress={progress} uploadedName={uploadedName} /> : null}
-          {step === "results" ? <SimulationResultsStage onRunAgain={() => setStep("intake")} /> : null}
+          {step === "running" ? <SimulationRunningStage workflow={workflow} activeIndex={activeIndex} progress={progress} uploadedName={uploadedName} liveStageLabel={runner?.liveStage?.label} /> : null}
+          {step === "results" ? <SimulationResultsStage onRunAgain={handleNewSimulation} onSaveReport={handleSaveReport} intelligence={realIntelligence} /> : null}
           <input
             ref={inputRef}
             className="sim-flow-file"
             type="file"
             accept="video/*"
-            onChange={(event) => startUpload(event.target.files?.[0])}
+            onChange={(event) => {
+              startUpload(event.target.files?.[0]);
+              event.target.value = "";
+            }}
           />
         </main>
       </section>
@@ -3766,22 +3833,22 @@ function SimulationFlowPage({ go }) {
   );
 }
 
-function SimulationFlowSidebar({ go }) {
+function SimulationFlowSidebar({ go, onNewSimulation }) {
   return (
     <aside className="sim-flow-sidebar">
       <ExactBrand />
-      <button className="sim-flow-new" type="button"><span>+</span> New simulation</button>
+      <button className="sim-flow-new" type="button" onClick={onNewSimulation}><span>+</span> New simulation</button>
       <nav>
         <button type="button" onClick={() => go?.("dashboard")}><Grid2X2 size={15} /> Dashboard</button>
         <button type="button" className="active"><Gauge size={15} /> Simulations</button>
         <button type="button" onClick={() => go?.("personas")}><UsersRound size={15} /> Personas</button>
         <button type="button" onClick={() => go?.("trends")}><LineChart size={15} /> Trends</button>
       </nav>
-      <div className="sim-flow-creator">
+      <button className="sim-flow-creator" type="button" onClick={() => go?.("history")} aria-label="Open history">
         <img src={exactDarkAssets.avatar} alt="" />
         <div><strong>Creator Lab</strong><span>Pro Plan</span></div>
         <ChevronRight size={14} />
-      </div>
+      </button>
     </aside>
   );
 }
@@ -3883,7 +3950,8 @@ function SimulationMorphStage({ workflow, uploadedName }) {
   );
 }
 
-function SimulationRunningStage({ workflow, activeIndex, progress, uploadedName }) {
+function SimulationRunningStage({ workflow, activeIndex, progress, uploadedName, liveStageLabel }) {
+  const stageLabel = liveStageLabel || (progress < 74 ? "Simulating 200k viewers" : "Creating TribeV2 brain scan");
   return (
     <section className="sim-running-screen">
       <SimulationStatusStrip workflow={workflow} activeIndex={activeIndex} />
@@ -3891,7 +3959,7 @@ function SimulationRunningStage({ workflow, activeIndex, progress, uploadedName 
       <SimulationAntSwarm />
       <article className="sim-run-bubble">
         <img src={exactDarkAssets.poster} alt="" />
-        <div><strong>{progress}%</strong><span>{progress < 74 ? "Simulating 200k viewers" : "Creating TribeV2 brain scan"}</span></div>
+        <div><strong>{progress}%</strong><span>{stageLabel}</span></div>
         <small>{uploadedName || "Summer Launch Reel.mp4"}</small>
       </article>
     </section>
@@ -3927,39 +3995,92 @@ function SimulationAntSwarm({ intro = false }) {
   );
 }
 
-function SimulationResultsStage({ onRunAgain }) {
-  const segments = [["Aspiring creators", "48%"], ["Solopreneurs", "26%"], ["Side hustlers", "16%"], ["Small business owners", "10%"]];
+function SimulationResultsStage({ onRunAgain, onSaveReport, intelligence }) {
+  const sim = intelligence?.simulation || {};
+  const brain = intelligence?.brain || {};
+
+  const viralityScore = sim.virality_score != null ? Math.round(Number(sim.virality_score)) : 82;
+  const viralityLabel = viralityScore >= 80 ? "Strong potential" : viralityScore >= 60 ? "Solid signal" : "Needs work";
+  const holdPct = brain?.summary?.mean_retention_proxy != null
+    ? Math.round(Number(brain.summary.mean_retention_proxy))
+    : 67;
+  const holdNote = holdPct >= 65 ? "Good" : holdPct >= 45 ? "Mixed" : "Weak";
+
+  const rawInsights = intelligence?.insights;
+  const fallbackInsights = [
+    "Strong visual hook in first 2s",
+    "Clear value established early",
+    "Fast pacing through 0-7s",
+    "Relatable problem & payoff",
+    "Good CTA and community fit",
+  ];
+  const decisions = (Array.isArray(rawInsights) && rawInsights.length
+    ? rawInsights.map((i) => (typeof i === "string" ? i : i?.headline || i?.text || i?.title)).filter(Boolean)
+    : fallbackInsights
+  ).slice(0, 5);
+
+  let segments;
+  if (Array.isArray(sim.cohorts) && sim.cohorts.length) {
+    const cohorts = sim.cohorts.slice(0, 4);
+    const totalWeight = cohorts.reduce((acc, c) => acc + (Number(c.viewers) || Number(c.virality_score) || 1), 0) || 1;
+    segments = cohorts.map((c) => {
+      const weight = Number(c.viewers) || Number(c.virality_score) || 1;
+      return [c.name || "Cohort", `${Math.max(1, Math.round((weight / totalWeight) * 100))}%`];
+    });
+  } else {
+    segments = [["Aspiring creators", "48%"], ["Solopreneurs", "26%"], ["Side hustlers", "16%"], ["Small business owners", "10%"]];
+  }
+
   return (
     <section className="sim-results-screen">
       <header className="sim-results-head">
         <div><span><Check size={16} /></span><h1>Simulation complete</h1><p>Here’s what we predicted.</p></div>
-        <nav><button className="exact-yellow-button" type="button">Save report</button><button className="exact-dark-button" type="button" onClick={onRunAgain}><Repeat2 size={15} /> Run another simulation</button></nav>
+        <nav><button className="exact-yellow-button" type="button" onClick={onSaveReport}>Save report</button><button className="exact-dark-button" type="button" onClick={onRunAgain}><Repeat2 size={15} /> Run another simulation</button></nav>
       </header>
       <div className="sim-results-grid">
-        <article className="sim-result-card sim-result-hold"><span>Predicted 3s hold</span><strong>67<small>%</small></strong><p>Good</p><em>▲ 15% vs. industry</em></article>
-        <article className="sim-result-card sim-result-gauge"><span>Virality score</span><ExactViralityGauge /></article>
-        <article className="sim-result-card sim-result-chart"><span>Retention curve</span><SimulationRetentionChart /></article>
+        <article className="sim-result-card sim-result-hold"><span>Predicted 3s hold</span><strong>{holdPct}<small>%</small></strong><p>{holdNote}</p><em>▲ 15% vs. industry</em></article>
+        <article className="sim-result-card sim-result-gauge"><span>Virality score</span><ExactViralityGauge score={viralityScore} label={viralityLabel} /></article>
+        <article className="sim-result-card sim-result-chart"><span>Retention curve</span><SimulationRetentionChart curve={brain?.retention_curve} /></article>
         <article className="sim-result-card sim-result-segments"><span>Audience segments</span>{segments.map(([name, value]) => <p key={name}><b>{name}</b><i><em style={{ width: value }} /></i><strong>{value}</strong></p>)}</article>
-        <article className="sim-result-card sim-result-decisions"><span>Key decisions</span>{["Strong visual hook in first 2s", "Clear value established early", "Fast pacing through 0-7s", "Relatable problem & payoff", "Good CTA and community fit"].map((text) => <p key={text}><Check size={14} /> {text}</p>)}</article>
+        <article className="sim-result-card sim-result-decisions"><span>Key decisions</span>{decisions.map((text) => <p key={text}><Check size={14} /> {text}</p>)}</article>
       </div>
     </section>
   );
 }
 
-function SimulationRetentionChart() {
+function SimulationRetentionChart({ curve }) {
+  // When we have a real retention curve, redraw the path from points; else
+  // keep the hand-tuned demo curve.
+  const useReal = Array.isArray(curve) && curve.length >= 4;
+  let linePath = "M54 26 C92 30 112 42 142 62 C174 84 202 72 232 94 C266 120 298 118 328 132 C366 151 394 158 432 170 C462 180 482 186 500 190";
+  let areaPath = "M54 26 C92 30 112 42 142 62 C174 84 202 72 232 94 C266 120 298 118 328 132 C366 151 394 158 432 170 C462 180 482 186 500 190 L500 196 L54 196 Z";
+  if (useReal) {
+    const pts = curve.map((v, i) => {
+      const ratio = curve.length === 1 ? 0 : i / (curve.length - 1);
+      const x = 54 + ratio * (500 - 54);
+      // curve values are 0..1 (retention proxy); flip Y so 1 → top.
+      const norm = Math.max(0, Math.min(1, Number(v) || 0));
+      const y = 26 + (1 - norm) * (196 - 26);
+      return [x, y];
+    });
+    const head = `M${pts[0][0]} ${pts[0][1]}`;
+    const tail = pts.slice(1).map(([x, y]) => `L${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+    linePath = `${head} ${tail}`;
+    areaPath = `${linePath} L${pts[pts.length - 1][0].toFixed(1)} 196 L${pts[0][0].toFixed(1)} 196 Z`;
+  }
   return (
     <svg className="sim-retention-chart" viewBox="0 0 520 210" preserveAspectRatio="none" aria-hidden="true">
       {[42, 84, 126, 168].map((y) => <line key={y} x1="54" x2="500" y1={y} y2={y} />)}
-      <path className="sim-chart-area" d="M54 26 C92 30 112 42 142 62 C174 84 202 72 232 94 C266 120 298 118 328 132 C366 151 394 158 432 170 C462 180 482 186 500 190 L500 196 L54 196 Z" />
-      <path className="sim-chart-line" d="M54 26 C92 30 112 42 142 62 C174 84 202 72 232 94 C266 120 298 118 328 132 C366 151 394 158 432 170 C462 180 482 186 500 190" />
-      <circle cx="362" cy="149" r="5" />
+      <path className="sim-chart-area" d={areaPath} />
+      <path className="sim-chart-line" d={linePath} />
+      {useReal ? null : <circle cx="362" cy="149" r="5" />}
       <text x="22" y="30">100%</text><text x="28" y="90">75%</text><text x="28" y="144">50%</text><text x="34" y="198">0%</text>
     </svg>
   );
 }
 
 function FlowPage({ go, intelligence: parentIntelligence, runner }) {
-  return <SimulationFlowPage go={go} />;
+  return <SimulationFlowPage go={go} runner={runner} intelligence={parentIntelligence} />;
 
   const inputRef = useRef(null);
   const reelRef = useRef(null);
