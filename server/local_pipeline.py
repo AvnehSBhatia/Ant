@@ -109,8 +109,8 @@ def _rng_from_stability_key(material: str, salt: int = 0) -> np.random.Generator
     return np.random.default_rng(np.random.SeedSequence(seeds))
 
 
-POPULATION_SIZE = int(os.environ.get("ANT_POPULATION_SIZE", "60000"))
-KEYWORD_SET_COUNT = 16
+POPULATION_SIZE = int(os.environ.get("ANT_POPULATION_SIZE", "200000"))
+KEYWORD_SET_COUNT = 50
 KEYWORDS_PER_SET = 8
 
 NIA_BASE = "https://apigcp.trynia.ai/v2"
@@ -339,7 +339,13 @@ def build_keyword_sets_from_personas(
 # ---------------------------------------------------------------------------
 
 
-def _nia_request(method: str, path: str, payload: dict[str, Any] | None = None, timeout: int = 90) -> dict[str, Any]:
+def _nia_request(
+    method: str,
+    path: str,
+    payload: dict[str, Any] | None = None,
+    timeout: int = 90,
+    retries: int = 2,
+) -> dict[str, Any]:
     api_key = os.environ.get("NIA_API_KEY", "").strip()
     if not api_key:
         return {"ok": False, "error": "missing_NIA_API_KEY"}
@@ -351,16 +357,25 @@ def _nia_request(method: str, path: str, payload: dict[str, Any] | None = None, 
     if payload is not None:
         body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(f"{NIA_BASE}{path}", data=body, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            raw = response.read().decode("utf-8")
-            data = json.loads(raw) if raw else {}
-            return {"ok": True, "status_code": response.status, "data": data}
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        return {"ok": False, "status_code": exc.code, "error": detail[:1200]}
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "error": repr(exc)}
+    last_exc: Exception | None = None
+    for attempt in range(retries + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                raw = response.read().decode("utf-8")
+                data = json.loads(raw) if raw else {}
+                return {"ok": True, "status_code": response.status, "data": data}
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            return {"ok": False, "status_code": exc.code, "error": detail[:1200]}
+        except TimeoutError as exc:
+            last_exc = exc
+            if attempt < retries:
+                continue
+            return {"ok": False, "error": f"timeout after {retries + 1} attempts ({timeout}s each)"}
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            return {"ok": False, "error": repr(exc)}
+    return {"ok": False, "error": repr(last_exc) if last_exc else "unknown"}
 
 
 def _nia_source_id(source: dict[str, Any]) -> str:
@@ -500,7 +515,7 @@ def index_with_nia(
                 for f in chunk
             ]
         }
-        resp = _nia_request("PUT", f"/fs/{source_id}/files/batch", body, timeout=90)
+        resp = _nia_request("PUT", f"/fs/{source_id}/files/batch", body, timeout=180)
         if not resp.get("ok"):
             return {
                 "status": "nia_index_failed",

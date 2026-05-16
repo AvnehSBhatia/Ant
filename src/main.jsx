@@ -3518,7 +3518,12 @@ function ExactDashboardPage({ go, intelligence, runner }) {
               //   hold     = positive_rate_pct (engaged ⇒ stayed)
               //   virality = positive_rate_pct
               //   risk     = High if positive < 45, Medium if < 60, Low otherwise
-              const name = cohort?.label || cohort?.name || `Cohort ${index + 1}`;
+              // Nia-generated labels arrive snake_case (creator_operator_1) —
+              // humanize for display.
+              const rawLabel = cohort?.label || cohort?.name || `Cohort ${index + 1}`;
+              const name = /[a-z0-9]_[a-z0-9]/.test(rawLabel)
+                ? rawLabel.split(/[_-]+/).map((w) => w[0]?.toUpperCase() + w.slice(1)).join(" ")
+                : rawLabel;
               const positive = cohort?.positive_rate_pct ?? cohort?.virality_score ?? cohort?.virality;
               const explicitHold = cohort?.hold_3s_pct ?? cohort?.three_s_hold;
               const positiveNum = positive != null ? Math.round(Number(positive)) : null;
@@ -4259,11 +4264,32 @@ function SimulationResultsStage({ onRunAgain, onSaveReport, intelligence }) {
     : null;
   const holdNote = holdPct == null ? "—" : holdPct >= 65 ? "Good" : holdPct >= 45 ? "Mixed" : "Weak";
 
-  const rawInsights = intelligence?.insights;
-  const decisions = (Array.isArray(rawInsights)
-    ? rawInsights.map((i) => (typeof i === "string" ? i : i?.headline || i?.text || i?.title)).filter(Boolean)
-    : []
-  ).slice(0, 5);
+  // Insights from the analyzer have shape { title, detail, tone } — both
+  // halves matter (title is the category, detail has the actual numbers).
+  // Fall back to top_traits / peak_moments when no insights array exists.
+  let decisions = [];
+  if (Array.isArray(intelligence?.insights) && intelligence.insights.length) {
+    decisions = intelligence.insights.map((i) => {
+      if (typeof i === "string") return i;
+      const title = i?.title || i?.headline;
+      const detail = i?.detail || i?.text;
+      if (title && detail) return `${title} — ${detail}`;
+      return title || detail || null;
+    }).filter(Boolean).slice(0, 5);
+  } else if (Array.isArray(sim.top_traits) && sim.top_traits.length) {
+    decisions = sim.top_traits.slice(0, 5).map((t) => {
+      const trait = String(t?.trait || "trait").replace(/_/g, " ");
+      const conviction = t?.positive_rate_pct != null ? `${Math.round(Number(t.positive_rate_pct))}% positive` : null;
+      const pass = t?.share_rate_pct != null ? `${Math.round(Number(t.share_rate_pct))}% pass-along` : null;
+      return [trait, conviction, pass].filter(Boolean).join(" · ");
+    });
+  } else if (Array.isArray(brain?.peak_moments) && brain.peak_moments.length) {
+    decisions = brain.peak_moments.slice(0, 5).map((p) => {
+      const region = p?.region || "Unmapped cortex";
+      const t = p?.time_sec != null ? `${Number(p.time_sec).toFixed(1)}s` : null;
+      return [t, region].filter(Boolean).join(" · ");
+    });
+  }
 
   let segments = [];
   if (Array.isArray(sim.cohorts) && sim.cohorts.length) {
