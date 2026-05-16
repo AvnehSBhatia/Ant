@@ -811,7 +811,7 @@ function App() {
       <section className={`page-stage ${isExiting ? "is-exiting" : "is-entering"}`} key={displayRoute}>
         {displayRoute === "landing" && <LandingPage go={go} user={user} runner={analysisRunner} />}
         {displayRoute === "login" && <LoginPage go={go} onSignedIn={handleSignedIn} />}
-        {displayRoute === "dashboard" && <DashboardPage go={go} intelligence={activeIntelligence} />}
+        {displayRoute === "dashboard" && <DashboardPage go={go} intelligence={activeIntelligence} runner={analysisRunner} />}
         {displayRoute === "simulations" && <FlowPage go={go} intelligence={activeIntelligence} runner={analysisRunner} />}
         {displayRoute === "personas" && <PersonasExact go={go} intelligence={activeIntelligence} />}
         {displayRoute === "flow" && <FlowPage go={go} intelligence={activeIntelligence} runner={analysisRunner} />}
@@ -3250,12 +3250,22 @@ function RealPageInsights({ active, data }) {
   );
 }
 
-function ExactDashboardPage({ go, intelligence }) {
+function ExactDashboardPage({ go, intelligence, runner }) {
   const [isLaunching, setIsLaunching] = useState(false);
   const handleRunSimulation = () => {
     setIsLaunching(true);
     window.setTimeout(() => go("flow"), 620);
   };
+
+  // Live-run detection — drives the "Live colony model" badge + the pulse
+  // animation on the hero. When the runner is mid-stream, the strap shows
+  // the current stage label + percent and the brain panel auto-renders
+  // streaming frames as they arrive.
+  const isStreaming = Boolean(runner?.streamActive
+    || runner?.cloudStatus === "syncing"
+    || (runner?.video && runner?.isRunning && !runner?.intelligence));
+  const liveLabel = runner?.liveStage?.label;
+  const livePct = runner?.liveStage?.pct;
   const handleExport = () => {
     if (!intelligence) return;
     const blob = new Blob([JSON.stringify(intelligence, null, 2)], { type: "application/json" });
@@ -3275,6 +3285,19 @@ function ExactDashboardPage({ go, intelligence }) {
   const brain = intelligence?.brain || {};
   const topVideo = intelligence?.videos?.top?.[0];
   const hasData = Boolean(intelligence);
+
+  // Proxy paths for the cortical brain animation. The interactive HTML +
+  // animated MP4 live behind the InsForge edge function so the raw Vast URL
+  // and X-Ant-Token never reach the client.
+  const interactiveBrainPath = brain?.interactive_html_url;
+  const dashboardBrainUrl = interactiveBrainPath
+    ? `${INSFORGE_ANALYSIS_FUNCTION_URL}${interactiveBrainPath}`
+    : null;
+  const animatedBrainPath = brain?.animated_video_url;
+  const dashboardAnimatedUrl = animatedBrainPath
+    ? `${INSFORGE_ANALYSIS_FUNCTION_URL}${animatedBrainPath}`
+    : null;
+  const hasBrain = brainIsPerVideo(brain);
 
   const videoTitle = topVideo?.title
     || sim.video_name
@@ -3362,13 +3385,18 @@ function ExactDashboardPage({ go, intelligence }) {
         </aside>
 
         <main className="exact-dashboard-main">
-          {hasData ? (
-            <div className="exact-dashboard-hero-intro">
-              <span>Live colony model</span>
+          {hasData || isStreaming ? (
+            <div className={`exact-dashboard-hero-intro ${isStreaming ? "is-streaming" : ""}`}>
+              <span>
+                <i className="exact-live-dot" aria-hidden="true" />
+                {isStreaming ? "Live colony model · Running" : "Live colony model"}
+              </span>
               <strong>
-                {personaCount != null
-                  ? `${fmtCount(personaCount)} synthetic viewers mapped this reel.`
-                  : "Latest analysis is ready."}
+                {isStreaming
+                  ? `${liveLabel || "Analyzing video"}${livePct != null ? ` · ${Math.round(livePct)}%` : ""}`
+                  : personaCount != null
+                    ? `${fmtCount(personaCount)} synthetic viewers mapped this reel.`
+                    : "Latest analysis is ready."}
               </strong>
               <i />
             </div>
@@ -3379,6 +3407,29 @@ function ExactDashboardPage({ go, intelligence }) {
               <i />
             </div>
           )}
+          {hasBrain ? (
+            <article className="exact-panel exact-dashboard-brain">
+              <div className="exact-panel-head">
+                <h2><Brain size={16} /> Live colony model</h2>
+                <span>
+                  <i />
+                  {dashboardAnimatedUrl
+                    ? "fsaverage5 animated render"
+                    : dashboardBrainUrl
+                      ? "fsaverage5 interactive surface"
+                      : `${(brain?.geometry_frames || []).length} frames`}
+                  {" · "}
+                  {brain?.summary?.brain_vertices || brain?.shape_timesteps_vertices?.[1] || 0} vertices
+                </span>
+              </div>
+              <TribeBrain3D
+                brain={brain}
+                isRunning={isStreaming}
+                brainUrl={dashboardBrainUrl}
+                animatedVideoUrl={dashboardAnimatedUrl}
+              />
+            </article>
+          ) : null}
           <header className="exact-dashboard-header">
             <div>
               <h1>{videoTitle} {hasData ? <span>Completed</span> : <span className="status-pending">Awaiting upload</span>}</h1>
@@ -3529,8 +3580,8 @@ function ExactRetentionLargeChart({ curve, hold3s }) {
   );
 }
 
-function DashboardPage({ go, intelligence }) {
-  return <ExactDashboardPage go={go} intelligence={intelligence} />;
+function DashboardPage({ go, intelligence, runner }) {
+  return <ExactDashboardPage go={go} intelligence={intelligence} runner={runner} />;
 
   const sim = intelligence?.simulation || {};
   const brain = intelligence?.brain || {};
