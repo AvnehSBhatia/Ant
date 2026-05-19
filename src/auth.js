@@ -11,7 +11,7 @@ const baseUrl =
 
 const anonKey =
   import.meta.env.VITE_INSFORGE_ANON_KEY ||
-  "ik_5f58db3f16a45a70a0f620d70178b5fe";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3OC0xMjM0LTU2NzgtOTBhYi1jZGVmMTIzNDU2NzgiLCJlbWFpbCI6ImFub25AaW5zZm9yZ2UuY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNTk3NTF9.awBZeePqL8H9QByWiwU0DiewhbN7uRvA2r0PpLnS4a4";
 
 export const SESSION_KEY = "insforge_session";
 
