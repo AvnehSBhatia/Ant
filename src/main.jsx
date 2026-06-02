@@ -711,6 +711,21 @@ function useAnalysisRunner(parentIntelligence) {
   };
 }
 
+// Post-auth landing route. If the user has an active or pending analysis run
+// (orphan upload from anonymous flow, or a live SSE stream in progress), drop
+// them on the simulations page so they see their run's progress. Otherwise the
+// canonical home is the dashboard.
+function postAuthRoute(runner) {
+  const status = runner?.latestRun?.status;
+  if (status === "uploading" || status === "analyzing") return "simulations";
+  if (runner?.pendingClaim) return "simulations";
+  if (runner?.pendingRun?.run_id) return "simulations";
+  if (runner?.streamActive) return "simulations";
+  if (runner?.cloudStatus === "syncing") return "simulations";
+  if (runner?.video && runner?.isRunning && !runner?.intelligence) return "simulations";
+  return "dashboard";
+}
+
 function App() {
   const [route, go] = useRoute();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -727,7 +742,7 @@ function App() {
   useEffect(() => {
     if (!justAuthedFromOAuth || !user || loading) return;
     analysisRunner?.claimPendingRun?.({}).catch(() => {});
-    go("dashboard");
+    go(postAuthRoute(analysisRunner));
     clearJustAuthed();
   }, [justAuthedFromOAuth, user, loading, go, clearJustAuthed, analysisRunner]);
 
@@ -746,7 +761,7 @@ function App() {
     setUser(nextUser || true);
     // Auto-attach the upload-first orphan run, if any, to the new user.
     analysisRunner?.claimPendingRun?.({}).catch(() => {});
-    go("dashboard");
+    go(postAuthRoute(analysisRunner));
   };
 
   const handleProfileSaved = (profile) => {
@@ -806,11 +821,15 @@ function App() {
 
       <section className={`page-stage ${isExiting ? "is-exiting" : "is-entering"}`} key={displayRoute}>
         {displayRoute === "landing" && <LandingPage go={go} user={user} runner={analysisRunner} />}
-        {displayRoute === "login" && <LoginPage go={go} onSignedIn={handleSignedIn} />}
-        {displayRoute === "dashboard" && <DashboardPage go={go} user={user} intelligence={activeIntelligence} runner={analysisRunner} />}
+        {displayRoute === "login" && <LoginPage go={go} onSignedIn={handleSignedIn} runner={analysisRunner} />}
+        {displayRoute === "dashboard" && (
+          <ExactPageShell active="dashboard" go={go} intelligence={activeIntelligence} runner={analysisRunner}>
+            <DashboardPage go={go} user={user} intelligence={activeIntelligence} runner={analysisRunner} />
+          </ExactPageShell>
+        )}
         {displayRoute === "simulations" && (
           <ExactPageShell active="simulations" go={go} intelligence={activeIntelligence} runner={analysisRunner}>
-            <SimulationsExact intelligence={activeIntelligence} runner={analysisRunner} />
+            <SimulationsExact intelligence={activeIntelligence} runner={analysisRunner} go={go} />
           </ExactPageShell>
         )}
         {displayRoute === "personas" && (
@@ -824,7 +843,11 @@ function App() {
           </ExactPageShell>
         )}
         {displayRoute === "flow" && <FlowPage go={go} user={user} intelligence={activeIntelligence} runner={analysisRunner} />}
-        {displayRoute === "history" && <HistoryPage go={go} />}
+        {displayRoute === "history" && (
+          <ExactPageShell active="history" go={go} intelligence={activeIntelligence} runner={analysisRunner}>
+            <HistoryPage go={go} />
+          </ExactPageShell>
+        )}
       </section>
     </main>
   );
@@ -1678,7 +1701,7 @@ function ExactViralityGauge({ score, label }) {
   );
 }
 
-function LoginPage({ go, onSignedIn }) {
+function LoginPage({ go, onSignedIn, runner }) {
   // step is one of: "signup" | "login" | "verify"
   // The visual mockup is a login-first screen; signup remains one tab away.
   const [step, setStep] = useState("login");
@@ -1736,7 +1759,7 @@ function LoginPage({ go, onSignedIn }) {
         return;
       }
       if (onSignedIn) onSignedIn(result.user || true);
-      else go("dashboard");
+      else go(postAuthRoute(runner));
     } catch (err) {
       setErrorMsg(err?.message || "Unexpected error.");
     } finally {
@@ -1761,7 +1784,7 @@ function LoginPage({ go, onSignedIn }) {
         return;
       }
       if (onSignedIn) onSignedIn(result.user || true);
-      else go("dashboard");
+      else go(postAuthRoute(runner));
     } catch (err) {
       setErrorMsg(err?.message || "Unexpected error.");
     } finally {
@@ -1795,7 +1818,7 @@ function LoginPage({ go, onSignedIn }) {
       const u = await authGetCurrentUser();
       if (u) {
         if (onSignedIn) onSignedIn(u);
-        else go("dashboard");
+        else go(postAuthRoute(runner));
         return;
       }
       setErrorMsg("Still waiting on verification. Click the link in your inbox first.");
@@ -3696,20 +3719,6 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
           <i />
           <b />
         </div>
-        <aside className="exact-dashboard-sidebar">
-          <ExactBrand />
-          <button className="exact-new-sim" type="button" onClick={handleRunSimulation}><span>+</span> New simulation</button>
-          <nav>
-            <button className="active" type="button"><Grid2X2 size={17} /> Dashboard</button>
-            <button type="button" onClick={() => go("simulations")}><Gauge size={17} /> Simulations</button>
-            <button type="button" onClick={() => go("personas")}><UsersRound size={17} /> Personas</button>
-          </nav>
-          <button className="exact-creator-card" type="button" onClick={() => go("history")} aria-label="Open history">
-            <ProfileBubble user={user} variant="dashboard" />
-            <ChevronRight size={17} />
-          </button>
-        </aside>
-
         <main className="exact-dashboard-main">
           {hasData || isStreaming ? (
             <div className={`exact-dashboard-hero-intro ${isStreaming ? "is-streaming" : ""}`}>
@@ -4033,10 +4042,6 @@ function HistoryPage({ go }) {
   const totalShares = completedRuns.reduce((sum, run) => sum + Number(run.summary?.total_shares || 0), 0);
 
   return (
-    <div className="page exact-dark-page sim-flow-page sim-step-history">
-      <section className="exact-dark-frame sim-flow-frame">
-        <SimulationFlowSidebar go={go} active="history" onNewSimulation={() => go?.("simulations")} />
-        <main className="sim-flow-main sim-flow-main-history">
     <div className="history-page">
       <article className="analytics-panel">
         <div className="panel-heading">
@@ -4107,9 +4112,6 @@ function HistoryPage({ go }) {
           </div>
         )}
       </article>
-    </div>
-        </main>
-      </section>
     </div>
   );
 }

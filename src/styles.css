@@ -7988,7 +7988,7 @@ body:has(.ant-login-page) {
 
 .exact-dashboard-frame {
   display: grid;
-  grid-template-columns: 252px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 32px);
 }
 
@@ -10353,7 +10353,7 @@ body:has(.sim-flow-page) {
   }
 
   .exact-dashboard-frame {
-    grid-template-columns: 216px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .exact-dashboard-main {

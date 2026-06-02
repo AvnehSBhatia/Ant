@@ -71,7 +71,7 @@ function normalizeStatus(status) {
   return "idle";
 }
 
-export default function SimulationsExact({ intelligence, runner }) {
+export default function SimulationsExact({ intelligence, runner, go }) {
   const simulation = intelligence?.simulation;
   const brain = intelligence?.brain;
   const cohorts = Array.isArray(simulation?.cohorts) ? simulation.cohorts : [];
@@ -249,7 +249,13 @@ export default function SimulationsExact({ intelligence, runner }) {
           >
             <Play size={17} /> Run swarm
           </button>
-          <button className="sim-exact-icon-button" type="button" aria-label="Notifications">
+          <button
+            className="sim-exact-icon-button"
+            type="button"
+            aria-label="Notifications"
+            title="Notifications coming soon"
+            disabled
+          >
             <Bell size={19} />
           </button>
         </div>
@@ -291,8 +297,13 @@ export default function SimulationsExact({ intelligence, runner }) {
               </strong>
               {watchSeconds != null ? <small>Avg {fmtSeconds(watchSeconds)}</small> : null}
             </div>
-            {activeRunStatusTone === "live" ? (
-              <button className="sim-exact-pause" type="button" aria-label="Pause active route">
+            {activeRunStatusTone === "live" && typeof runner?.toggleAnalysis === "function" ? (
+              <button
+                className="sim-exact-pause"
+                type="button"
+                aria-label="Pause active route"
+                onClick={handleRunSwarm}
+              >
                 <Pause size={19} fill="currentColor" />
               </button>
             ) : <span />}
