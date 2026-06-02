@@ -8,8 +8,6 @@ import {
   ChevronDown,
   Film,
   Frown,
-  Gauge,
-  Grid2X2,
   Heart,
   Info,
   LineChart,
@@ -77,12 +75,6 @@ function buildClusterData(personasList) {
     ...positions[index]
   }));
 }
-
-const navItems = [
-  { id: "dashboard", label: "Dashboard", Icon: Grid2X2 },
-  { id: "simulations", label: "Simulations", Icon: Gauge },
-  { id: "personas", label: "Personas", Icon: UsersRound, active: true }
-];
 
 const tunnelPaths = [
   "M390 244 C328 190 255 190 167 235 C92 273 65 346 43 413",
@@ -311,6 +303,20 @@ function ReactionsPanel({ reactionPills, quoteList }) {
 }
 
 function ColonyMap({ clusterData = [] }) {
+  if (!clusterData.length) {
+    return (
+      <section className="pe-card pe-map-card">
+        <div className="pe-card-head">
+          <h2>
+            Cluster behavior <Info size={13} />
+          </h2>
+        </div>
+        <div className="pe-map-canvas pe-map-empty">
+          <p>No cohorts yet — run a simulation to populate cluster behavior.</p>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="pe-card pe-map-card">
       <div className="pe-card-head">
@@ -532,25 +538,35 @@ function inferDemographics(cohorts) {
   const knownFamily = familyTally.size > 0;
   const knownCountry = [...countryTally.keys()].some((k) => k !== "Other");
   if (knownAge === 0 && !knownFamily && !knownCountry) return null;
-  const ageStartPct = knownAge > 0
-    ? Math.round((ageBucket.young / knownAge) * 30) // 0-30%
-    : 14;
-  const ageEndPct = knownAge > 0
-    ? Math.min(90, ageStartPct + 30 + Math.round((ageBucket.mid / knownAge) * 30))
-    : 62;
-  const ageLow = 18 + Math.round((ageStartPct / 100) * 47);
-  const ageHigh = 18 + Math.round((ageEndPct / 100) * 47);
 
-  const topCountry = [...countryTally.entries()].sort((a, b) => b[1] - a[1])[0];
-  const topFamily = [...familyTally.entries()].sort((a, b) => b[1] - a[1])[0];
+  // Per-field nulls: only emit real values for buckets we actually saw.
+  let ageLabel = null;
+  let ageStartPct = null;
+  let ageEndPct = null;
+  if (knownAge > 0) {
+    const startPct = Math.round((ageBucket.young / knownAge) * 30); // 0-30%
+    const endPct = Math.min(90, startPct + 30 + Math.round((ageBucket.mid / knownAge) * 30));
+    const ageLow = 18 + Math.round((startPct / 100) * 47);
+    const ageHigh = 18 + Math.round((endPct / 100) * 47);
+    ageLabel = `${ageLow}–${ageHigh}`;
+    ageStartPct = `${startPct}%`;
+    ageEndPct = `${endPct}%`;
+  }
+
+  // Only honor a country entry when it is not the synthetic "Other" bucket.
+  const topCountryEntry = [...countryTally.entries()]
+    .filter(([name]) => name !== "Other")
+    .sort((a, b) => b[1] - a[1])[0];
+  const topFamilyEntry = [...familyTally.entries()].sort((a, b) => b[1] - a[1])[0];
+
   return {
-    ageLabel: `${ageLow}–${ageHigh}`,
-    ageStartPct: `${ageStartPct}%`,
-    ageEndPct: `${ageEndPct}%`,
-    topCountry: topCountry ? topCountry[0] : "Global",
-    topCountryShare: topCountry ? Math.round((topCountry[1] / totalPersonas) * 100) : 0,
-    topFamily: topFamily ? topFamily[0] : null,
-    topFamilyShare: topFamily ? Math.round((topFamily[1] / totalPersonas) * 100) : 0,
+    ageLabel,
+    ageStartPct,
+    ageEndPct,
+    topCountry: topCountryEntry ? topCountryEntry[0] : null,
+    topCountryShare: topCountryEntry ? Math.round((topCountryEntry[1] / totalPersonas) * 100) : null,
+    topFamily: topFamilyEntry ? topFamilyEntry[0] : null,
+    topFamilyShare: topFamilyEntry ? Math.round((topFamilyEntry[1] / totalPersonas) * 100) : null,
   };
 }
 
@@ -568,21 +584,23 @@ function DemographicsPanel({ cohorts }) {
     <section className="pe-card pe-demo-card">
       <h2>Demographic composition</h2>
       <div className="pe-demo-grid">
-        <div className="pe-demo-control pe-age">
-          <div className="pe-demo-label">
-            <span>Age</span>
-            <button type="button">{demo.ageLabel}</button>
+        {demo.ageLabel ? (
+          <div className="pe-demo-control pe-age">
+            <div className="pe-demo-label">
+              <span>Age</span>
+              <button type="button">{demo.ageLabel}</button>
+            </div>
+            <div className="pe-range pe-two" style={{ "--start": demo.ageStartPct, "--end": demo.ageEndPct }}>
+              <i />
+              <span className="pe-handle pe-left" />
+              <span className="pe-handle pe-right" />
+            </div>
+            <div className="pe-scale">
+              <span>18</span>
+              <span>65+</span>
+            </div>
           </div>
-          <div className="pe-range pe-two" style={{ "--start": demo.ageStartPct, "--end": demo.ageEndPct }}>
-            <i />
-            <span className="pe-handle pe-left" />
-            <span className="pe-handle pe-right" />
-          </div>
-          <div className="pe-scale">
-            <span>18</span>
-            <span>65+</span>
-          </div>
-        </div>
+        ) : null}
         {demo.topFamily ? (
           <div className="pe-demo-control pe-gender">
             <div className="pe-demo-label">
@@ -602,64 +620,22 @@ function DemographicsPanel({ cohorts }) {
             </div>
           </div>
         ) : null}
-        <div className="pe-demo-control pe-location">
-          <div className="pe-demo-label">
-            <span>Location</span>
-            <button type="button">
-              {demo.topCountry}{demo.topCountryShare ? ` · ${demo.topCountryShare}%` : ""} <ChevronDown size={14} />
-            </button>
+        {demo.topCountry ? (
+          <div className="pe-demo-control pe-location">
+            <div className="pe-demo-label">
+              <span>Location</span>
+              <button type="button">
+                {demo.topCountry}{demo.topCountryShare ? ` · ${demo.topCountryShare}%` : ""} <ChevronDown size={14} />
+              </button>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
     </section>
   );
 }
 
-function Sidebar({ go }) {
-  const navigate = (id) => {
-    if (go) go(id);
-    else window.location.hash = id;
-  };
-
-  return (
-    <aside className="pe-sidebar">
-      <div className="pe-brand">
-        <span>
-          <Bug size={28} />
-        </span>
-        <div>
-          <strong>Ant / Viewlytics</strong>
-          <p>Pre-launch Intelligence</p>
-        </div>
-      </div>
-      <nav className="pe-nav" aria-label="Product">
-        {navItems.map(({ id, label, Icon, active }) => (
-          <button type="button" className={active ? "is-active" : ""} key={label} onClick={() => navigate(id)}>
-            <Icon size={22} />
-            {label}
-          </button>
-        ))}
-      </nav>
-      <div className="pe-trail" aria-hidden="true">
-        {Array.from({ length: 23 }, (_, index) => (
-          <img
-            key={index}
-            src={ant(index)}
-            alt=""
-            style={{
-              "--i": index,
-              "--x": `${18 + ((index * 19) % 82)}%`,
-              "--y": `${4 + index * 4.1}%`,
-              "--r": `${-46 + (index % 7) * 19}deg`
-            }}
-          />
-        ))}
-      </div>
-    </aside>
-  );
-}
-
-export default function PersonasExact({ intelligence, go }) {
+export default function PersonasExact({ intelligence }) {
   const simulation = intelligence?.simulation;
   const cohorts = simulation?.cohorts || [];
   const topTraits = simulation?.top_traits || [];
@@ -719,10 +695,9 @@ export default function PersonasExact({ intelligence, go }) {
 
   return (
     <main className="personas-exact">
-      <Sidebar go={go} />
       <section className="pe-workspace">
         <header className="pe-page-header">
-          <div>
+          <div className="pe-header-text">
             <div className="pe-title-row">
               <UserRound size={30} />
               <h1>Personas</h1>
@@ -745,10 +720,12 @@ export default function PersonasExact({ intelligence, go }) {
         </header>
 
         {personasList.length === 0 ? (
-          <div className="pe-empty-state">
-            <UsersRound size={56} strokeWidth={1.5} aria-hidden />
-            <h2>No personas yet</h2>
-            <p>Upload a video to see synthetic viewer cohorts, sentiment, and demographics appear here.</p>
+          <div className="pe-content-grid pe-content-grid--empty">
+            <div className="pe-empty-state">
+              <UsersRound size={56} strokeWidth={1.5} aria-hidden />
+              <h2>No personas yet</h2>
+              <p>Upload a video to see synthetic viewer cohorts, sentiment, and demographics appear here.</p>
+            </div>
           </div>
         ) : (
           <>

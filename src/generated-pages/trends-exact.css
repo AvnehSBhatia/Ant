@@ -27,7 +27,7 @@
   gap: 18px;
   width: 100%;
   min-height: 100vh;
-  padding: 10px;
+  padding: var(--ant-page-pad);
   color: var(--te-ink);
   background:
     radial-gradient(circle at 76% 8%, rgba(95, 156, 59, 0.1), transparent 28rem),
@@ -186,10 +186,10 @@
 
 .te-title-row h1 {
   margin: 0;
-  font-size: clamp(28px, 2.6vw, 40px);
-  font-weight: 950;
+  font-size: clamp(28px, 2.6vw, 32px);
+  font-weight: 800;
   letter-spacing: 0;
-  line-height: 1;
+  line-height: 1.1;
 }
 
 .te-subtitle {

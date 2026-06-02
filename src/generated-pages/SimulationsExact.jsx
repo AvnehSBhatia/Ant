@@ -31,30 +31,10 @@ const assets = {
   hub: "/assets/generated/colony-hub.png"
 };
 
-const metricStrip = [
-  {
-    label: "Completion rate",
-    value: "98%",
-    path: "M2 34 C18 36 25 31 40 34 C56 38 66 28 82 32 C98 36 104 18 117 26 C129 33 135 18 146 7 C156 24 164 24 174 33"
-  },
-  {
-    label: "Avg watch time",
-    value: "2m 47s",
-    path: "M3 35 C18 34 25 30 38 21 C50 36 63 33 76 31 C90 39 96 27 108 34 C122 40 126 18 140 27 C154 33 165 24 177 26"
-  },
-  {
-    label: "Engagement lift",
-    value: "+24%",
-    path: "M2 36 C18 35 26 29 40 33 C56 39 65 30 80 35 C96 41 103 32 116 26 C132 41 135 26 148 29 C160 30 166 18 178 13"
-  }
-];
-
-const runs = [
-  { title: "Launch Trailer v1", time: "Today, 9:41 AM", status: "RUNNING", tone: "green", active: true },
-  { title: "Creator Story v2", time: "May 8, 4:12 PM", status: "COMPLETED", tone: "green" },
-  { title: "Feature Deep Dive", time: "May 7, 11:03 AM", status: "COMPLETED", tone: "muted" },
-  { title: "Teaser Cutdown", time: "May 6, 2:18 PM", status: "COMPLETED", tone: "muted" },
-  { title: "Early Concept", time: "May 5, 10:22 AM", status: "COMPLETED", tone: "muted" }
+const metricStripPaths = [
+  "M2 34 C18 36 25 31 40 34 C56 38 66 28 82 32 C98 36 104 18 117 26 C129 33 135 18 146 7 C156 24 164 24 174 33",
+  "M3 35 C18 34 25 30 38 21 C50 36 63 33 76 31 C90 39 96 27 108 34 C122 40 126 18 140 27 C154 33 165 24 177 26",
+  "M2 36 C18 35 26 29 40 33 C56 39 65 30 80 35 C96 41 103 32 116 26 C132 41 135 26 148 29 C160 30 166 18 178 13"
 ];
 
 const routePaths = [
@@ -74,59 +54,32 @@ const routeNodes = [
   { label: "CTA", Icon: Heart, x: 53, y: 85, tone: "green" }
 ];
 
-const cohorts = [
-  { label: "Tech Enthusiasts", color: "#4f8a45" },
-  { label: "Creators", color: "#3478c8" },
-  { label: "Casual Viewers", color: "#eea400" },
-  { label: "Students", color: "#8856d9" },
-  { label: "Professionals", color: "#ef5d85" }
+const cohortColors = ["#4f8a45", "#3478c8", "#eea400", "#8856d9", "#ef5d85"];
+const cohortIcons = [Monitor, UserRound, UsersRound, GraduationCap, BriefcaseBusiness];
+const liftPaths = [
+  "M4 55 L20 58 L30 50 L43 55 L54 43 L65 52 L78 30 L91 44 L108 26 L121 33 L136 18",
+  "M4 54 L18 40 L31 54 L42 49 L55 59 L67 44 L80 55 L93 39 L104 46 L119 31 L136 25",
+  "M4 58 L18 49 L30 55 L43 42 L55 52 L68 40 L82 47 L96 30 L108 38 L121 19 L136 28",
+  "M4 56 L18 51 L31 59 L45 44 L57 55 L70 36 L83 52 L96 31 L108 40 L121 25 L136 17",
+  "M4 57 L19 43 L32 54 L44 37 L58 57 L70 41 L83 53 L97 32 L109 42 L122 23 L136 15"
 ];
+const pipelineIcons = [Play, Gem, Monitor, UsersRound, Flag];
 
-const pipeline = [
-  { label: "Intro Hook", score: "98%", Icon: Play },
-  { label: "Value Props", score: "92%", Icon: Gem },
-  { label: "Demo", score: "88%", Icon: Monitor },
-  { label: "Social Proof", score: "76%", Icon: UsersRound },
-  { label: "CTA", score: "64%", Icon: Flag }
-];
+function fmtPct(value, { signed = false } = {}) {
+  if (value == null || Number.isNaN(Number(value))) return null;
+  const num = Number(value);
+  const rounded = Math.round(num);
+  if (signed) return `${rounded >= 0 ? "+" : ""}${rounded}%`;
+  return `${rounded}%`;
+}
 
-const lifts = [
-  {
-    label: "Tech Enthusiasts",
-    lift: "+32%",
-    color: "#5d9743",
-    Icon: Monitor,
-    path: "M4 55 L20 58 L30 50 L43 55 L54 43 L65 52 L78 30 L91 44 L108 26 L121 33 L136 18"
-  },
-  {
-    label: "Creators",
-    lift: "+28%",
-    color: "#3478c8",
-    Icon: UserRound,
-    path: "M4 54 L18 40 L31 54 L42 49 L55 59 L67 44 L80 55 L93 39 L104 46 L119 31 L136 25"
-  },
-  {
-    label: "Casual Viewers",
-    lift: "+16%",
-    color: "#f0a200",
-    Icon: UsersRound,
-    path: "M4 58 L18 49 L30 55 L43 42 L55 52 L68 40 L82 47 L96 30 L108 38 L121 19 L136 28"
-  },
-  {
-    label: "Students",
-    lift: "+12%",
-    color: "#8954d9",
-    Icon: GraduationCap,
-    path: "M4 56 L18 51 L31 59 L45 44 L57 55 L70 36 L83 52 L96 31 L108 40 L121 25 L136 17"
-  },
-  {
-    label: "Professionals",
-    lift: "+18%",
-    color: "#ee5a83",
-    Icon: BriefcaseBusiness,
-    path: "M4 57 L19 43 L32 54 L44 37 L58 57 L70 41 L83 53 L97 32 L109 42 L122 23 L136 15"
-  }
-];
+function fmtSeconds(seconds) {
+  if (seconds == null || Number.isNaN(Number(seconds))) return null;
+  const total = Math.max(0, Math.round(Number(seconds)));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
 
 const sprigs = [
   [11, 16, 8], [22, 6, -6], [27, 10, 12], [35, 86, -10], [42, 89, 4], [49, 10, -9], [67, 6, 8],
@@ -209,7 +162,80 @@ function AntCluster({ className = "" }) {
   );
 }
 
-export default function SimulationsExact() {
+export default function SimulationsExact({ intelligence }) {
+  const simulation = intelligence?.simulation;
+  const brain = intelligence?.brain;
+  const cohorts = Array.isArray(simulation?.cohorts) ? simulation.cohorts : [];
+  const reactionRates = simulation?.reaction_rates_pct || {};
+  const personaCount = simulation?.persona_count;
+  const simulationLabel = brain?.summary?.simulation_label;
+
+  // Item 1: empty state when no simulation data
+  if (!simulation || cohorts.length === 0) {
+    return (
+      <main className="sim-exact" aria-label="Simulations">
+        <header className="sim-exact-header">
+          <div>
+            <h1>Simulations</h1>
+            <p>See how your content performs when thousands of ants watch.</p>
+          </div>
+        </header>
+        <section className="sim-exact-strip" aria-label="Active simulation metrics">
+          <div className="sim-exact-viewer-summary" style={{ width: "100%" }}>
+            <span className="sim-exact-summary-icon"><UsersRound size={25} /></span>
+            <div>
+              <strong>No simulation yet</strong>
+              <span>Upload a video to see swarm reactions, scene retention, and cohort lift.</span>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  // Metric strip — drive from real reaction + completion data
+  const completionPct = brain?.summary?.completion_rate_pct
+    ?? brain?.retention_curve?.[brain?.retention_curve?.length - 1]?.retention_pct
+    ?? null;
+  const watchSeconds = brain?.summary?.avg_watch_time_seconds ?? simulation?.avg_watch_time_seconds ?? null;
+  const engagementLift = simulation?.engagement_lift_pct ?? simulation?.positive_rate_pct ?? null;
+
+  const metricStrip = [
+    { label: "Completion rate", value: fmtPct(completionPct), path: metricStripPaths[0] },
+    { label: "Avg watch time", value: fmtSeconds(watchSeconds), path: metricStripPaths[1] },
+    { label: "Engagement lift", value: fmtPct(engagementLift, { signed: true }), path: metricStripPaths[2] }
+  ].filter((m) => m.value != null);
+
+  // Scene pipeline — derive from retention curve checkpoints, fall back to cohort positivity
+  const retentionCurve = Array.isArray(brain?.retention_curve) ? brain.retention_curve : [];
+  const pipeline = retentionCurve.length
+    ? retentionCurve.slice(0, 5).map((point, index) => ({
+        label: point?.label || ["Intro Hook", "Value Props", "Demo", "Social Proof", "CTA"][index] || `Stage ${index + 1}`,
+        score: fmtPct(point?.retention_pct ?? point?.value),
+        Icon: pipelineIcons[index % pipelineIcons.length]
+      })).filter((p) => p.score != null)
+    : [];
+
+  const totalCompletion = fmtPct(completionPct);
+
+  // Cohort lifts — derive from cohort share_rate_pct
+  const lifts = cohorts.slice(0, 5).map((cohort, index) => ({
+    label: cohort?.label || `Cohort ${index + 1}`,
+    lift: fmtPct(cohort?.share_rate_pct ?? cohort?.positive_rate_pct, { signed: true }),
+    color: cohortColors[index % cohortColors.length],
+    Icon: cohortIcons[index % cohortIcons.length],
+    path: liftPaths[index % liftPaths.length]
+  })).filter((l) => l.lift != null);
+
+  // Active route status — derive from latest run if present
+  const activeRun = intelligence?.cloud?.latestRun || null;
+  const activeRunLabel = activeRun?.title || simulationLabel || null;
+  const activeRunStatus = activeRun?.status || null;
+
+  const viewerCountLabel = personaCount != null
+    ? `${Number(personaCount).toLocaleString()} synthetic viewers`
+    : `${cohorts.length} cohorts`;
+
   return (
     <main className="sim-exact" aria-label="Simulations">
       <header className="sim-exact-header">
@@ -228,79 +254,89 @@ export default function SimulationsExact() {
         <div className="sim-exact-viewer-summary">
           <span className="sim-exact-summary-icon"><UsersRound size={25} /></span>
           <div>
-            <strong>10,000 synthetic viewers</strong>
-            <span>5 cohorts&nbsp; &bull; &nbsp;7 personas</span>
+            <strong>{viewerCountLabel}</strong>
+            <span>{cohorts.length} cohorts</span>
           </div>
         </div>
 
-        <div className="sim-exact-strip-metrics">
-          {metricStrip.map((metric) => (
-            <div className="sim-exact-strip-metric" key={metric.label}>
-              <strong>{metric.value}</strong>
-              <span>{metric.label}</span>
-              <MetricSpark path={metric.path} />
-            </div>
-          ))}
-        </div>
-
-        <div className="sim-exact-route-status">
-          <img src={assets.ant} alt="" />
-          <div>
-            <strong>Active route <span><i /> LIVE</span></strong>
-            <small>Running &bull; 00:02:47</small>
-          </div>
-          <button className="sim-exact-pause" type="button" aria-label="Pause active route"><Pause size={19} fill="currentColor" /></button>
-        </div>
-      </section>
-
-      <section className="sim-exact-bottom-grid">
-        <article className="sim-exact-panel sim-exact-pipeline-panel">
-          <div className="sim-exact-panel-title">
-            <h2>Scene pipeline</h2>
-          </div>
-          <div className="sim-exact-pipeline">
-            {pipeline.map(({ label, score, Icon }, index) => (
-              <React.Fragment key={label}>
-                <div className="sim-exact-stage">
-                  <span><Icon size={24} /></span>
-                  <strong>{label}</strong>
-                  <small>{score}</small>
-                </div>
-                {index < pipeline.length - 1 && (
-                  <div className="sim-exact-pipeline-ants" aria-hidden="true">
-                    <i />
-                    <i />
-                    <i />
-                  </div>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-          <div className="sim-exact-completion">
-            <span />
-            <div><small>Total completion</small><strong>64%</strong></div>
-          </div>
-        </article>
-
-        <article className="sim-exact-panel sim-exact-lift-panel">
-          <div className="sim-exact-panel-title sim-exact-lift-title">
-            <h2>Cohort lift</h2>
-            <Info size={16} />
-          </div>
-          <div className="sim-exact-lift-grid">
-            {lifts.map(({ label, lift, color, Icon, path }) => (
-              <div className="sim-exact-lift-card" style={{ "--tone": color }} key={label}>
-                <Icon size={24} />
-                <span>{label}</span>
-                <strong>{lift}</strong>
-                <svg viewBox="0 0 140 64" aria-hidden="true">
-                  <path d={path} />
-                </svg>
+        {metricStrip.length > 0 && (
+          <div className="sim-exact-strip-metrics">
+            {metricStrip.map((metric) => (
+              <div className="sim-exact-strip-metric" key={metric.label}>
+                <strong>{metric.value}</strong>
+                <span>{metric.label}</span>
+                <MetricSpark path={metric.path} />
               </div>
             ))}
           </div>
-          <p className="sim-exact-footnote">Compared to baseline (industry benchmark) <Info size={13} /></p>
-        </article>
+        )}
+
+        {activeRunLabel ? (
+          <div className="sim-exact-route-status">
+            <img src={assets.ant} alt="" />
+            <div>
+              <strong>{activeRunLabel} {activeRunStatus ? <span><i /> {String(activeRunStatus).toUpperCase()}</span> : null}</strong>
+              {watchSeconds != null ? <small>Avg {fmtSeconds(watchSeconds)}</small> : null}
+            </div>
+            <button className="sim-exact-pause" type="button" aria-label="Pause active route"><Pause size={19} fill="currentColor" /></button>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="sim-exact-bottom-grid">
+        {pipeline.length > 0 && (
+          <article className="sim-exact-panel sim-exact-pipeline-panel">
+            <div className="sim-exact-panel-title">
+              <h2>Scene pipeline</h2>
+            </div>
+            <div className="sim-exact-pipeline">
+              {pipeline.map(({ label, score, Icon }, index) => (
+                <React.Fragment key={label}>
+                  <div className="sim-exact-stage">
+                    <span><Icon size={24} /></span>
+                    <strong>{label}</strong>
+                    <small>{score}</small>
+                  </div>
+                  {index < pipeline.length - 1 && (
+                    <div className="sim-exact-pipeline-ants" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </div>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+            {totalCompletion ? (
+              <div className="sim-exact-completion">
+                <span />
+                <div><small>Total completion</small><strong>{totalCompletion}</strong></div>
+              </div>
+            ) : null}
+          </article>
+        )}
+
+        {lifts.length > 0 && (
+          <article className="sim-exact-panel sim-exact-lift-panel">
+            <div className="sim-exact-panel-title sim-exact-lift-title">
+              <h2>Cohort lift</h2>
+              <Info size={16} />
+            </div>
+            <div className="sim-exact-lift-grid">
+              {lifts.map(({ label, lift, color, Icon, path }) => (
+                <div className="sim-exact-lift-card" style={{ "--tone": color }} key={label}>
+                  <Icon size={24} />
+                  <span>{label}</span>
+                  <strong>{lift}</strong>
+                  <svg viewBox="0 0 140 64" aria-hidden="true">
+                    <path d={path} />
+                  </svg>
+                </div>
+              ))}
+            </div>
+            <p className="sim-exact-footnote">Compared to baseline (industry benchmark) <Info size={13} /></p>
+          </article>
+        )}
       </section>
     </main>
   );

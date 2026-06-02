@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import PersonasExact from "./generated-pages/PersonasExact.jsx";
+import SimulationsExact from "./generated-pages/SimulationsExact.jsx";
+import TrendsExact from "./generated-pages/TrendsExact.jsx";
 import TribeBrain3D from "./TribeBrain3D.jsx";
 import {
   Activity,
@@ -318,7 +320,7 @@ function useRoute() {
   return [route, go];
 }
 
-const PROTECTED_ROUTES = new Set(["simulations", "personas", "history"]);
+const PROTECTED_ROUTES = new Set(["simulations", "personas", "trends", "history"]);
 
 function useAuthState() {
   // If we just came back from an OAuth provider, the URL still has the code /
@@ -847,8 +849,21 @@ function App() {
         {displayRoute === "landing" && <LandingPage go={go} user={user} runner={analysisRunner} />}
         {displayRoute === "login" && <LoginPage go={go} onSignedIn={handleSignedIn} />}
         {displayRoute === "dashboard" && <DashboardPage go={go} user={user} intelligence={activeIntelligence} runner={analysisRunner} />}
-        {displayRoute === "simulations" && <FlowPage go={go} user={user} intelligence={activeIntelligence} runner={analysisRunner} />}
-        {displayRoute === "personas" && <PersonasExact go={go} intelligence={activeIntelligence} />}
+        {displayRoute === "simulations" && (
+          <ExactPageShell active="simulations" go={go} intelligence={activeIntelligence}>
+            <SimulationsExact intelligence={activeIntelligence} />
+          </ExactPageShell>
+        )}
+        {displayRoute === "personas" && (
+          <ExactPageShell active="personas" go={go} intelligence={activeIntelligence}>
+            <PersonasExact intelligence={activeIntelligence} />
+          </ExactPageShell>
+        )}
+        {displayRoute === "trends" && (
+          <ExactPageShell active="trends" go={go} intelligence={activeIntelligence}>
+            <TrendsExact intelligence={activeIntelligence} />
+          </ExactPageShell>
+        )}
         {displayRoute === "flow" && <FlowPage go={go} user={user} intelligence={activeIntelligence} runner={analysisRunner} />}
         {displayRoute === "history" && <HistoryPage go={go} />}
       </section>

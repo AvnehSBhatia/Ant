@@ -22,3 +22,27 @@ __pycache__/
 # Pre-rendered TribeV2 brain PNG frames — no longer used at runtime
 # (brain rendering happens via cloud per-video now)
 public/assets/tribev2/brain-frame-*.png
+
+# Dep tree (re-installed by build)
+node_modules/
+
+# Build output — Vercel rebuilds from source
+dist/
+
+# Audit scratch files
+_audit_bundle*.js
+_audit_index.html
+
+# Old/unused pages and concept renders (very large PNGs, not referenced at build)
+public/assets/page-concepts/
+public/assets/raw/
+public/assets/generated/
+public/assets/simulation-flow/
+public/assets/login-generated/
+public/assets/atomic/
+
+# Migration SQL files (run via insforge db, not part of frontend)
+migrations/
+
+# Tools used at build time, not runtime
+tools/

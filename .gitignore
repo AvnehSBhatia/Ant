@@ -47,3 +47,4 @@ _remote/
 
 # Security audit scratch files (regenerated on demand)
 _audit_*
+_deploy_tmp/
