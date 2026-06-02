@@ -299,7 +299,7 @@ const backgroundPaths = [
 ];
 
 function useRoute() {
-  const validRoutes = new Set(["landing", "login", "dashboard", "simulations", "personas", "flow", "history"]);
+  const validRoutes = new Set(["landing", "login", "dashboard", "simulations", "personas", "trends", "flow", "history"]);
   const getRoute = () => {
     const hashRoute = window.location.hash.replace("#", "") || "landing";
     return validRoutes.has(hashRoute) ? hashRoute : "dashboard";
