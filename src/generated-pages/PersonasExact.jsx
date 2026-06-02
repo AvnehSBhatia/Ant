@@ -1,21 +1,23 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   ArrowDown,
-  ArrowRight,
   ArrowUp,
+  Bookmark,
   Bug,
-  CalendarDays,
-  ChevronDown,
-  Film,
   Frown,
   Heart,
   Info,
-  LineChart,
   Maximize2,
   Meh,
+  MessageCircle,
   Pause,
+  Play,
+  Plus,
+  Share2,
   SlidersHorizontal,
   Smile,
+  Sparkles,
+  Star,
   UserRound,
   UsersRound
 } from "lucide-react";
@@ -25,12 +27,45 @@ const ant = (index = 0) => `/assets/atomic/ants/ant-${String((index % 16) + 1).p
 
 const personaTones = ["green", "purple", "orange", "blue"];
 const personaIcons = [4, 10, 12, 15];
-const personaSparks = [
-  "M0 28 C18 44 22 20 36 29 S54 14 65 23 S78 9 86 20 S102 12 112 5 S124 31 136 16",
-  "M0 39 C16 18 24 32 35 21 S52 28 60 12 S76 23 84 4 S102 19 110 8 S126 22 136 10",
-  "M0 18 C12 9 19 21 28 14 S43 3 51 16 S64 25 73 11 S89 15 98 7 S118 20 136 12",
-  "M0 33 C10 16 24 28 36 23 S57 29 70 16 S93 11 104 23 S122 42 136 20"
+
+// Decorative stones in the colony map background. Pure visual chrome, no data tie-in.
+const DECORATIVE_STONES = [
+  [35, 355, 24, 11],
+  [79, 376, 18, 8],
+  [777, 68, 16, 9],
+  [808, 84, 21, 10],
+  [826, 380, 20, 9],
+  [795, 414, 17, 8],
+  [423, 58, 15, 10],
+  [396, 74, 13, 8],
+  [30, 116, 18, 9],
+  [62, 94, 13, 8]
 ];
+
+// Map a reaction key (from cohort.reaction_counts) to a small icon component.
+// The pipeline emits keys like "like", "neutral", "share", "strong_like", "comment", "follow", "saves".
+const REACTION_ICONS = {
+  like: Heart,
+  strong_like: Star,
+  neutral: Meh,
+  comment: MessageCircle,
+  share: Share2,
+  follow: Plus,
+  saves: Bookmark
+};
+
+const REACTION_LABELS = {
+  like: "Like",
+  strong_like: "Love",
+  neutral: "Neutral",
+  comment: "Comment",
+  share: "Share",
+  follow: "Follow",
+  saves: "Save"
+};
+
+// Reactions which count as "positive" for sentiment math.
+const POSITIVE_REACTIONS = ["like", "strong_like", "share", "saves", "follow", "comment"];
 
 function pe_formatCount(value) {
   if (value == null || Number.isNaN(Number(value))) return "--";
@@ -40,89 +75,188 @@ function pe_formatCount(value) {
   return num.toLocaleString();
 }
 
-function buildPersonas(cohorts) {
+// Stable hash from an arbitrary cohort id so the same cohort renders with the
+// same tone/icon across runs.
+function pe_hash(value) {
+  const str = String(value ?? "");
+  let h = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    h = (h * 31 + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+// Build a polyline SVG path for a retention curve, projected into a 136x50 viewBox.
+function pe_buildSparkPath(curve) {
+  if (!Array.isArray(curve) || curve.length < 2) return null;
+  const samples = curve
+    .map((p) => (typeof p === "number" ? p : Number(p?.retention)))
+    .filter((v) => Number.isFinite(v));
+  if (samples.length < 2) return null;
+  const max = Math.max(...samples);
+  const min = Math.min(...samples);
+  const range = max - min || 1;
+  const stepX = 136 / (samples.length - 1);
+  const points = samples.map((v, i) => {
+    const x = i * stepX;
+    const y = 50 - ((v - min) / range) * 44 - 3;
+    return `${x.toFixed(1)} ${y.toFixed(1)}`;
+  });
+  return `M${points[0]} L${points.slice(1).join(" L")}`;
+}
+
+function buildPersonas(cohorts, retentionCurve) {
   if (!Array.isArray(cohorts) || cohorts.length === 0) return [];
   const total = cohorts.reduce((acc, c) => acc + (Number(c?.personas) || 0), 0) || 1;
-  return cohorts.slice(0, 4).map((cohort, index) => ({
-    id: cohort?.id,
-    name: cohort?.label || `Cohort ${index + 1}`,
-    value: pe_formatCount(cohort?.personas),
-    share: Number.isFinite(Number(cohort?.personas))
-      ? `${((Number(cohort.personas) / total) * 100).toFixed(1)}%`
-      : "--",
-    tone: personaTones[index % personaTones.length],
-    icon: personaIcons[index % personaIcons.length],
-    spark: personaSparks[index % personaSparks.length],
-    keywords: Array.isArray(cohort?.keywords) ? cohort.keywords : [],
-    positive_rate_pct: cohort?.positive_rate_pct,
-    share_rate_pct: cohort?.share_rate_pct,
-    top_reaction: cohort?.top_reaction
-  }));
+  const sharedSpark = pe_buildSparkPath(retentionCurve);
+  return cohorts.map((cohort, index) => {
+    const hashSeed = cohort?.id ?? cohort?.label ?? index;
+    const toneIdx = pe_hash(hashSeed) % personaTones.length;
+    const iconIdx = personaIcons[pe_hash(hashSeed) % personaIcons.length];
+    // If the cohort carries its own retention sample, use it; else fall back to the global brain curve.
+    const cohortCurve = Array.isArray(cohort?.retention_curve) ? cohort.retention_curve : null;
+    const cohortSpark = cohortCurve ? pe_buildSparkPath(cohortCurve) : null;
+    return {
+      id: cohort?.id ?? `cohort-${index}`,
+      name: cohort?.label || `Cohort ${index + 1}`,
+      value: pe_formatCount(cohort?.personas),
+      share: Number.isFinite(Number(cohort?.personas))
+        ? `${((Number(cohort.personas) / total) * 100).toFixed(1)}%`
+        : "--",
+      tone: personaTones[toneIdx],
+      icon: iconIdx,
+      spark: cohortSpark || sharedSpark,
+      keywords: Array.isArray(cohort?.keywords) ? cohort.keywords : [],
+      positive_rate_pct: cohort?.positive_rate_pct,
+      share_rate_pct: cohort?.share_rate_pct,
+      top_reaction: cohort?.top_reaction,
+      reaction_counts: cohort?.reaction_counts || null,
+      personas: Number(cohort?.personas) || 0
+    };
+  });
 }
 
-function buildClusterData(personasList) {
-  const positions = [
-    { x: 22, y: 22, count: 30 },
-    { x: 75, y: 21, count: 34 },
-    { x: 22.5, y: 70, count: 29 },
-    { x: 76, y: 70, count: 27 }
-  ];
-  return personasList.slice(0, 4).map((persona, index) => ({
-    label: persona.value,
-    name: persona.name,
-    tone: persona.tone,
-    icon: persona.icon,
-    ...positions[index]
-  }));
+// Lay clusters out in a circle around the hub. Returns SVG-pixel positions
+// (for tunnel-path math) plus percentage positions (for cluster CSS).
+function buildClusterData(personasList, svgWidth = 884, svgHeight = 520) {
+  const n = personasList.length;
+  if (n === 0) return [];
+  const totalPersonas = personasList.reduce((acc, p) => acc + (p.personas || 0), 0) || 1;
+  // For 1 cohort, place it slightly off-centre; for 4, quadrants; for N, polar.
+  return personasList.map((persona, index) => {
+    let pctX;
+    let pctY;
+    if (n === 1) {
+      pctX = 50;
+      pctY = 35;
+    } else if (n === 2) {
+      pctX = index === 0 ? 28 : 72;
+      pctY = 46;
+    } else if (n <= 4) {
+      const grid = [
+        [22, 22],
+        [76, 22],
+        [22.5, 70],
+        [76, 70]
+      ];
+      [pctX, pctY] = grid[index] || grid[index % 4];
+    } else {
+      const angle = (index / n) * Math.PI * 2 - Math.PI / 2;
+      const r = 30; // percent radius around hub
+      pctX = 50 + Math.cos(angle) * r;
+      pctY = 50 + Math.sin(angle) * r * 0.9;
+    }
+    const share = (persona.personas || 0) / totalPersonas;
+    // Visual cap so clusters don't explode; min 4 so tiny cohorts still read as a cluster.
+    const count = Math.min(40, Math.max(4, Math.round(share * 120)));
+    return {
+      label: persona.value,
+      name: persona.name,
+      tone: persona.tone,
+      icon: persona.icon,
+      count,
+      x: pctX,
+      y: pctY,
+      svgX: (pctX / 100) * svgWidth,
+      svgY: (pctY / 100) * svgHeight
+    };
+  });
 }
 
-const tunnelPaths = [
-  "M390 244 C328 190 255 190 167 235 C92 273 65 346 43 413",
-  "M404 248 C343 265 293 333 216 394 C139 455 64 438 18 463",
-  "M434 237 C475 176 547 132 642 126 C725 118 782 145 823 184",
-  "M452 264 C516 252 574 272 644 332 C716 395 779 414 854 396",
-  "M421 286 C383 355 391 427 429 503",
-  "M450 289 C513 354 492 440 558 504",
-  "M415 251 C357 231 303 267 248 298",
-  "M442 248 C529 222 568 187 646 195",
-  "M432 269 C507 291 578 295 637 340",
-  "M405 268 C330 287 275 348 205 351",
-  "M425 253 C418 183 383 103 344 20",
-  "M439 253 C454 175 510 92 570 18"
-];
+// Tunnel paths derived from share_edges_sample (or agent_edges_sample).
+// Each edge becomes a cubic-bezier between its source and target cluster.
+function buildTunnelPaths(clusterData, shareEdges) {
+  if (!clusterData.length || !Array.isArray(shareEdges) || !shareEdges.length) return [];
+  // Map cohort_index -> cluster (assuming clusterData order mirrors cohorts).
+  const byIndex = new Map();
+  clusterData.forEach((c, i) => byIndex.set(i, c));
+  const paths = [];
+  const seen = new Set();
+  for (const edge of shareEdges) {
+    const fromIdx = Number(edge?.from_cohort);
+    const toIdx = Number(edge?.to_cohort);
+    if (!Number.isFinite(fromIdx) || !Number.isFinite(toIdx)) continue;
+    if (fromIdx === toIdx) continue;
+    const key = `${Math.min(fromIdx, toIdx)}-${Math.max(fromIdx, toIdx)}`;
+    if (seen.has(key)) continue;
+    const a = byIndex.get(fromIdx);
+    const b = byIndex.get(toIdx);
+    if (!a || !b) continue;
+    seen.add(key);
+    // Curve via the hub (centre of the SVG) so the lines feel like tunnels meeting at the colony core.
+    const midX = 884 / 2;
+    const midY = 520 / 2;
+    const c1x = (a.svgX + midX) / 2;
+    const c1y = (a.svgY + midY) / 2;
+    const c2x = (b.svgX + midX) / 2;
+    const c2y = (b.svgY + midY) / 2;
+    paths.push(`M${a.svgX.toFixed(0)} ${a.svgY.toFixed(0)} C${c1x.toFixed(0)} ${c1y.toFixed(0)}, ${c2x.toFixed(0)} ${c2y.toFixed(0)}, ${b.svgX.toFixed(0)} ${b.svgY.toFixed(0)}`);
+    if (paths.length >= 24) break;
+  }
+  return paths;
+}
 
-const motionAnts = [
-  { d: tunnelPaths[0], dur: "12s", delay: "0s", href: ant(0), size: 24 },
-  { d: tunnelPaths[0], dur: "12s", delay: "-4s", href: ant(5), size: 20 },
-  { d: tunnelPaths[1], dur: "15s", delay: "-2s", href: ant(2), size: 22 },
-  { d: tunnelPaths[2], dur: "13s", delay: "-1.5s", href: ant(8), size: 22 },
-  { d: tunnelPaths[2], dur: "13s", delay: "-6s", href: ant(9), size: 19 },
-  { d: tunnelPaths[3], dur: "14s", delay: "-3s", href: ant(13), size: 22 },
-  { d: tunnelPaths[4], dur: "16s", delay: "-7s", href: ant(6), size: 21 },
-  { d: tunnelPaths[5], dur: "17s", delay: "-5s", href: ant(11), size: 21 },
-  { d: tunnelPaths[8], dur: "11s", delay: "-8s", href: ant(15), size: 19 },
-  { d: tunnelPaths[9], dur: "12s", delay: "-6s", href: ant(3), size: 19 }
-];
+// Motion ants ride the tunnel paths. Count scales with virality_score / total_shares;
+// when there's no viral signal, render none.
+function buildMotionAnts(tunnelPaths, viralityScore, totalShares) {
+  if (!tunnelPaths.length) return [];
+  const intensity = Number(viralityScore) > 0
+    ? Number(viralityScore)
+    : Number(totalShares) > 0
+    ? Math.min(100, Math.log2(Number(totalShares) + 1) * 12)
+    : 0;
+  if (intensity <= 0) return [];
+  const count = Math.min(24, Math.max(2, Math.round(intensity / 8)));
+  const speedSec = Math.max(7, 18 - intensity / 12); // higher intensity = faster
+  return Array.from({ length: count }, (_, i) => {
+    const path = tunnelPaths[i % tunnelPaths.length];
+    const delay = -((i * speedSec) / count).toFixed(1);
+    return {
+      d: path,
+      dur: `${speedSec.toFixed(1)}s`,
+      delay: `${delay}s`,
+      href: ant((i * 3 + 1) % 16),
+      size: i % 3 === 0 ? 22 : 20
+    };
+  });
+}
 
-const floatingAnts = [
-  [8, 9, -44, 2],
-  [12, 12, -28, 7],
-  [16, 18, 22, 1],
-  [48, 38, 106, 8],
-  [54, 42, 55, 4],
-  [61, 31, -18, 11],
-  [67, 28, 32, 14],
-  [86, 14, 65, 9],
-  [88, 47, 134, 5],
-  [11, 82, -52, 6],
-  [52, 78, 156, 2],
-  [64, 79, 128, 12],
-  [84, 84, 38, 15],
-  [30, 51, 92, 7],
-  [39, 18, 37, 3],
-  [72, 53, -28, 1]
-];
-
+// Floating ant decorations scaled by ambient_injections.
+function buildFloatingAnts(ambientInjections) {
+  const n = Math.min(16, Math.max(0, Math.round(Number(ambientInjections) || 0)));
+  if (n === 0) return [];
+  // Deterministic pseudo-random positions seeded by index so each render is stable.
+  const ants = [];
+  for (let i = 0; i < n; i += 1) {
+    const seed = pe_hash(`floater-${i}`);
+    const x = 6 + (seed % 88);
+    const y = 6 + ((seed >> 3) % 84);
+    const rot = ((seed >> 5) % 360) - 180;
+    const iconIndex = (seed >> 7) % 16;
+    ants.push([x, y, rot, iconIndex]);
+  }
+  return ants;
+}
 
 function PersonaCard({ persona, active }) {
   return (
@@ -138,9 +272,11 @@ function PersonaCard({ persona, active }) {
           <b>{persona.value}</b>
           <small>{persona.share === "--" ? "share unknown" : `${persona.share} of viewers`}</small>
         </span>
-        <svg viewBox="0 0 136 50" className="pe-sparkline" aria-hidden="true">
-          <path d={persona.spark} />
-        </svg>
+        {persona.spark ? (
+          <svg viewBox="0 0 136 50" className="pe-sparkline" aria-hidden="true">
+            <path d={persona.spark} />
+          </svg>
+        ) : null}
       </div>
     </article>
   );
@@ -277,9 +413,9 @@ function ReactionsPanel({ reactionPills, quoteList }) {
       </h2>
       {reactionPills && reactionPills.length > 0 ? (
         <div className="pe-reaction-row">
-          {reactionPills.map(([emoji, amount]) => (
-            <button type="button" key={emoji} aria-label={`${amount} reactions`}>
-              <span>{emoji}</span>
+          {reactionPills.map(({ key, label, amount, Icon }) => (
+            <button type="button" key={key} aria-label={`${label}: ${amount}`}>
+              <span><Icon size={13} /></span>
               {amount}
             </button>
           ))}
@@ -287,13 +423,13 @@ function ReactionsPanel({ reactionPills, quoteList }) {
       ) : null}
       {quoteList && quoteList.length > 0 ? (
         <div className="pe-quotes">
-          {quoteList.map((quote) => (
-            <div className="pe-quote" key={quote.text}>
+          {quoteList.map((quote, index) => (
+            <div className="pe-quote" key={`${quote.text}-${index}`}>
               <span className={`pe-quote-bug pe-${quote.tone}`}>
                 <img src={ant(quote.icon)} alt="" />
               </span>
               <p>&ldquo;{quote.text}&rdquo;</p>
-              <time>{quote.time}</time>
+              {quote.attribution ? <time>{quote.attribution}</time> : null}
             </div>
           ))}
         </div>
@@ -302,7 +438,9 @@ function ReactionsPanel({ reactionPills, quoteList }) {
   );
 }
 
-function ColonyMap({ clusterData = [] }) {
+function ColonyMap({ clusterData, tunnelPaths, motionAnts, floatingAnts, hubLabel }) {
+  const [paused, setPaused] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   if (!clusterData.length) {
     return (
       <section className="pe-card pe-map-card">
@@ -318,19 +456,16 @@ function ColonyMap({ clusterData = [] }) {
     );
   }
   return (
-    <section className="pe-card pe-map-card">
+    <section className={`pe-card pe-map-card${expanded ? " pe-map-expanded" : ""}`}>
       <div className="pe-card-head">
         <h2>
           Cluster behavior <Info size={13} />
         </h2>
-        <div className="pe-toggle" aria-label="Map display mode">
-          <button type="button" className="is-active">
-            Colony map
-          </button>
-          <button type="button">Path flows</button>
-        </div>
       </div>
-      <div className="pe-map-canvas">
+      <div
+        className={`pe-map-canvas${paused ? " pe-map-paused" : ""}`}
+        style={paused ? { animationPlayState: "paused" } : undefined}
+      >
         <svg className="pe-map-svg" viewBox="0 0 884 520" aria-hidden="true">
           <defs>
             <filter id="pe-soft-shadow" x="-40%" y="-40%" width="180%" height="180%">
@@ -338,45 +473,45 @@ function ColonyMap({ clusterData = [] }) {
             </filter>
           </defs>
           <g className="pe-stone-layer">
-            {[
-              [35, 355, 24, 11],
-              [79, 376, 18, 8],
-              [777, 68, 16, 9],
-              [808, 84, 21, 10],
-              [826, 380, 20, 9],
-              [795, 414, 17, 8],
-              [423, 58, 15, 10],
-              [396, 74, 13, 8],
-              [30, 116, 18, 9],
-              [62, 94, 13, 8]
-            ].map(([cx, cy, rx, ry], index) => (
+            {DECORATIVE_STONES.map(([cx, cy, rx, ry], index) => (
               <ellipse key={index} cx={cx} cy={cy} rx={rx} ry={ry} />
             ))}
           </g>
-          <g className="pe-tunnel-layer">
-            {tunnelPaths.map((d, index) => (
-              <path d={d} key={index} />
-            ))}
-          </g>
-          <g className="pe-motion-layer" filter="url(#pe-soft-shadow)">
-            {motionAnts.map((item, index) => (
-              <g key={index}>
-                <animateMotion dur={item.dur} begin={item.delay} repeatCount="indefinite" rotate="auto" path={item.d} />
-                <image
-                  href={item.href}
-                  width={item.size}
-                  height={item.size}
-                  x={-item.size / 2}
-                  y={-item.size / 2}
-                  transform="rotate(90)"
-                />
-              </g>
-            ))}
-          </g>
+          {tunnelPaths.length > 0 ? (
+            <g className="pe-tunnel-layer">
+              {tunnelPaths.map((d, index) => (
+                <path d={d} key={index} />
+              ))}
+            </g>
+          ) : null}
+          {motionAnts.length > 0 ? (
+            <g className="pe-motion-layer" filter="url(#pe-soft-shadow)">
+              {motionAnts.map((item, index) => (
+                <g key={index}>
+                  <animateMotion
+                    dur={item.dur}
+                    begin={item.delay}
+                    repeatCount="indefinite"
+                    rotate="auto"
+                    path={item.d}
+                  />
+                  <image
+                    href={item.href}
+                    width={item.size}
+                    height={item.size}
+                    x={-item.size / 2}
+                    y={-item.size / 2}
+                    transform="rotate(90)"
+                  />
+                </g>
+              ))}
+            </g>
+          ) : null}
         </svg>
         <div className="pe-central-hub" aria-hidden="true">
           <img src="/assets/generated/colony-hub.png" alt="" />
           <Bug size={23} />
+          {hubLabel ? <span className="pe-hub-label">{hubLabel}</span> : null}
         </div>
         {clusterData.map((cluster) => (
           <Cluster cluster={cluster} key={cluster.name} />
@@ -385,11 +520,21 @@ function ColonyMap({ clusterData = [] }) {
           <MiniAnt x={x} y={y} rotation={rotation} index={index} size={itemIndex % 3 === 0 ? 17 : 21} key={itemIndex} />
         ))}
         <div className="pe-map-controls">
-          <button type="button" aria-label="Expand colony map">
+          <button
+            type="button"
+            aria-label={expanded ? "Collapse colony map" : "Expand colony map"}
+            aria-pressed={expanded}
+            onClick={() => setExpanded((v) => !v)}
+          >
             <Maximize2 size={18} />
           </button>
-          <button type="button" aria-label="Pause colony animation">
-            <Pause size={18} />
+          <button
+            type="button"
+            aria-label={paused ? "Resume colony animation" : "Pause colony animation"}
+            aria-pressed={paused}
+            onClick={() => setPaused((v) => !v)}
+          >
+            {paused ? <Play size={18} /> : <Pause size={18} />}
           </button>
         </div>
         <div className="pe-map-legend">
@@ -408,13 +553,35 @@ function ProfilePanel({ activePersona, simulation }) {
   const persona = activePersona || null;
   if (!persona) return null;
   const keywords = persona.keywords && persona.keywords.length ? persona.keywords.slice(0, 6) : [];
-  const reactionRates = simulation?.reaction_rates_pct || {};
-  const stages = [
-    ["Hook", persona.positive_rate_pct != null ? Math.round(persona.positive_rate_pct) : null],
-    ["Value", reactionRates.like != null ? Math.round(reactionRates.like) : null],
-    ["Proof", reactionRates.comment != null ? Math.round(reactionRates.comment) : null],
-    ["CTA", reactionRates.share != null ? Math.round(reactionRates.share) : null]
-  ].filter(([, v]) => v != null);
+
+  // Per-cohort engagement stages: prefer the cohort's own reaction_counts
+  // (so each persona's stage bars actually differ); fall back to global
+  // reaction_rates_pct only if the cohort has no breakdown.
+  const cohortCounts = persona.reaction_counts;
+  const globalRates = simulation?.reaction_rates_pct || {};
+  let stages = [];
+  if (cohortCounts && Object.keys(cohortCounts).length) {
+    const total = Object.values(cohortCounts).reduce((acc, v) => acc + (Number(v) || 0), 0);
+    if (total > 0) {
+      const pct = (key) => Math.round(((Number(cohortCounts[key]) || 0) / total) * 100);
+      stages = [
+        ["Hook", persona.positive_rate_pct != null ? Math.round(persona.positive_rate_pct) : null],
+        ["Value", pct("like") + pct("strong_like")],
+        ["Proof", pct("comment")],
+        ["CTA", pct("share") + pct("saves")]
+      ];
+    }
+  }
+  if (!stages.length) {
+    stages = [
+      ["Hook", persona.positive_rate_pct != null ? Math.round(persona.positive_rate_pct) : null],
+      ["Value", globalRates.like != null ? Math.round(globalRates.like) : null],
+      ["Proof", globalRates.comment != null ? Math.round(globalRates.comment) : null],
+      ["CTA", globalRates.share != null ? Math.round(globalRates.share) : null]
+    ];
+  }
+  stages = stages.filter(([, v]) => v != null && Number.isFinite(v));
+
   const hasStats = persona.positive_rate_pct != null || persona.share_rate_pct != null || persona.top_reaction;
   return (
     <section className="pe-card pe-profile-card">
@@ -459,25 +626,21 @@ function ProfilePanel({ activePersona, simulation }) {
             <div className="pe-stage-row" key={label}>
               <span>{label}</span>
               <i>
-                <em style={{ width: `${value}%` }} />
+                <em style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
               </i>
               <b>{value}%</b>
             </div>
           ))}
         </div>
       )}
-      <button className="pe-profile-button" type="button">
-        View full profile <ArrowRight size={16} />
-      </button>
     </section>
   );
 }
 
-// Derive aggregate demographics from cohort + persona-pool data instead of
-// the old hardcoded "22-34, 62%M/38%F, Global" defaults. We have two signal
-// sources: simulation.demographics (if the pipeline emitted it) and cohort
-// keywords (which carry city / job / family-status hints from the persona
-// rows). We pick the richest available signal.
+// Demographics: keyword-based inference across cohort keywords. The pipeline's
+// agents_sample in this codebase does not carry country/age/family signals
+// directly, so cohort keywords remain the source of truth. Any signal we can't
+// detect renders as a hidden section (no fake placeholder values).
 const COUNTRY_KEYWORDS = {
   "United States": ["united states", "us ", "usa", "austin", "seattle", "new york", "chicago", "boston", "los angeles", "san francisco", "denver", "atlanta", "dallas"],
   "United Kingdom": ["united kingdom", "uk", "london", "manchester", "birmingham", "leeds"],
@@ -485,20 +648,21 @@ const COUNTRY_KEYWORDS = {
   "Canada": ["canada", "toronto", "vancouver", "montreal"],
   "Germany": ["germany", "berlin", "munich", "hamburg"],
   "France": ["france", "paris", "lyon"],
-  "India": ["india", "mumbai", "delhi", "bangalore"],
+  "India": ["india", "mumbai", "delhi", "bangalore"]
 };
 const AGE_KEYWORDS = {
-  young:   ["student", "graduate", "doctorate", "early"],
-  mid:     ["manager", "professional", "marketing", "engineer", "director"],
-  older:   ["retired", "senior"],
+  young: ["student", "graduate", "doctorate", "early"],
+  mid: ["manager", "professional", "marketing", "engineer", "director"],
+  older: ["retired", "senior"]
 };
 const FAMILY_KEYWORDS = {
   "Has children": ["child", "children", "parenting", "parent", "kids"],
-  "Single":       ["single", "alone"],
-  "Married/Partnered": ["married", "spouse", "partner", "divorced"],
+  "Single": ["single", "alone"],
+  "Married/Partnered": ["married", "spouse", "partner", "divorced"]
 };
 
-function inferDemographics(cohorts) {
+function inferDemographics(simulation) {
+  const cohorts = simulation?.cohorts;
   if (!Array.isArray(cohorts) || cohorts.length === 0) return null;
   const ageBucket = { young: 0, mid: 0, older: 0, unknown: 0 };
   const countryTally = new Map();
@@ -508,13 +672,11 @@ function inferDemographics(cohorts) {
     const weight = Math.max(1, Number(cohort?.personas) || 1);
     totalPersonas += weight;
     const blob = (cohort?.keywords || []).join(" ").toLowerCase();
-    // age
     let ageHit = "unknown";
     for (const [bucket, words] of Object.entries(AGE_KEYWORDS)) {
       if (words.some((w) => blob.includes(w))) { ageHit = bucket; break; }
     }
     ageBucket[ageHit] += weight;
-    // country
     let matched = false;
     for (const [country, words] of Object.entries(COUNTRY_KEYWORDS)) {
       if (words.some((w) => blob.includes(w))) {
@@ -524,7 +686,6 @@ function inferDemographics(cohorts) {
       }
     }
     if (!matched) countryTally.set("Other", (countryTally.get("Other") || 0) + weight);
-    // family
     for (const [label, words] of Object.entries(FAMILY_KEYWORDS)) {
       if (words.some((w) => blob.includes(w))) {
         familyTally.set(label, (familyTally.get(label) || 0) + weight);
@@ -533,18 +694,16 @@ function inferDemographics(cohorts) {
     }
   }
   if (totalPersonas === 0) return null;
-  // Convert age bucket weights into a percentile range (loose mapping).
   const knownAge = ageBucket.young + ageBucket.mid + ageBucket.older;
   const knownFamily = familyTally.size > 0;
   const knownCountry = [...countryTally.keys()].some((k) => k !== "Other");
   if (knownAge === 0 && !knownFamily && !knownCountry) return null;
 
-  // Per-field nulls: only emit real values for buckets we actually saw.
   let ageLabel = null;
   let ageStartPct = null;
   let ageEndPct = null;
   if (knownAge > 0) {
-    const startPct = Math.round((ageBucket.young / knownAge) * 30); // 0-30%
+    const startPct = Math.round((ageBucket.young / knownAge) * 30);
     const endPct = Math.min(90, startPct + 30 + Math.round((ageBucket.mid / knownAge) * 30));
     const ageLow = 18 + Math.round((startPct / 100) * 47);
     const ageHigh = 18 + Math.round((endPct / 100) * 47);
@@ -553,7 +712,6 @@ function inferDemographics(cohorts) {
     ageEndPct = `${endPct}%`;
   }
 
-  // Only honor a country entry when it is not the synthetic "Other" bucket.
   const topCountryEntry = [...countryTally.entries()]
     .filter(([name]) => name !== "Other")
     .sort((a, b) => b[1] - a[1])[0];
@@ -566,12 +724,12 @@ function inferDemographics(cohorts) {
     topCountry: topCountryEntry ? topCountryEntry[0] : null,
     topCountryShare: topCountryEntry ? Math.round((topCountryEntry[1] / totalPersonas) * 100) : null,
     topFamily: topFamilyEntry ? topFamilyEntry[0] : null,
-    topFamilyShare: topFamilyEntry ? Math.round((topFamilyEntry[1] / totalPersonas) * 100) : null,
+    topFamilyShare: topFamilyEntry ? Math.round((topFamilyEntry[1] / totalPersonas) * 100) : null
   };
 }
 
-function DemographicsPanel({ cohorts }) {
-  const demo = inferDemographics(cohorts);
+function DemographicsPanel({ simulation }) {
+  const demo = inferDemographics(simulation);
   if (!demo) {
     return (
       <section className="pe-card pe-demo-card">
@@ -605,9 +763,7 @@ function DemographicsPanel({ cohorts }) {
           <div className="pe-demo-control pe-gender">
             <div className="pe-demo-label">
               <span>Household</span>
-              <button type="button">
-                {demo.topFamily} <ChevronDown size={14} />
-              </button>
+              <button type="button">{demo.topFamily}</button>
             </div>
             <div className="pe-range pe-two" style={{ "--start": "0%", "--end": `${demo.topFamilyShare}%` }}>
               <i />
@@ -625,7 +781,7 @@ function DemographicsPanel({ cohorts }) {
             <div className="pe-demo-label">
               <span>Location</span>
               <button type="button">
-                {demo.topCountry}{demo.topCountryShare ? ` · ${demo.topCountryShare}%` : ""} <ChevronDown size={14} />
+                {demo.topCountry}{demo.topCountryShare ? ` · ${demo.topCountryShare}%` : ""}
               </button>
             </div>
           </div>
@@ -637,15 +793,30 @@ function DemographicsPanel({ cohorts }) {
 
 export default function PersonasExact({ intelligence }) {
   const simulation = intelligence?.simulation;
-  const cohorts = simulation?.cohorts || [];
+  const cohorts = useMemo(() => simulation?.cohorts || [], [simulation]);
   const topTraits = simulation?.top_traits || [];
   const reactionRates = simulation?.reaction_rates_pct || {};
+  const shareEdges = simulation?.share_edges_sample || simulation?.agent_edges_sample || [];
+  const agentsSample = Array.isArray(simulation?.agents_sample) ? simulation.agents_sample : [];
+  const retentionCurve = intelligence?.brain?.retention_curve || null;
 
-  const personasList = buildPersonas(cohorts);
-  const clusterData = buildClusterData(personasList);
+  const personasList = useMemo(
+    () => buildPersonas(cohorts, retentionCurve),
+    [cohorts, retentionCurve]
+  );
+  const clusterData = useMemo(() => buildClusterData(personasList), [personasList]);
+  const tunnelPaths = useMemo(() => buildTunnelPaths(clusterData, shareEdges), [clusterData, shareEdges]);
+  const motionAnts = useMemo(
+    () => buildMotionAnts(tunnelPaths, simulation?.virality_score, simulation?.total_shares),
+    [tunnelPaths, simulation?.virality_score, simulation?.total_shares]
+  );
+  const floatingAnts = useMemo(
+    () => buildFloatingAnts(simulation?.ambient_injections),
+    [simulation?.ambient_injections]
+  );
   const activePersona = personasList[0];
 
-  // Sentiment drivers: only from real top_traits
+  // Sentiment drivers from real top_traits.
   const sentimentDrivers = topTraits.length
     ? topTraits.slice(0, 5)
         .filter((trait) => trait?.share_rate_pct != null)
@@ -656,42 +827,103 @@ export default function PersonasExact({ intelligence }) {
         }))
     : [];
 
-  // Reactions: derive from cohort top_reaction counts
-  const reactionPills = (() => {
+  // Reactions: tally cohort reaction_counts and map keys to icons + labels.
+  const reactionPills = useMemo(() => {
     const tally = new Map();
     cohorts.forEach((cohort) => {
       const counts = cohort?.reaction_counts || {};
-      Object.entries(counts).forEach(([emoji, count]) => {
-        tally.set(emoji, (tally.get(emoji) || 0) + (Number(count) || 0));
+      Object.entries(counts).forEach(([key, count]) => {
+        tally.set(key, (tally.get(key) || 0) + (Number(count) || 0));
       });
     });
-    const sorted = [...tally.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-    return sorted.length ? sorted.map(([emoji, count]) => [emoji, pe_formatCount(count)]) : [];
-  })();
+    const sorted = [...tally.entries()]
+      .filter(([key]) => REACTION_ICONS[key])
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+    return sorted.map(([key, count]) => ({
+      key,
+      label: REACTION_LABELS[key] || key,
+      amount: pe_formatCount(count),
+      Icon: REACTION_ICONS[key] || Sparkles
+    }));
+  }, [cohorts]);
 
-  // Quotes: synthesize from cohort labels + top reaction (only when we have cohorts)
-  const quoteList = cohorts.length
-    ? cohorts.slice(0, 4).map((cohort, index) => ({
-        text: cohort?.keywords?.[0]
-          ? `"${cohort.keywords[0]}" resonates with ${cohort.label}.`
-          : `${cohort?.label || "Cohort"} engaged.`,
-        time: `${(index + 1) * 2}m ago`,
-        tone: personaTones[index % personaTones.length],
-        icon: personaIcons[index % personaIcons.length]
-      }))
-    : [];
+  // Quotes: prefer real per-agent text if available; else use insights[];
+  // else surface a short cohort-themed line without fake timestamps.
+  const quoteList = useMemo(() => {
+    const insights = Array.isArray(intelligence?.insights) ? intelligence.insights : [];
 
-  // Sentiment pcts derived from simulation reaction rates
-  const positivePct = simulation?.positive_rate_pct ?? reactionRates.like ?? null;
-  const neutralPct = reactionRates.neutral != null ? reactionRates.neutral : null;
-  const negativePct = neutralPct != null && positivePct != null
-    ? Math.max(0, 100 - positivePct - neutralPct)
-    : null;
+    // 1) per-agent quotes from agents_sample (when the agent carries quote/reaction text)
+    const agentQuotes = agentsSample
+      .map((agent) => {
+        const text = agent?.quote || agent?.reaction_text || agent?.comment;
+        if (!text) return null;
+        const cohortIndex = Number(agent?.cohort_index) || 0;
+        const tone = personaTones[pe_hash(agent?.cohort_label ?? cohortIndex) % personaTones.length];
+        const icon = personaIcons[pe_hash(agent?.id ?? cohortIndex) % personaIcons.length];
+        return {
+          text: String(text),
+          attribution: agent?.display_name || null,
+          tone,
+          icon
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 4);
+    if (agentQuotes.length) return agentQuotes;
+
+    // 2) insights as quotes (filtered by tone when present)
+    if (insights.length) {
+      return insights
+        .map((insight, idx) => {
+          const text = typeof insight === "string"
+            ? insight
+            : insight?.detail || insight?.text || insight?.title;
+          if (!text) return null;
+          const tone = personaTones[idx % personaTones.length];
+          const icon = personaIcons[idx % personaIcons.length];
+          return {
+            text: String(text),
+            attribution: typeof insight === "object" && insight?.title && insight?.detail ? insight.title : null,
+            tone,
+            icon
+          };
+        })
+        .filter(Boolean)
+        .slice(0, 4);
+    }
+
+    // 3) nothing meaningful — drop the quotes block.
+    return [];
+  }, [agentsSample, intelligence?.insights]);
+
+  // Sentiment percentages derived from reaction_rates_pct, with an explicit
+  // positive-bucket definition so the Negative bar means something.
+  const positivePct = simulation?.positive_rate_pct ?? (
+    reactionRates.like != null
+      ? POSITIVE_REACTIONS.reduce((acc, k) => acc + (Number(reactionRates[k]) || 0), 0)
+      : null
+  );
+  const neutralPct = reactionRates.neutral != null ? Number(reactionRates.neutral) : null;
+  let negativePct = null;
+  if (positivePct != null || neutralPct != null) {
+    const accountedFor = (Number(positivePct) || 0) + (Number(neutralPct) || 0);
+    const residual = 100 - accountedFor;
+    // Only surface the Negative bar when there's actual residual signal (>1pt).
+    if (residual > 1) negativePct = residual;
+    else negativePct = 0;
+  }
 
   const personaCount = simulation?.persona_count;
   const subtitle = personaCount != null
     ? `Understand ${pe_formatCount(personaCount)} synthetic viewer cohorts and their behavior patterns.`
     : "Understand synthetic viewer cohorts and their behavior patterns.";
+
+  const hubLabel = simulation?.persona_count != null
+    ? `${pe_formatCount(simulation.persona_count)} viewers`
+    : simulation?.virality_score != null
+    ? `Virality ${Math.round(Number(simulation.virality_score))}`
+    : null;
 
   return (
     <main className="personas-exact">
@@ -710,9 +942,6 @@ export default function PersonasExact({ intelligence }) {
                 <i /> Simulation: {intelligence.brain.summary.simulation_label}
               </button>
             ) : null}
-            <button type="button">
-              <CalendarDays size={17} /> Last 7 days <ChevronDown size={15} />
-            </button>
             <button type="button" className="pe-icon-button" aria-label="Persona filters">
               <SlidersHorizontal size={18} />
             </button>
@@ -731,15 +960,21 @@ export default function PersonasExact({ intelligence }) {
           <>
             <div className="pe-kpi-row">
               {personasList.map((persona, index) => (
-                <PersonaCard persona={persona} active={index === 0} key={persona.name} />
+                <PersonaCard persona={persona} active={index === 0} key={persona.id || persona.name} />
               ))}
             </div>
 
             <div className="pe-content-grid">
               <ProfilePanel activePersona={activePersona} simulation={simulation} />
               <div className="pe-center-stack">
-                <ColonyMap clusterData={clusterData} />
-                <DemographicsPanel cohorts={cohorts} />
+                <ColonyMap
+                  clusterData={clusterData}
+                  tunnelPaths={tunnelPaths}
+                  motionAnts={motionAnts}
+                  floatingAnts={floatingAnts}
+                  hubLabel={hubLabel}
+                />
+                <DemographicsPanel simulation={simulation} />
               </div>
               <div className="pe-right-rail">
                 <SentimentPanel

@@ -108,13 +108,6 @@ function brainIsPerVideo(brain) {
   return source === "tribev2-vast" || source.includes("re-warped");
 }
 
-const navItems = [
-  { id: "landing", label: "Landing" },
-  { id: "login", label: "Login" },
-  { id: "dashboard", label: "Dashboard" },
-  { id: "flow", label: "Simulation Flow" }
-];
-
 const dashboardNav = [
   { id: "dashboard", label: "Dashboard", Icon: Grid2X2 },
   { id: "simulations", label: "Simulations", Icon: Gauge },
@@ -123,30 +116,11 @@ const dashboardNav = [
   { id: "history", label: "History", Icon: Clock3 }
 ];
 
-const tech = [
-  ["Video chunking", "Break videos into readable scenes", Film],
-  ["Multimodal LLMs", "Visual, audio, text reasoning", BrainCircuit],
-  ["Transcript + scene analysis", "Extract meaning from every moment", FlaskConical],
-  ["Synthetic personas", "Thousands of realistic viewer profiles", UsersRound],
-  ["Trend intelligence", "What is working right now", Radar],
-  ["Retention forecasting", "Predict attention second by second", BarChart3]
-];
-
-const cohorts = [
-  { name: "Gen Z trend-seekers", score: 82, hold: 67, tone: "green", viewers: "2,500" },
-  { name: "Budget-conscious buyers", score: 64, hold: 54, tone: "gold", viewers: "2,500" },
-  { name: "Creator peers", score: 78, hold: 63, tone: "blue", viewers: "2,500" },
-  { name: "Skeptical scrollers", score: 41, hold: 31, tone: "red", viewers: "2,500" }
-];
-
-const stages = [
-  ["Upload video", "Summer Launch Reel.mp4", Upload],
-  ["Chunk scenes", "15 scenes", Grid2X2],
-  ["Transcribe", "Text extracted", Mail],
-  ["Analyze pacing", "Tempo + beats", Gauge],
-  ["Deploy ant swarm", "10,000 viewers", UsersRound],
-  ["Predict retention", "In progress", LineChart]
-];
+// Stage count drives the phase math in useAnalysisRunner (advancePhaseFromPct,
+// progress, isComplete). The labels are no longer hardcoded — running-step copy
+// derives from runner.liveStage.label and intelligence.simulation.persona_count
+// inside SimulationFlowPage / SimulationRunningStage instead.
+const STAGE_COUNT = 6;
 
 const atomic = {
   pattern: "/assets/atomic/colony-pattern.png",
@@ -274,21 +248,6 @@ const simulationRunAnts = [
   { path: 3, scale: 0.23, dur: "14.4s", delay: "-10.1s", opacity: 0.7 },
   { path: 4, scale: 0.21, dur: "17s", delay: "-4.5s", opacity: 0.6 },
   { path: 4, scale: 0.24, dur: "17s", delay: "-12.2s", opacity: 0.76 }
-];
-
-const heroPaths = [
-  "M278 142 C398 58 514 92 642 54 C748 24 847 42 948 80",
-  "M270 185 C402 126 515 148 640 138 C758 128 842 156 960 144",
-  "M270 232 C394 224 520 220 640 230 C760 242 836 232 960 218",
-  "M270 280 C390 338 512 306 640 326 C750 344 850 330 960 350",
-  "M278 326 C395 418 520 402 640 430 C760 458 848 414 950 472"
-];
-
-const flowPaths = [
-  "M8 76 C164 58 232 116 350 112 S556 86 748 86 S890 118 984 98",
-  "M8 146 C154 168 250 132 358 176 S548 228 716 188 S892 132 984 174",
-  "M8 222 C152 196 240 248 370 236 S566 190 718 244 S876 276 984 236",
-  "M8 302 C132 334 238 276 374 312 S570 372 734 328 S884 294 984 316"
 ];
 
 const backgroundPaths = [
@@ -429,8 +388,8 @@ function useAnalysisRunner(parentIntelligence) {
     ? { ...(parentIntelligence || {}), ...streamedIntelligence, cloud: parentIntelligence?.cloud }
     : parentIntelligence;
 
-  const isComplete = Boolean(video) && phase === stages.length - 1 && !isRunning;
-  const progress = video ? Math.min(100, Math.round(((phase + (isRunning ? 0.55 : 1)) / stages.length) * 100)) : 0;
+  const isComplete = Boolean(video) && phase === STAGE_COUNT - 1 && !isRunning;
+  const progress = video ? Math.min(100, Math.round(((phase + (isRunning ? 0.55 : 1)) / STAGE_COUNT) * 100)) : 0;
 
   const rememberRun = (runRecord = null) => {
     if (!runRecord?.run_id || !runRecord?.claim_token) return;
@@ -461,7 +420,7 @@ function useAnalysisRunner(parentIntelligence) {
       window.dispatchEvent(new CustomEvent("cloud-intelligence-updated", { detail: merged }));
     } catch (_) { /* ignore */ }
     setLiveStage({ stage: "done", label: "Analysis complete", pct: 100 });
-    setPhase(stages.length - 1);
+    setPhase(STAGE_COUNT - 1);
     setIsRunning(false);
     const sim = finalPayload.simulation || {};
     const brainSummary = finalPayload.brain?.summary || {};
@@ -492,8 +451,8 @@ function useAnalysisRunner(parentIntelligence) {
 
   const advancePhaseFromPct = (pct) => {
     const phaseIdx = Math.min(
-      stages.length - 1,
-      Math.max(0, Math.floor((Number(pct) || 0) / 100 * stages.length))
+      STAGE_COUNT - 1,
+      Math.max(0, Math.floor((Number(pct) || 0) / 100 * STAGE_COUNT))
     );
     setPhase(phaseIdx);
   };
@@ -643,7 +602,7 @@ function useAnalysisRunner(parentIntelligence) {
     if (streamActive) return undefined;
     const timer = window.setInterval(() => {
       setPhase((current) => {
-        if (current >= stages.length - 1) {
+        if (current >= STAGE_COUNT - 1) {
           setIsRunning(false);
           return current;
         }
@@ -850,17 +809,17 @@ function App() {
         {displayRoute === "login" && <LoginPage go={go} onSignedIn={handleSignedIn} />}
         {displayRoute === "dashboard" && <DashboardPage go={go} user={user} intelligence={activeIntelligence} runner={analysisRunner} />}
         {displayRoute === "simulations" && (
-          <ExactPageShell active="simulations" go={go} intelligence={activeIntelligence}>
-            <SimulationsExact intelligence={activeIntelligence} />
+          <ExactPageShell active="simulations" go={go} intelligence={activeIntelligence} runner={analysisRunner}>
+            <SimulationsExact intelligence={activeIntelligence} runner={analysisRunner} />
           </ExactPageShell>
         )}
         {displayRoute === "personas" && (
-          <ExactPageShell active="personas" go={go} intelligence={activeIntelligence}>
+          <ExactPageShell active="personas" go={go} intelligence={activeIntelligence} runner={analysisRunner}>
             <PersonasExact intelligence={activeIntelligence} />
           </ExactPageShell>
         )}
         {displayRoute === "trends" && (
-          <ExactPageShell active="trends" go={go} intelligence={activeIntelligence}>
+          <ExactPageShell active="trends" go={go} intelligence={activeIntelligence} runner={analysisRunner}>
             <TrendsExact intelligence={activeIntelligence} />
           </ExactPageShell>
         )}
@@ -1029,10 +988,10 @@ function useIntelligenceData(user) {
   return { data, clear };
 }
 
-function ExactPageShell({ active, go, children, intelligence }) {
+function ExactPageShell({ active, go, children, intelligence, runner }) {
   return (
     <div className="dashboard-layout exact-embedded-layout">
-      <DashboardSidebar active={active} go={go} />
+      <DashboardSidebar active={active} go={go} runner={runner} />
       <section className="dashboard-main exact-generated-main">
         <RealPageInsights active={active} data={intelligence} />
         {children}
@@ -1311,177 +1270,24 @@ function ColonyBackdrop({ id }) {
   );
 }
 
-function LandingPage({ go, user, runner }) {
+function LandingPage({ go, user }) {
   return <ExactLandingPage go={go} user={user} />;
-
-  const landingRef = useRef(null);
-  const inputRef = useRef(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const moveBackdrop = (event) => {
-    const target = landingRef.current;
-    if (!target) return;
-    const rect = target.getBoundingClientRect();
-    target.style.setProperty("--mx", `${event.clientX - rect.left}px`);
-    target.style.setProperty("--my", `${event.clientY - rect.top}px`);
-  };
-  const continueAfterUpload = (file) => {
-    if (!file) return;
-    const started = runner?.analyzeFile?.(file);
-    if (started) go(user ? "dashboard" : "login");
-  };
-  const handleDrop = (event) => {
-    event.preventDefault();
-    setIsDragging(false);
-    continueAfterUpload(event.dataTransfer.files?.[0]);
-  };
-
-  return (
-    <div
-      ref={landingRef}
-      className="page landing-page"
-      onPointerMove={moveBackdrop}
-      onPointerEnter={moveBackdrop}
-    >
-      <input
-        ref={inputRef}
-        className="flow-file-input"
-        type="file"
-        accept="video/*"
-        onChange={(event) => {
-          continueAfterUpload(event.target.files?.[0]);
-          event.target.value = "";
-        }}
-      />
-      <ColonyBackdrop id="landing-bg" />
-      <section className="landing-hero">
-        <div className="hero-copy">
-          <div className="eyebrow">
-            <Sparkles size={15} />
-            Colony intelligence for short-form video
-          </div>
-          <h1>Predict the post before you post.</h1>
-          <p>Synthetic viewer swarms test your video for retention, sentiment, and virality in under 60 seconds.</p>
-          <div className={`landing-upload-card ${isDragging ? "is-dragging" : ""}`}>
-            <div
-              className="flow-drop-zone landing-drop-zone"
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-            >
-              <span className="flow-upload-orb"><Upload size={25} /></span>
-              <div>
-                <h2>{runner?.video ? runner.video.name : "Upload or drop video"}</h2>
-                <p>
-                  {runner?.video
-                    ? `${runner.video.source} · ${runner.video.size} · ${runner.liveStage?.label || "Processing started"}`
-                    : "MP4, MOV, or WebM. Processing starts immediately."}
-                </p>
-              </div>
-              <button className="secondary-button compact" type="button" onClick={() => inputRef.current?.click()}>
-                {runner?.video ? "Replace" : "Choose file"}
-              </button>
-            </div>
-            {runner?.video ? (
-              <div className="landing-upload-status">
-                <span className={`cloud-sync-pill ${runner.cloudStatus}`}>
-                  <i />
-                  {runner.liveStage?.label || "Processing"}
-                </span>
-                <button className="auth-link-button" type="button" onClick={() => go(user ? "dashboard" : "login")}>
-                  Continue <ArrowRight size={15} />
-                </button>
-              </div>
-            ) : null}
-          </div>
-          <div className="hero-actions hero-actions-secondary">
-            <button className="secondary-button" onClick={() => go(user ? "dashboard" : "login")}>
-              {runner?.video ? "Continue setup" : "Sign in"}
-              <ArrowRight size={17} />
-            </button>
-          </div>
-        </div>
-
-        <HeroSimulationVisual />
-      </section>
-
-      <section className="technology-strip" aria-label="Technology used">
-        {tech.map(([title, desc, Icon], index) => (
-          <article className="tech-item" key={title} style={{ "--delay": `${index * 80}ms` }}>
-            <Icon size={24} strokeWidth={1.75} />
-            <div>
-              <h3>{title}</h3>
-              <p>{desc}</p>
-            </div>
-          </article>
-        ))}
-      </section>
-    </div>
-  );
 }
 
-function HeroSimulationVisual() {
-  return (
-    <div className="hero-visual" aria-label="Ant video intelligence preview">
-      <div className="phone-card">
-        <img src={atomic.poster} alt="" />
-        <div className="phone-social">
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="phone-progress">
-          <strong>0:07 / 0:15</strong>
-          <i><b /></i>
-        </div>
-      </div>
-
-      <div className="analytics-stack">
-        <div className="retention-mini panel-card">
-          <div className="mini-card-head">
-            <span>Retention curve</span>
-            <strong>67% at 3s</strong>
-          </div>
-          <svg viewBox="0 0 420 130" preserveAspectRatio="none">
-            <path className="chart-fill" d="M0 22 C52 36 72 56 116 55 C166 55 176 76 220 76 C268 75 282 92 330 101 C370 108 388 110 420 112 L420 130 L0 130 Z" />
-            <path className="chart-stroke" d="M0 22 C52 36 72 56 116 55 C166 55 176 76 220 76 C268 75 282 92 330 101 C370 108 388 110 420 112" />
-          </svg>
-          <div className="mini-axis"><span>0s</span><span>5s</span><span>10s</span><span>15s</span></div>
-        </div>
-
-        <div className="persona-orbs">
-          {cohorts.map((cohort) => (
-            <div className={`persona-orb ${cohort.tone}`} key={cohort.name}>
-              <img src={atomic.hive[cohort.tone]} alt="" />
-              <span>{cohort.score}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="hero-summary-card panel-card">
-          <div className="mini-card-head">
-            <span>Swarm consensus</span>
-            <strong>10,000 agents</strong>
-          </div>
-          <div className="hero-insight-list">
-            <p><MarkerAsset name="hook" /> Hook holds +19%.</p>
-            <p><MarkerAsset name="share" /> Share cluster at 12s.</p>
-            <p><MarkerAsset name="dropoff" /> Drop risk stays low.</p>
-          </div>
-        </div>
-      </div>
-
-      <RouteAnts id="hero" paths={heroPaths} count={38} className="hero-routes" fast viewBox="0 0 1000 560" />
-
-      <div className="virality-gauge">
-        <span>Virality</span>
-        <strong>82</strong>
-        <small>/100</small>
-      </div>
-    </div>
-  );
+// Pull the most-recent persisted intelligence (if any) so the landing-page
+// preview panels can reflect the visitor's last real run instead of frozen
+// "67% / 82" mock numbers. Returns null when nothing is stored or the entry
+// is corrupted — components render an em-dash / "Run a simulation" state.
+function readPersistedIntelligence() {
+  try {
+    const saved = localStorage.getItem(INTELLIGENCE_STORAGE_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    if (parsed && (parsed.simulation || parsed.brain)) return parsed;
+    return null;
+  } catch (_) {
+    return null;
+  }
 }
 
 function ExactLandingPage({ go, user }) {
@@ -1489,6 +1295,21 @@ function ExactLandingPage({ go, user }) {
   // Without this gate, /flow happily renders the intake screen for anyone,
   // which made the "Run a simulation" CTA look like it bypassed auth.
   const runSim = () => go(user ? "flow" : "login");
+
+  // Hydrate the analytics-preview panels from the most-recent stored run.
+  // No run → components fall back to a neutral empty state.
+  const [previewIntel, setPreviewIntel] = useState(() => readPersistedIntelligence());
+  useEffect(() => {
+    const handler = (event) => {
+      if (event?.detail) setPreviewIntel(event.detail);
+    };
+    window.addEventListener("cloud-intelligence-updated", handler);
+    return () => window.removeEventListener("cloud-intelligence-updated", handler);
+  }, []);
+  const previewCurve = Array.isArray(previewIntel?.brain?.retention_curve)
+    ? previewIntel.brain.retention_curve
+    : null;
+  const previewVirality = previewIntel?.simulation?.virality_score;
   return (
     <div className="page exact-dark-page exact-landing-page">
       <section className="exact-dark-frame exact-landing-frame">
@@ -1519,11 +1340,11 @@ function ExactLandingPage({ go, user }) {
           <section className="exact-landing-analytics">
             <article className="exact-panel exact-retention-card">
               <h2>Retention curve</h2>
-              <ExactRetentionMiniChart />
+              <ExactRetentionMiniChart curve={previewCurve} />
             </article>
             <article className="exact-panel exact-virality-card">
               <h2>Virality prediction</h2>
-              <ExactViralityGauge />
+              <ExactViralityGauge score={previewVirality} />
             </article>
           </section>
         </div>
@@ -1745,33 +1566,113 @@ function ExactVideoPreview() {
   );
 }
 
-function ExactRetentionMiniChart() {
+function ExactRetentionMiniChart({ curve }) {
+  // curve is brain.retention_curve from intelligence — array of
+  // { time_sec, retention (0-100), activity_l2 } objects (or bare numbers
+  // for legacy runs). When absent, render a neutral empty state instead of
+  // the previous frozen "67% at 3s" mock SVG.
+  const normalized = Array.isArray(curve)
+    ? curve.map((p) => {
+        if (p && typeof p === "object") {
+          const v = Number(p.retention ?? p.engagement ?? p.value);
+          if (!Number.isFinite(v)) return null;
+          return Math.max(0, Math.min(100, v > 1.5 ? v : v * 100));
+        }
+        const n = Number(p);
+        if (!Number.isFinite(n)) return null;
+        return Math.max(0, Math.min(100, n > 1.5 ? n : n * 100));
+      }).filter((v) => v != null)
+    : [];
+
+  if (normalized.length < 2) {
+    return (
+      <div className="exact-mini-chart exact-mini-chart-empty">
+        <svg viewBox="0 0 338 142" preserveAspectRatio="none" aria-hidden="true">
+          <line x1="0" x2="338" y1="30" y2="30" />
+          <line x1="0" x2="338" y1="78" y2="78" />
+          <line x1="0" x2="338" y1="126" y2="126" />
+        </svg>
+        <div className="exact-chart-callout">— <span>Run a simulation</span></div>
+        <div className="exact-chart-y"><span>100%</span><span>50%</span><span>0%</span></div>
+        <div className="exact-chart-x"><span>0s</span><span>5s</span><span>10s</span><span>15s</span></div>
+      </div>
+    );
+  }
+
+  // Reuse the path-builder pattern from ExactRetentionLargeChart so the path
+  // is computed from real curve points, not a constant `d=` string.
+  const pts = normalized.map((v, i) => {
+    const ratio = normalized.length === 1 ? 0 : i / (normalized.length - 1);
+    const x = 2 + ratio * (336 - 2);
+    const y = 4 + (1 - v / 100) * (138 - 4);
+    return [x, y];
+  });
+  const linePath = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+
+  // 3s marker — clamp to range, label uses the actual sample value.
+  const idx3 = Math.min(3, normalized.length - 1);
+  const holdPct = Math.round(normalized[idx3]);
+  const holdX = pts[idx3][0];
+  const holdY = pts[idx3][1];
+
   return (
     <div className="exact-mini-chart">
       <svg viewBox="0 0 338 142" preserveAspectRatio="none" aria-hidden="true">
         <line x1="0" x2="338" y1="30" y2="30" />
         <line x1="0" x2="338" y1="78" y2="78" />
         <line x1="0" x2="338" y1="126" y2="126" />
-        <path className="exact-chart-line" d="M2 28 C26 36 38 38 55 50 C72 63 91 61 109 64 C132 69 145 80 171 77 C193 75 207 81 221 91 C241 104 257 104 276 109 C300 115 313 126 336 126" />
-        <circle cx="221" cy="91" r="6" />
+        <path className="exact-chart-line" d={linePath} />
+        <circle cx={holdX.toFixed(1)} cy={holdY.toFixed(1)} r="6" />
       </svg>
-      <div className="exact-chart-callout">67% <span>at 3s</span></div>
+      <div className="exact-chart-callout">{holdPct}% <span>at 3s</span></div>
       <div className="exact-chart-y"><span>100%</span><span>50%</span><span>0%</span></div>
       <div className="exact-chart-x"><span>0s</span><span>5s</span><span>10s</span><span>15s</span></div>
     </div>
   );
 }
 
-function ExactViralityGauge({ score = 82, label = "Strong potential" }) {
+function ExactViralityGauge({ score, label }) {
+  // Drive arc end-point from the real score. When no score is available,
+  // render an em-dash + "Run a simulation" CTA instead of the frozen 82.
+  const numeric = typeof score === "number" && Number.isFinite(score)
+    ? Math.max(0, Math.min(100, Math.round(score)))
+    : null;
+  const display = numeric != null ? numeric : "—";
+  const resolvedLabel = label != null
+    ? label
+    : numeric == null
+      ? "Run a simulation"
+      : numeric >= 80 ? "Strong potential"
+        : numeric >= 60 ? "Solid signal"
+          : numeric >= 40 ? "Mixed signal"
+            : "Needs work";
+
+  // Semicircle arc from (32, 104) to (188, 104) with radius 78. Sweep based
+  // on score: 0 → no arc; 100 → full semicircle.
+  let valuePath = null;
+  if (numeric != null && numeric > 0) {
+    const angle = Math.PI * (numeric / 100); // 0..π
+    const startAngle = Math.PI;              // left edge
+    const endAngle = Math.PI - angle;
+    const cxArc = 110;
+    const cyArc = 104;
+    const r = 78;
+    const sx = cxArc + r * Math.cos(startAngle);
+    const sy = cyArc - r * Math.sin(startAngle);
+    const ex = cxArc + r * Math.cos(endAngle);
+    const ey = cyArc - r * Math.sin(endAngle);
+    valuePath = `M${sx.toFixed(1)} ${sy.toFixed(1)} A${r} ${r} 0 0 1 ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+  }
+
   return (
     <div className="exact-gauge">
       <svg viewBox="0 0 220 128" aria-hidden="true">
         <path className="gauge-track" d="M32 104 A78 78 0 0 1 188 104" />
-        <path className="gauge-value" d="M32 104 A78 78 0 0 1 158 42" />
+        {valuePath ? <path className="gauge-value" d={valuePath} /> : null}
       </svg>
       <div>
-        <p className="exact-gauge-score"><strong>{score}</strong><span>/100</span></p>
-        <small>{label}</small>
+        <p className="exact-gauge-score"><strong>{display}</strong><span>/100</span></p>
+        <small>{resolvedLabel}</small>
       </div>
     </div>
   );
@@ -2407,13 +2308,30 @@ function ShareInfoPage({ go, user, runner, onProfileSaved }) {
   );
 }
 
-function DashboardSidebar({ active, go }) {
+function DashboardSidebar({ active, go, runner }) {
+  const handleNewSimulation = () => {
+    // Prefer staying in the current shell: open a file picker and hand the
+    // chosen file directly to runner.analyzeFile. Fall back to the legacy
+    // FlowPage only if the runner isn't available.
+    if (typeof runner?.analyzeFile === "function" && typeof document !== "undefined") {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "video/*";
+      input.onchange = (event) => {
+        const file = event.target.files?.[0];
+        if (file) runner.analyzeFile(file);
+      };
+      input.click();
+      return;
+    }
+    go("flow");
+  };
   return (
     <aside className="sidebar dashboard-sidebar">
       <button className="sidebar-brand" onClick={() => go("dashboard")} aria-label="Go to dashboard">
         <Brand />
       </button>
-      <button className="new-sim" onClick={() => go("flow")}><Upload size={16} /> New simulation</button>
+      <button className="new-sim" onClick={handleNewSimulation}><Upload size={16} /> New simulation</button>
       <nav aria-label="Workspace">
         {dashboardNav.map(({ id, label, Icon }) => (
           <button className={active === id ? "active" : ""} key={id} onClick={() => go(id)}>
@@ -3222,7 +3140,7 @@ function TribeBrainModel({ brain, phase = 0, progress = 0, isRunning = false }) 
   }, [frames.length, isRunning]);
 
   const phaseFrame = frames.length
-    ? Math.min(frames.length - 1, Math.round(((phase + (isRunning ? 0.45 : 1)) / stages.length) * (frames.length - 1)))
+    ? Math.min(frames.length - 1, Math.round(((phase + (isRunning ? 0.45 : 1)) / STAGE_COUNT) * (frames.length - 1)))
     : 0;
   const frameIndex = isRunning ? tick % Math.max(1, frames.length) : phaseFrame;
   const frame = frames[frameIndex] || frames[0] || { points: [] };
@@ -3478,6 +3396,19 @@ function RealPageInsights({ active, data }) {
   const sim = data.simulation;
   const topVideo = data.videos?.top?.[0];
   const topCohort = sim?.cohorts?.[0];
+  // Verified intelligence shape:
+  //   videos.top is an array (no `videos.count`, no `videos.terms`)
+  //   videos.top[0] exposes engagement_rate_pct + hashtags (NOT `views`)
+  //   simulation.persona_count is the swarm size (no `model.persona_dimensions`)
+  //   video_signals.text_seed_terms[] holds the seed keyword surface
+  const videoCount = Array.isArray(data.videos?.top) ? data.videos.top.length : 0;
+  const leadTerm = topVideo?.hashtags?.[0]
+    || data.video_signals?.text_seed_terms?.[0]
+    || null;
+  const topTrend = Array.isArray(data.trends) ? data.trends[0] : null;
+  const trendTerm = (typeof topTrend === "string" ? topTrend : topTrend?.term || topTrend?.label) || null;
+  const trendCount = Array.isArray(data.trends) ? data.trends.length : 0;
+
   const activeCopy = {
     simulations: {
       icon: Gauge,
@@ -3490,10 +3421,10 @@ function RealPageInsights({ active, data }) {
     videos: {
       icon: Film,
       title: "TikTok corpus intake",
-      detail: `${data.videos?.count ?? 0} local video metadata files shaped into analysis docs; top reference: ${topVideo?.title || "local video"}.`,
-      statA: topVideo?.engagement_rate_pct != null ? `${topVideo.engagement_rate_pct}% engagement` : null,
-      statB: topVideo?.views != null ? `${formatCount(topVideo.views)} views` : null,
-      statC: data.videos?.terms?.[0]?.term ? `${data.videos.terms[0].term} lead term` : null
+      detail: `${videoCount} local video metadata file${videoCount === 1 ? "" : "s"} shaped into analysis docs; top reference: ${topVideo?.title || "local video"}.`,
+      statA: topVideo?.engagement_rate_pct != null ? `${Number(topVideo.engagement_rate_pct).toFixed(1)}% engagement` : null,
+      statB: topVideo?.score != null ? `${Math.round(Number(topVideo.score))} score` : null,
+      statC: leadTerm ? `${leadTerm} lead term` : null
     },
     personas: {
       icon: UsersRound,
@@ -3501,12 +3432,22 @@ function RealPageInsights({ active, data }) {
       detail: (() => {
         const sets = data.keyword_sets?.length ?? 0;
         const kwPerSet = data.keyword_sets?.[0]?.keywords?.length ?? 0;
-        const dims = data.model?.persona_dimensions ?? 0;
-        return `${sets} sets of ${kwPerSet} noisy keywords were mapped into ${dims}D persona vectors, then expanded into the full swarm.`;
+        const personas = sim?.persona_count != null ? formatCount(sim.persona_count) : "the full";
+        return `${sets} sets of ${kwPerSet} noisy keywords were mapped into ${personas} synthetic personas across the swarm.`;
       })(),
       statA: topCohort?.label || null,
       statB: topCohort?.positive_rate_pct != null ? `${formatPercent(topCohort.positive_rate_pct)} positive` : null,
       statC: topCohort?.share_rate_pct != null ? `${formatPercent(topCohort.share_rate_pct)} share fit` : null
+    },
+    trends: {
+      icon: LineChart,
+      title: "Trend intelligence",
+      detail: trendCount
+        ? `${trendCount} trending term${trendCount === 1 ? "" : "s"} surfaced from the analyzed corpus${trendTerm ? `; ${trendTerm} leads` : ""}.`
+        : "No trending terms surfaced for this run yet — re-run an analysis to refresh trend intelligence.",
+      statA: trendTerm ? `${trendTerm} leads` : null,
+      statB: sim?.viral_reaction_rate_pct != null ? `${formatPercent(sim.viral_reaction_rate_pct)} viral reactions` : null,
+      statC: data.keyword_sets?.length ? `${data.keyword_sets.length} keyword sets` : null
     },
   }[active];
 
@@ -3586,6 +3527,8 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
     const blob = new Blob([JSON.stringify(intelligence, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+    // Prefer the analyzer-written summary.video_name over the corpus video's
+    // title (sim.video_name was never part of the schema).
     const stem = (intelligence?.summary?.video_name || intelligence?.videos?.top?.[0]?.title || "report")
       .replace(/\.[^.]*$/, "").replace(/[^A-Za-z0-9._-]+/g, "-");
     a.href = url;
@@ -3614,10 +3557,14 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
     : null;
   const hasBrain = brainIsPerVideo(brain);
 
-  const videoTitle = topVideo?.title
-    || sim.video_name
-    || intelligence?.summary?.video_name
-    || (hasData ? "Latest analysis" : "Awaiting first analysis");
+  // `sim.video_name` was never part of the verified intelligence shape. The
+  // analyzer writes the uploaded filename into intelligence.summary.video_name,
+  // so prefer that first, then fall back to the top corpus video title. When
+  // both are missing we explicitly say "Untitled run" rather than the generic
+  // "Latest analysis" so it's clear the metadata is absent, not synthesized.
+  const videoTitle = intelligence?.summary?.video_name
+    || topVideo?.title
+    || (hasData ? "Untitled run" : "Awaiting first analysis");
 
   const personaCount = sim.persona_count != null ? Number(sim.persona_count) : null;
   const viralityScore = sim.virality_score != null ? Math.round(Number(sim.virality_score)) : null;
@@ -3714,6 +3661,33 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
     ? `Across ${allCohorts.length} cohort${allCohorts.length === 1 ? "" : "s"}`
     : null;
 
+  // Real spark for the Virality KPI card — use sim.timeline[].positive_rate_pct
+  // (share-fan-out generations). Stays null on payloads without a timeline so
+  // ExactMetricCard simply omits the spark rather than faking one.
+  const viralityTimelinePoints = Array.isArray(sim.timeline) && sim.timeline.length >= 2
+    ? sim.timeline.map((b) => Number(b?.positive_rate_pct))
+        .filter((v) => Number.isFinite(v))
+    : null;
+
+  // The brain header meta string was "0 frames · 0 vertices" on payloads where
+  // neither geometry_frames nor brain_vertices was emitted. Build a tidier
+  // string that prefers verified summary fields (peak_time_sec, completion_rate_pct)
+  // and hides the span when nothing concrete is available.
+  const brainFrames = (brain?.geometry_frames || []).length;
+  const brainVertices = brain?.summary?.brain_vertices || brain?.shape_timesteps_vertices?.[1] || 0;
+  const brainPeakSec = brain?.summary?.peak_time_sec;
+  const brainCompletion = brain?.summary?.completion_rate_pct;
+  const brainMeta = (() => {
+    if (dashboardAnimatedUrl) return "fsaverage5 animated render";
+    if (dashboardBrainUrl) return "fsaverage5 interactive surface";
+    const segments = [];
+    if (brainFrames > 0) segments.push(`${brainFrames} frames`);
+    if (brainVertices > 0) segments.push(`${brainVertices.toLocaleString()} vertices`);
+    if (!segments.length && Number.isFinite(Number(brainPeakSec))) segments.push(`peak ${Number(brainPeakSec).toFixed(1)}s`);
+    if (!segments.length && Number.isFinite(Number(brainCompletion))) segments.push(`${Math.round(Number(brainCompletion))}% completion`);
+    return segments.length ? segments.join(" · ") : null;
+  })();
+
   return (
     <div className={`page exact-dark-page exact-dashboard-page ${isLaunching ? "is-launching-flow" : ""}`}>
       <section className="exact-dark-frame exact-dashboard-frame">
@@ -3763,16 +3737,12 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
             <article className="exact-panel exact-dashboard-brain">
               <div className="exact-panel-head">
                 <h2><Brain size={16} /> Live colony model</h2>
-                <span>
-                  <i />
-                  {dashboardAnimatedUrl
-                    ? "fsaverage5 animated render"
-                    : dashboardBrainUrl
-                      ? "fsaverage5 interactive surface"
-                      : `${(brain?.geometry_frames || []).length} frames`}
-                  {" · "}
-                  {brain?.summary?.brain_vertices || brain?.shape_timesteps_vertices?.[1] || 0} vertices
-                </span>
+                {brainMeta ? (
+                  <span>
+                    <i />
+                    {brainMeta}
+                  </span>
+                ) : null}
               </div>
               <TribeBrain3D
                 brain={brain}
@@ -3798,7 +3768,7 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
           </header>
 
           <section className="exact-metrics-row">
-            <ExactMetricCard title="Virality Score" value={viralityScore != null ? String(viralityScore) : "—"} suffix={viralityScore != null ? "/100" : ""} note={viralityNote} spark />
+            <ExactMetricCard title="Virality Score" value={viralityScore != null ? String(viralityScore) : "—"} suffix={viralityScore != null ? "/100" : ""} note={viralityNote} sparkPoints={viralityTimelinePoints} />
             <ExactMetricCard title="Predicted 3s Hold" value={hold3s != null ? String(hold3s) : "—"} suffix={hold3s != null ? "%" : ""} note={holdNote} />
             <ExactMetricCard title="Drop-off Risk" value={dropoffRisk != null ? String(dropoffRisk) : "—"} suffix={dropoffRisk != null ? "%" : ""} note={dropoffNote} />
             <ExactMetricCard title="Simulated Viewers" value={personaCount != null ? fmtCount(personaCount) : "—"} note={viewerNote} />
@@ -3824,43 +3794,37 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
 
           <section className="exact-panel exact-persona-table">
             <h2>Performance by persona</h2>
-            {cohorts.length ? <div className="table-head"><span>Persona</span><span>Trend</span><span>3s Hold</span><span>Virality</span><span>Drop-off Risk</span></div> : null}
+            {/* Columns swapped to first-class cohort fields:
+                  - "3s Hold" / "Drop-off Risk" were proxies of positive_rate_pct
+                    (same number, twice — misleading). Replaced with Share-Fit
+                    and Top-Reaction which exist on every cohort.
+                  - Trend column is now a real 7-bar mini-chart over
+                    cohort.reaction_counts, not one of four canned SVG paths. */}
+            {cohorts.length ? <div className="table-head"><span>Persona</span><span>Reactions</span><span>Share fit</span><span>Virality</span><span>Top reaction</span></div> : null}
             {cohorts.length ? cohorts.map((cohort, index) => {
-              // Real cohort fields from the Vast simulator:
-              //   label / personas / positive_rate_pct / share_rate_pct / top_reaction
-              // There's no per-cohort 3s hold or drop-off, so we proxy:
-              //   hold     = positive_rate_pct (engaged ⇒ stayed)
-              //   virality = positive_rate_pct
-              //   risk     = High if positive < 45, Medium if < 60, Low otherwise
-              // Nia-generated labels arrive snake_case (creator_operator_1) —
-              // humanize for display.
+              // Cohorts arrive snake_case (creator_operator_1) — humanize for display.
               const rawLabel = cohort?.label || cohort?.name || `Cohort ${index + 1}`;
               const name = /[a-z0-9]_[a-z0-9]/.test(rawLabel)
                 ? rawLabel.split(/[_-]+/).map((w) => w[0]?.toUpperCase() + w.slice(1)).join(" ")
                 : rawLabel;
               const positive = cohort?.positive_rate_pct ?? cohort?.virality_score ?? cohort?.virality;
-              const explicitHold = cohort?.hold_3s_pct ?? cohort?.three_s_hold;
               const positiveNum = positive != null ? Math.round(Number(positive)) : null;
-              const viralityNum = positiveNum;
-              const holdNum = explicitHold != null
-                ? Math.round(Number(explicitHold))
-                : positiveNum;
-              const holdDisplay = holdNum != null ? `${holdNum}%` : "—";
-              let riskDisplay = "—";
-              if (cohort?.dropoff_risk_pct != null) {
-                const r = Math.round(Number(cohort.dropoff_risk_pct));
-                riskDisplay = r <= 20 ? "Low" : r <= 45 ? "Medium" : "High";
-              } else if (positiveNum != null) {
-                riskDisplay = positiveNum >= 60 ? "Low" : positiveNum >= 45 ? "Medium" : "High";
-              }
-              const tone = toneFor(viralityNum != null ? viralityNum : 0);
+              const shareNum = cohort?.share_rate_pct != null ? Math.round(Number(cohort.share_rate_pct)) : null;
+              const reactionCounts = cohort?.reaction_counts || {};
+              const reactionBars = ["like", "neutral", "share", "strong_like", "comment", "follow", "saves"]
+                .map((key) => Number(reactionCounts[key]) || 0);
+              const hasBars = reactionBars.some((v) => v > 0);
+              const topReaction = cohort?.top_reaction
+                ? String(cohort.top_reaction).replace(/_/g, " ")
+                : null;
+              const tone = toneFor(positiveNum != null ? positiveNum : 0);
               return (
                 <div className="table-row" key={`${name}-${index}`}>
                   <span className="persona-name"><i><UsersRound size={14} /></i>{name}</span>
-                  <ExactTinySpark index={index} />
-                  <span>{holdDisplay}</span>
-                  <span className={`virality ${tone}`}>{viralityNum != null ? viralityNum : "—"}<small>/100</small></span>
-                  <span className={`risk ${tone}`}>{riskDisplay}</span>
+                  {hasBars ? <ExactTinySpark bars={reactionBars} /> : <span aria-hidden="true">—</span>}
+                  <span>{shareNum != null ? `${shareNum}%` : "—"}</span>
+                  <span className={`virality ${tone}`}>{positiveNum != null ? positiveNum : "—"}<small>/100</small></span>
+                  <span className={`risk ${tone}`}>{topReaction || "—"}</span>
                 </div>
               );
             }) : (
@@ -3873,29 +3837,57 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
   );
 }
 
-function ExactMetricCard({ title, value, suffix = "", note, spark = false }) {
+function ExactMetricCard({ title, value, suffix = "", note, sparkPoints }) {
+  // sparkPoints is an array of numeric samples (e.g. timeline.positive_rate_pct).
+  // When present, render a real mini-spark; otherwise omit the spark entirely
+  // instead of falling back to one of four constant placeholder paths.
   return (
     <article className="exact-panel exact-metric-card">
       <span>{title}</span>
       <div><strong>{value}</strong>{suffix && <small>{suffix}</small>}</div>
       <p>{note}</p>
-      {spark ? <ExactTinySpark /> : null}
+      {Array.isArray(sparkPoints) && sparkPoints.length >= 2 ? <ExactTinySpark points={sparkPoints} /> : null}
     </article>
   );
 }
 
-function ExactTinySpark({ index = 0 }) {
-  const paths = [
-    "M2 28 C13 22 18 26 28 21 C42 14 51 26 62 18 C73 10 84 18 96 11 C108 4 118 12 130 8",
-    "M2 20 C14 25 22 18 34 22 C45 26 54 14 66 19 C78 23 86 12 99 16 C112 20 119 14 130 18",
-    "M2 25 C16 18 24 28 36 20 C48 13 58 24 70 19 C83 14 90 23 102 18 C114 13 120 20 130 16",
-    "M2 17 C14 26 27 21 38 28 C50 34 61 22 74 26 C88 30 96 20 109 23 C120 26 124 18 130 20"
-  ];
-  return (
-    <svg className="exact-tiny-spark" viewBox="0 0 132 36" preserveAspectRatio="none" aria-hidden="true">
-      <path d={paths[index % paths.length]} />
-    </svg>
-  );
+// Tiny spark: line for series, vertical bars for category buckets. Driven
+// entirely by props — no fallback path bank. Renders nothing when there's
+// not enough data to draw something meaningful.
+function ExactTinySpark({ points, bars }) {
+  if (Array.isArray(bars) && bars.length) {
+    const max = Math.max(...bars.map((v) => Number(v) || 0), 1);
+    const slot = 132 / bars.length;
+    const w = Math.max(2, slot - 4);
+    return (
+      <svg className="exact-tiny-spark exact-tiny-spark-bars" viewBox="0 0 132 36" preserveAspectRatio="none" aria-hidden="true">
+        {bars.map((value, i) => {
+          const v = Number(value) || 0;
+          const h = Math.max(1, (v / max) * 32);
+          const x = i * slot + (slot - w) / 2;
+          const y = 34 - h;
+          return <rect key={i} x={x.toFixed(1)} y={y.toFixed(1)} width={w.toFixed(1)} height={h.toFixed(1)} rx="1" />;
+        })}
+      </svg>
+    );
+  }
+  if (Array.isArray(points) && points.length >= 2) {
+    const min = Math.min(...points.map((p) => Number(p) || 0));
+    const max = Math.max(...points.map((p) => Number(p) || 0));
+    const range = Math.max(1, max - min);
+    const d = points.map((p, i) => {
+      const x = 2 + (i / (points.length - 1)) * 128;
+      const norm = ((Number(p) || 0) - min) / range;
+      const y = 34 - norm * 30;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+    }).join(" ");
+    return (
+      <svg className="exact-tiny-spark" viewBox="0 0 132 36" preserveAspectRatio="none" aria-hidden="true">
+        <path d={d} />
+      </svg>
+    );
+  }
+  return null;
 }
 
 function ExactRetentionLargeChart({ curve, hold3s }) {
@@ -3967,160 +3959,6 @@ function ExactRetentionLargeChart({ curve, hold3s }) {
 
 function DashboardPage({ go, user, intelligence, runner }) {
   return <ExactDashboardPage go={go} user={user} intelligence={intelligence} runner={runner} />;
-
-  const sim = intelligence?.simulation || {};
-  const brain = intelligence?.brain || {};
-  const topVideo = intelligence?.videos?.top?.[0];
-  const cohortsList = sim.cohorts || [];
-  const insights = intelligence?.insights || [];
-  const reactionCounts = sim.reaction_counts || {};
-  const reactionRates = sim.reaction_rates_pct || {};
-  const totalShares = sim.total_shares;
-
-  // Interactive nilearn 3D brain HTML, proxied through the edge function so the
-  // raw Vast URL + X-Ant-Token never reach the client bundle.
-  const interactiveBrainPath = intelligence?.brain?.interactive_html_url;
-  const dashboardBrainUrl = interactiveBrainPath
-    ? `${INSFORGE_ANALYSIS_FUNCTION_URL}${interactiveBrainPath}`
-    : null;
-  // Looping baked MP4 of the cortex animation — Meta TribeV2 demo aesthetic.
-  // Same proxy path; takes precedence over the iframe when present.
-  const animatedBrainPath = intelligence?.brain?.animated_video_url;
-  const dashboardAnimatedUrl = animatedBrainPath
-    ? `${INSFORGE_ANALYSIS_FUNCTION_URL}${animatedBrainPath}`
-    : null;
-
-  // Debug aid (live in DevTools console): tells you whether the Brain panel
-  // gate evaluates true and what brain.source it saw on this render.
-  if (typeof window !== "undefined" && window?.console) {
-    console.debug(
-      "[DashboardPage] brain gate:", brainIsPerVideo(intelligence?.brain),
-      "| source:", intelligence?.brain?.source,
-      "| retention pts:", intelligence?.brain?.retention_curve?.length || 0
-    );
-  }
-
-  return (
-    <div className="dashboard-layout">
-      <DashboardSidebar active="dashboard" go={go} />
-
-      <section className="dashboard-main">
-        <div className="dash-topbar">
-          <div>
-            <h1>{topVideo?.title || (intelligence?.summary?.video_name) || "Awaiting upload"}</h1>
-            <p>
-              {intelligence ? `Local TikTok corpus - ${sim?.persona_count != null ? formatCount(sim.persona_count) : ""} simulated personas` : "Awaiting cloud intelligence"}
-            </p>
-          </div>
-          <div className="dash-actions">
-            <span className="status-pill">Completed</span>
-            <button><Share2 size={16} /> Share</button>
-            <button><Download size={16} /> Export</button>
-            <button className="icon-only"><MoreVertical size={18} /></button>
-          </div>
-        </div>
-
-        {/* Hero stat strip */}
-        <section className="analytics-panel dash-hero-row">
-          {!intelligence ? (
-            <div className="hero-empty-hint">Run an analysis to populate this dashboard.</div>
-          ) : null}
-          <div className="hero-stats">
-            <HeroStat label="Simulated personas" value={sim?.persona_count != null ? formatCount(sim.persona_count) : null} tone="green" />
-            <HeroStat label="Virality score" value={sim?.virality_score != null ? Number(sim.virality_score).toFixed(1) : null} suffix={sim?.virality_score != null ? "/100" : ""} tone="hot" />
-            <HeroStat label="Positive reactions" value={sim?.positive_rate_pct != null ? formatPct(sim.positive_rate_pct, 1) : null} tone="green" />
-            <HeroStat label="Brain retention" value={brain?.summary?.mean_retention_proxy != null ? formatPct(brain.summary.mean_retention_proxy, 0) : null} tone="blue" />
-            <HeroStat label="Total shares" value={totalShares != null ? formatCount(totalShares) : null} tone="gold" />
-            <HeroStat label="Drop-off risk" value={sim?.dropoff_risk_pct != null ? formatPct(sim.dropoff_risk_pct, 0) : null} tone="red" />
-          </div>
-        </section>
-
-        {brainIsPerVideo(intelligence?.brain) ? (
-          <article className="analytics-panel">
-            <div className="panel-heading">
-              <h2><Brain size={16} /> TribeV2 cortical activation (3D)</h2>
-              <span><i /> {dashboardAnimatedUrl ? "fsaverage5 animated render" : dashboardBrainUrl ? "fsaverage5 interactive surface" : `${(brain?.geometry_frames || []).length} frames`} · {brain?.summary?.brain_vertices || brain?.shape_timesteps_vertices?.[1] || 0} vertices</span>
-            </div>
-            <TribeBrain3D
-              brain={brain}
-              isRunning={false}
-              brainUrl={dashboardBrainUrl}
-              animatedVideoUrl={dashboardAnimatedUrl}
-            />
-          </article>
-        ) : null}
-
-        {/* Two-column rich stage */}
-        <div className="dash-stage two-col">
-          <div className="dash-col">
-            <article className="analytics-panel">
-              <div className="panel-heading">
-                <h2><Activity size={16} /> Retention curve</h2>
-                {brain?.summary?.max_retention_proxy != null || brain?.summary?.min_retention_proxy != null ? (
-                  <span>
-                    <i />
-                    {brain?.summary?.max_retention_proxy != null ? <> peak {formatPct(brain.summary.max_retention_proxy, 0)}</> : null}
-                    {brain?.summary?.max_retention_proxy != null && brain?.summary?.min_retention_proxy != null ? " · " : null}
-                    {brain?.summary?.min_retention_proxy != null ? <>floor {formatPct(brain.summary.min_retention_proxy, 0)}</> : null}
-                  </span>
-                ) : null}
-              </div>
-              <RetentionCurve brain={brain} />
-            </article>
-            <article className="analytics-panel">
-              <div className="panel-heading">
-                <h2><Target size={16} /> Reaction breakdown</h2>
-                <span><i /> 7 classes · softmax</span>
-              </div>
-              <ReactionBars counts={reactionCounts} rates={reactionRates} />
-            </article>
-            <article className="analytics-panel">
-              <div className="panel-heading">
-                <h2><Waves size={16} /> Reaction timeline</h2>
-                <span><i /> positive % vs share %</span>
-              </div>
-              <UpstreamTimelineChart timeline={sim.timeline || []} />
-            </article>
-          </div>
-          <div className="dash-col">
-            <article className="analytics-panel">
-              <div className="panel-heading">
-                <h2><UsersRound size={16} /> Top cohorts</h2>
-                <span><i /> positive · share fit</span>
-              </div>
-              <CohortList cohorts={cohortsList.slice(0, 8)} />
-            </article>
-            <article className="analytics-panel">
-              <div className="panel-heading">
-                <h2><Zap size={16} /> Trait affinity</h2>
-                <span><i /> strongest pull</span>
-              </div>
-              <TraitTable traits={sim.top_traits || []} />
-            </article>
-          </div>
-        </div>
-
-        {/* Agent swarm + chat */}
-        <section className="dash-stage">
-          <AgentSwarmWithChat sim={sim} cohorts={cohortsList} />
-        </section>
-
-        {/* Cohort propagation network */}
-        <section className="dash-stage">
-          <article className="analytics-panel">
-            <div className="panel-heading">
-              <h2><Network size={16} /> Cohort propagation network</h2>
-              <span><i /> {cohortsList.length} cohorts · share-edges weighted by share rate</span>
-            </div>
-            <CohortNetwork sim={sim} />
-          </article>
-        </section>
-
-        {/* Existing "why they stayed" insights below for continuity */}
-        <DashboardIntelligence data={intelligence} />
-      </section>
-    </div>
-  );
 }
 
 function formatBytes(size = 0) {
@@ -4298,17 +4136,31 @@ function SimulationFlowPage({ go, user, runner, intelligence: parentIntelligence
   const [uploadedName, setUploadedName] = useState(runner?.video?.name || "");
   const [finishing, setFinishing] = useState(false);
   // Demo-mode progress when there's no real run streaming — keeps the
-  // anim alive for the marketing/landing flow.
-  const [fakeProgress, setFakeProgress] = useState(23);
+  // anim alive for the marketing/landing flow. Starts at 0 (not 23) so a
+  // user with no run in flight doesn't see a misleadingly-already-in-flight bar.
+  const [fakeProgress, setFakeProgress] = useState(0);
   // Captured from the intake step; flows through to runner.analyzeFile so the
   // edge function and downstream simulation can bias personas by platform/ICP.
   const [intake, setIntake] = useState(null);
 
-  // Real progress comes from cloud SSE if we have it; otherwise fall back
-  // to the canned demo sequence.
-  const progress = livePct != null && hasLiveRun ? Math.max(23, Math.min(100, Math.round(livePct))) : fakeProgress;
+  // Real progress comes from cloud SSE when a stream is in flight; otherwise
+  // we use the demo-mode progress (starts at 0).
+  const progress = livePct != null && hasLiveRun ? Math.max(0, Math.min(100, Math.round(livePct))) : fakeProgress;
 
-  const workflow = ["Uploaded", "Analysis", "Simulating 200k viewers", "Creating TribeV2 brain scan", "Finish"];
+  // Build the workflow labels dynamically. The middle "Simulating N viewers"
+  // step used to hardcode "200k viewers" regardless of the real persona count
+  // (the pipeline emits ~10k–100k depending on cohort), and the brain step
+  // used a stale "TribeV2" product label. Prefer the live stage label when
+  // the SSE stream is active, then the analyzed persona_count, then a
+  // generic "Simulating viewers" copy.
+  const personaCountForWorkflow = realIntelligence?.simulation?.persona_count;
+  const simStageLabel = personaCountForWorkflow
+    ? `Simulating ${formatCount(personaCountForWorkflow)} viewers`
+    : "Simulating viewers";
+  const brainStageLabel = runner?.liveStage?.label?.toLowerCase?.().includes("brain")
+    ? runner.liveStage.label
+    : "Brain scan";
+  const workflow = ["Uploaded", "Analysis", simStageLabel, brainStageLabel, "Finish"];
   const activeIndex = step === "intake"
     ? 0
     : step === "upload"
@@ -4347,9 +4199,9 @@ function SimulationFlowPage({ go, user, runner, intelligence: parentIntelligence
   // the running step.
   useEffect(() => {
     if (step !== "running" || hasLiveRun) return undefined;
-    setFakeProgress(23);
+    setFakeProgress(0);
     setFinishing(false);
-    const ticks = [36, 49, 63, 78, 91, 100];
+    const ticks = [16, 32, 49, 63, 78, 91, 100];
     const timers = ticks.map((value, index) => window.setTimeout(() => {
       setFakeProgress(value);
       if (value === 100) {
@@ -4367,7 +4219,9 @@ function SimulationFlowPage({ go, user, runner, intelligence: parentIntelligence
   }, [step, hasLiveRun]);
 
   const startUpload = (file) => {
-    const displayName = file?.name || "Summer Launch Reel.mp4";
+    // Don't fabricate a name; let downstream components fall back to a real
+    // empty state if the user didn't provide a file (e.g. "Use demo reel").
+    const displayName = file?.name || "";
     setUploadedName(displayName);
     if (file && runner?.analyzeFile) {
       // Real upload to the cloud edge fn — auto-advances via the runner state effect.
@@ -4379,7 +4233,7 @@ function SimulationFlowPage({ go, user, runner, intelligence: parentIntelligence
   const handleNewSimulation = () => {
     setStep("intake");
     setUploadedName("");
-    setFakeProgress(23);
+    setFakeProgress(0);
     setFinishing(false);
   };
 
@@ -4416,8 +4270,8 @@ function SimulationFlowPage({ go, user, runner, intelligence: parentIntelligence
             />
           ) : null}
           {step === "upload" ? <SimulationUploadStage inputRef={inputRef} onUpload={startUpload} /> : null}
-          {step === "morphing" ? <SimulationMorphStage workflow={workflow} uploadedName={uploadedName} previewUrl={runner?.previewUrl} /> : null}
-          {step === "running" ? <SimulationRunningStage workflow={workflow} activeIndex={activeIndex} progress={progress} uploadedName={uploadedName} liveStageLabel={runner?.liveStage?.label} previewUrl={runner?.previewUrl} /> : null}
+          {step === "morphing" ? <SimulationMorphStage workflow={workflow} uploadedName={uploadedName} previewUrl={runner?.previewUrl} progress={progress} liveStageLabel={runner?.liveStage?.label || simStageLabel} /> : null}
+          {step === "running" ? <SimulationRunningStage workflow={workflow} activeIndex={activeIndex} progress={progress} uploadedName={uploadedName} liveStageLabel={runner?.liveStage?.label || simStageLabel} brainLabel={brainStageLabel} previewUrl={runner?.previewUrl} /> : null}
           {step === "results" ? <SimulationResultsStage onRunAgain={handleNewSimulation} onSaveReport={handleSaveReport} intelligence={realIntelligence} /> : null}
           <input
             ref={inputRef}
@@ -4638,7 +4492,11 @@ function SimulationUploadStage({ inputRef, onUpload }) {
   );
 }
 
-function SimulationMorphStage({ workflow, uploadedName, previewUrl }) {
+function SimulationMorphStage({ workflow, uploadedName, previewUrl, progress = 0, liveStageLabel }) {
+  // The morph strap used to print "23%" + "Simulating 200k viewers" verbatim
+  // regardless of the live SSE state. Now drive it from the same progress +
+  // stage label the running step uses so the user sees a continuous count.
+  const pct = Number.isFinite(progress) ? Math.max(0, Math.min(100, Math.round(progress))) : 0;
   return (
     <section className="sim-morph-screen">
       <SimulationStatusStrip workflow={workflow} activeIndex={2} />
@@ -4649,19 +4507,22 @@ function SimulationMorphStage({ workflow, uploadedName, previewUrl }) {
         <div className="sim-morph-upload-copy">
           <Upload size={22} />
           <strong>Uploaded</strong>
-          <span>{uploadedName || "Summer Launch Reel.mp4"}</span>
+          <span>{uploadedName || "Awaiting source video"}</span>
         </div>
         <div className="sim-morph-run-copy">
-          <strong>23%</strong>
-          <span>Simulating 200k viewers</span>
+          <strong>{pct}%</strong>
+          <span>{liveStageLabel || "Simulating viewers"}</span>
         </div>
       </article>
     </section>
   );
 }
 
-function SimulationRunningStage({ workflow, activeIndex, progress, uploadedName, liveStageLabel, previewUrl }) {
-  const stageLabel = liveStageLabel || (progress < 74 ? "Simulating 200k viewers" : "Creating TribeV2 brain scan");
+function SimulationRunningStage({ workflow, activeIndex, progress, uploadedName, liveStageLabel, brainLabel, previewUrl }) {
+  // Prefer the live SSE label outright. Past brain-scan threshold (74%+),
+  // surface the brain label derived from intelligence/runner rather than a
+  // hardcoded "TribeV2 brain scan" copy.
+  const stageLabel = liveStageLabel || (progress < 74 ? "Simulating viewers" : (brainLabel || "Brain scan"));
   return (
     <section className="sim-running-screen">
       <SimulationStatusStrip workflow={workflow} activeIndex={activeIndex} />
@@ -4670,7 +4531,7 @@ function SimulationRunningStage({ workflow, activeIndex, progress, uploadedName,
       <article className="sim-run-bubble">
         <VideoMarquee userVideoSrc={previewUrl} />
         <div><strong>{progress}%</strong><span>{stageLabel}</span></div>
-        <small>{uploadedName || "Summer Launch Reel.mp4"}</small>
+        <small>{uploadedName || "Awaiting source video"}</small>
       </article>
     </section>
   );
@@ -4745,16 +4606,33 @@ function SimulationResultsStage({ onRunAgain, onSaveReport, intelligence }) {
     });
   }
 
+  // Audience segments — prefer real cohort.personas (number of personas per
+  // cohort, summable to persona_count). When personas is missing on any
+  // cohort, fall back to normalizing positive_rate_pct so the bars are at
+  // least labeled correctly ("share of positive reactions") instead of
+  // silently fabricating weight=1 per missing cohort.
   let segments = [];
+  let segmentsBasis = "personas";
   if (Array.isArray(sim.cohorts) && sim.cohorts.length) {
-    const cohorts = sim.cohorts.slice(0, 4);
-    // Cohort population is stored as `personas` (sometimes `viewers`).
-    const totalWeight = cohorts.reduce((acc, c) => acc + (Number(c.personas) || Number(c.viewers) || 1), 0) || 1;
-    segments = cohorts.map((c) => {
-      const weight = Number(c.personas) || Number(c.viewers) || 1;
-      const name = c.label || c.name || "Cohort";
-      return [name, `${Math.max(1, Math.round((weight / totalWeight) * 100))}%`];
-    });
+    const cohortsForSegments = sim.cohorts.slice(0, 4);
+    const allHavePersonas = cohortsForSegments.every((c) => Number.isFinite(Number(c.personas)) && Number(c.personas) > 0);
+    if (allHavePersonas) {
+      const totalWeight = cohortsForSegments.reduce((acc, c) => acc + Number(c.personas), 0) || 1;
+      segments = cohortsForSegments.map((c) => {
+        const name = c.label || c.name || "Cohort";
+        return [name, `${Math.max(1, Math.round((Number(c.personas) / totalWeight) * 100))}%`];
+      });
+    } else {
+      const totalWeight = cohortsForSegments.reduce((acc, c) => acc + Math.max(0, Number(c.positive_rate_pct) || 0), 0);
+      if (totalWeight > 0) {
+        segmentsBasis = "positive_rate_pct";
+        segments = cohortsForSegments.map((c) => {
+          const name = c.label || c.name || "Cohort";
+          const w = Math.max(0, Number(c.positive_rate_pct) || 0);
+          return [name, `${Math.max(1, Math.round((w / totalWeight) * 100))}%`];
+        });
+      }
+    }
   }
 
   return (
@@ -4768,7 +4646,7 @@ function SimulationResultsStage({ onRunAgain, onSaveReport, intelligence }) {
         <article className="sim-result-card sim-result-gauge"><span>Virality score</span><ExactViralityGauge score={viralityScore != null ? viralityScore : "—"} label={viralityLabel} /></article>
         <article className="sim-result-card sim-result-chart"><span>Retention curve</span><SimulationRetentionChart curve={brain?.retention_curve} /></article>
         <article className="sim-result-card sim-result-segments">
-          <span>Audience segments</span>
+          <span>Audience segments{segmentsBasis === "positive_rate_pct" ? <small> · by positive reaction rate</small> : null}</span>
           {segments.length ? segments.map(([name, value]) => <p key={name}><b>{name}</b><i><em style={{ width: value }} /></i><strong>{value}</strong></p>)
             : <p className="sim-empty-note">Awaiting cohort breakdown.</p>}
         </article>
@@ -4827,352 +4705,6 @@ function SimulationRetentionChart({ curve }) {
 
 function FlowPage({ go, user, intelligence: parentIntelligence, runner }) {
   return <SimulationFlowPage go={go} user={user} runner={runner} intelligence={parentIntelligence} />;
-
-  const inputRef = useRef(null);
-  const reelRef = useRef(null);
-  const reelStateRef = useRef({ offset: 0, velocity: 0 });
-  const isRunningRef = useRef(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const {
-    phase,
-    video,
-    previewUrl,
-    isRunning,
-    cloudRun,
-    cloudStatus,
-    liveStage,
-    streamActive,
-    intelligence = parentIntelligence,
-    isComplete,
-    progress,
-    analyzeFile,
-    toggleAnalysis,
-  } = runner;
-  const simulatedPersonaCount = intelligence?.simulation?.persona_count ?? 0;
-  const activeCloudRun = cloudRun || intelligence?.cloud?.latestRun || null;
-  const cloudSummary = activeCloudRun?.summary || null;
-  const flowStages = useMemo(
-    () =>
-      stages.map((stage, index) => {
-        if (index === 4 && intelligence?.simulation) {
-          return [stage[0], `${formatCount(simulatedPersonaCount)} viewers`, stage[2]];
-        }
-        if (index === 5 && intelligence?.brain) {
-          return [stage[0], `TribeV2 ${formatPercent(intelligence.brain.summary?.mean_retention_proxy)}`, stage[2]];
-        }
-        return stage;
-    }),
-    [intelligence, simulatedPersonaCount]
-  );
-  const analysisCounts = {
-    scenes: video ? Math.min(Number(cloudSummary?.scenes || 15), 3 + phase * 3) : 0,
-    transcript: video ? Math.min(Number(cloudSummary?.transcript_tokens || 1480), 220 + phase * 240) : 0,
-    ants: video ? Math.min(simulatedPersonaCount, Math.round(simulatedPersonaCount * ((phase + 1) / stages.length))) : 0,
-    confidence: video ? Math.min(96, 58 + phase * 7) : 0
-  };
-  const retentionCurve = intelligence?.brain?.retention_curve || [];
-  const activeRetentionPoint = retentionCurve.length
-    ? retentionCurve[Math.min(retentionCurve.length - 1, Math.round((phase / Math.max(1, stages.length - 1)) * (retentionCurve.length - 1)))]
-    : null;
-  const timeline = intelligence?.simulation?.timeline || [];
-  const activeTimeline = timeline.length
-    ? timeline[Math.min(timeline.length - 1, Math.round((phase / Math.max(1, stages.length - 1)) * (timeline.length - 1)))]
-    : null;
-  const retentionNow = activeRetentionPoint?.retention ?? intelligence?.brain?.summary?.mean_retention_proxy ?? 0;
-  const positiveNow = activeTimeline?.positive_rate_pct ?? intelligence?.simulation?.positive_rate_pct ?? 0;
-  const cloudLabel = {
-    idle: intelligence?.cloud?.connected ? "Cloud ready" : "Cloud fallback",
-    syncing: "Syncing to InsForge",
-    synced: "Cloud run saved",
-    error: "Cloud sync failed"
-  }[cloudStatus] || "Cloud ready";
-
-  useEffect(() => {
-    isRunningRef.current = isRunning;
-  }, [isRunning]);
-
-  useEffect(() => {
-    if (!video) return undefined;
-    const tileSlot = 127;
-    const cycle = tileSlot * 8;
-    let raf = 0;
-    let last = performance.now();
-    const tick = (now) => {
-      const dt = Math.min(0.08, (now - last) / 1000);
-      last = now;
-      const target = isRunningRef.current ? 540 : 0;
-      const state = reelStateRef.current;
-      state.velocity += (target - state.velocity) * Math.min(1, dt * 2.6);
-      if (target === 0 && Math.abs(state.velocity) < 0.4) state.velocity = 0;
-      state.offset = ((state.offset + state.velocity * dt) % cycle + cycle) % cycle;
-      if (reelRef.current) {
-        reelRef.current.style.transform = `translate3d(${-state.offset}px, 0, 0)`;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [video]);
-
-  const handleDrop = (event) => {
-    event.preventDefault();
-    setIsDragging(false);
-    analyzeFile(event.dataTransfer.files?.[0]);
-  };
-
-  return (
-    <div className={`page flow-page phase-${phase} ${isRunning ? "is-running" : ""} ${isComplete ? "is-complete" : ""}`}>
-      <input
-        ref={inputRef}
-        className="flow-file-input"
-        type="file"
-        accept="video/*"
-        onChange={(event) => analyzeFile(event.target.files?.[0])}
-      />
-
-      <section className="flow-intake-grid flow-upload-only">
-        <article className="flow-analysis-card">
-          <div
-            className="flow-drop-zone"
-            onDragOver={(event) => {
-              event.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-          >
-            <span className="flow-upload-orb"><Upload size={25} /></span>
-            <div>
-              <h2>{video ? video.name : "Upload video"}</h2>
-              <p>{video ? `${video.source} · ${video.size}` : "MP4, MOV, or WebM"}</p>
-            </div>
-            <button className="secondary-button compact" type="button" onClick={() => inputRef.current?.click()}>
-              {video ? "Replace" : "Choose file"}
-            </button>
-          </div>
-          <div className="flow-upload-actions">
-            <button
-              className="secondary-button compact"
-              type="button"
-              disabled={!video}
-              onClick={toggleAnalysis}
-            >
-              {isRunning ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}
-              {isRunning ? "Pause" : isComplete ? "Run again" : "Resume"}
-            </button>
-            <span className={`cloud-sync-pill ${cloudStatus}`}>
-              <i />
-              {cloudLabel}
-            </span>
-          </div>
-        </article>
-
-      </section>
-
-      {liveStage && (streamActive || cloudStatus === "synced" || cloudStatus === "error") && (
-        <div
-          className="flow-live-progress"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "8px 14px",
-            margin: "0 0 8px",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 8,
-            fontSize: 12,
-            background: "rgba(255,255,255,0.02)",
-          }}
-        >
-          <span style={{ width: 6, height: 6, borderRadius: 999, background: streamActive ? "#34d399" : "#94a3b8" }} />
-          <strong style={{ minWidth: 200 }}>{liveStage.label}</strong>
-          <div style={{ flex: 1, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-            <div
-              style={{
-                width: `${Math.max(0, Math.min(100, Number(liveStage.pct) || 0))}%`,
-                height: "100%",
-                background: "linear-gradient(90deg,#60a5fa,#34d399)",
-                transition: "width 200ms ease",
-              }}
-            />
-          </div>
-          <span style={{ minWidth: 42, textAlign: "right", opacity: 0.8 }}>{Math.round(Number(liveStage.pct) || 0)}%</span>
-        </div>
-      )}
-      <section className="pipeline flow-pipeline">
-        {flowStages.map(([title, detail, Icon], index) => {
-          const state = !video
-            ? index === 0 ? "active upload-needed" : "future"
-            : isComplete || index < phase ? "done" : index === phase ? "active" : "future";
-          return (
-            <div className={`stage ${state}`} key={title}>
-              <span className={`stage-index ${state.includes("done") ? "done" : state.includes("active") ? "active" : "future"}`}>
-                {state.includes("done") ? <Check size={13} /> : index + 1}
-              </span>
-              <Icon size={17} />
-              <div><strong>{title}</strong><small>{detail}</small></div>
-            </div>
-          );
-        })}
-      </section>
-
-      <section className="flow-live-analysis">
-        {brainIsPerVideo(intelligence?.brain) ? (
-          <TribeBrain3D
-            brain={intelligence?.brain}
-            isRunning={Boolean(video && isRunning)}
-            compact
-            brainUrl={
-              intelligence?.brain?.interactive_html_url
-                ? `${INSFORGE_ANALYSIS_FUNCTION_URL}${intelligence.brain.interactive_html_url}`
-                : null
-            }
-            animatedVideoUrl={
-              intelligence?.brain?.animated_video_url
-                ? `${INSFORGE_ANALYSIS_FUNCTION_URL}${intelligence.brain.animated_video_url}`
-                : null
-            }
-          />
-        ) : (video && isRunning) ? (
-          <div className="brain-scan-status" style={{
-            padding: "16px 20px",
-            borderRadius: 12,
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            fontSize: 13,
-            opacity: 0.85,
-          }}>
-            <BrainCircuit size={16} />
-            <span>Running brain scan on Vast Blackwell GPU&hellip;</span>
-          </div>
-        ) : null}
-      </section>
-
-      <section className="flow-visual-wrap">
-        <div className="simulation-board">
-          <div className="sim-head">
-            <h1>{video ? video.name : "Awaiting source"}</h1>
-            <span className={isComplete ? "is-complete" : ""}><i /> {isComplete ? "Complete" : isRunning ? "Live" : video ? "Paused" : "Idle"}</span>
-          </div>
-          <div className="timeline-labels"><span>0s</span><span>3s</span><span>6s</span><span>9s</span><span>12s</span><span>15s</span></div>
-
-          <div
-            className={`swarm-stage ${video ? "has-video" : "is-empty"} ${isDragging ? "is-dragging" : ""}`}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-          >
-            <div className="analysis-video-preview">
-              {previewUrl ? (
-                <video src={previewUrl} muted autoPlay loop playsInline />
-              ) : (
-                <img src={atomic.poster} alt="" />
-              )}
-            </div>
-            <div className="flow-canvas-fx" aria-hidden="true">
-              <span className="fx-scan" />
-              <svg className="fx-layer fx-intake" viewBox="0 0 620 360" preserveAspectRatio="xMidYMid meet">
-                <circle cx="310" cy="180" r="28" />
-                <circle cx="310" cy="180" r="28" />
-                <circle cx="310" cy="180" r="28" />
-              </svg>
-              <svg className="fx-layer fx-chunk" viewBox="0 0 620 360" preserveAspectRatio="none">
-                {[78, 162, 246, 330, 414, 498, 582].map((x, i) => (
-                  <line key={x} x1={x} x2={x} y1="56" y2="304" style={{ "--i": i }} />
-                ))}
-              </svg>
-              <svg className="fx-layer fx-transcribe" viewBox="0 0 620 360" preserveAspectRatio="none">
-                {[
-                  [88, 96, 320],
-                  [88, 132, 420],
-                  [88, 168, 360],
-                  [88, 204, 460],
-                  [88, 240, 280],
-                  [88, 276, 380]
-                ].map(([x1, y, len], i) => (
-                  <line key={y} x1={x1} x2={x1 + len} y1={y} y2={y} style={{ "--i": i }} />
-                ))}
-              </svg>
-              <svg className="fx-layer fx-pacing" viewBox="0 0 620 360" preserveAspectRatio="none">
-                <path d="M-40 180 Q 38 96 116 180 T 272 180 T 428 180 T 584 180 T 740 180" />
-              </svg>
-              <svg className="fx-layer fx-swarm" viewBox="0 0 620 360" preserveAspectRatio="xMidYMid meet">
-                {[
-                  [200, 168], [240, 144], [276, 198], [310, 158],
-                  [344, 196], [380, 148], [420, 200], [460, 162]
-                ].map(([cx, cy], i) => (
-                  <circle key={i} cx={cx} cy={cy} r="3.4" style={{ "--i": i }} />
-                ))}
-              </svg>
-              <svg className="fx-layer fx-retention" viewBox="0 0 620 360" preserveAspectRatio="none">
-                <path d="M28 268 C 96 286 152 298 220 264 C 286 232 326 168 392 132 C 452 100 510 88 596 80" />
-              </svg>
-            </div>
-            {video && <RouteAnts id="flow" paths={flowPaths} count={28 + phase * 4} className="flow-routes" viewBox="0 0 1000 382" />}
-            {(!video || isComplete) && (
-              <div className="flow-center-control">
-                <button className="flow-center-upload" type="button" onClick={() => inputRef.current?.click()}>
-                  <Upload size={20} />
-                  <span>{video ? "Replace video" : "Upload video"}</span>
-                </button>
-                {isComplete && (
-                  <button className="flow-center-soft" type="button" onClick={toggleAnalysis}>
-                    <Play size={16} fill="currentColor" />
-                    Run again
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div
-            className={`video-reel ${video ? "has-video" : ""} ${isRunning ? "is-running" : ""} ${isComplete ? "is-complete" : ""}`}
-            aria-hidden="true"
-          >
-            <div className="video-reel-track" ref={reelRef}>
-              {Array.from({ length: 16 }).map((_, index) => (
-                <span className="video-reel-tile" key={index}>
-                  {previewUrl && index % 8 === 3 ? (
-                    <video src={previewUrl} muted autoPlay loop playsInline />
-                  ) : (
-                    <img src={atomic.thumb(index)} alt="" />
-                  )}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="live-metrics">
-        <LiveMetric title="Retention (TribeV2)" value={video && (cloudSummary?.mean_retention_proxy != null || retentionNow) ? `${Number(cloudSummary?.mean_retention_proxy ?? retentionNow).toFixed(1)}%` : null} delta={video ? `${activeRetentionPoint?.time_sec ?? 0}s brain frame` : "Awaiting video"} tone="green" />
-        <LiveMetric title="Positive reactions" value={video && (cloudSummary?.positive_rate_pct != null || positiveNow) ? `${Number(cloudSummary?.positive_rate_pct ?? positiveNow).toFixed(1)}%` : null} delta={video ? `${formatCount(analysisCounts.ants)} personas sampled` : "Awaiting transcript"} tone="green" />
-        <LiveMetric title="Virality Score" value={video && (cloudSummary?.virality_score != null || intelligence?.simulation?.virality_score != null) ? `${Math.round((cloudSummary?.virality_score ?? intelligence?.simulation?.virality_score ?? 0) * Math.max(0.34, progress / 100))}` : null} suffix={video ? "/100" : ""} delta={video ? `${formatCount(cloudSummary?.total_shares ?? intelligence?.simulation?.total_shares ?? 0)} share edges` : "Awaiting swarm"} tone="green" />
-        <LiveMetric title="Drop-off Risk" value={video && intelligence?.simulation?.dropoff_risk_pct != null ? `${Math.max(3, Number(intelligence.simulation.dropoff_risk_pct) - phase).toFixed(1)}%` : null} delta={video ? "Updates with analysis phase" : "Awaiting retention"} tone="orange" />
-      </section>
-
-      <footer className="flow-footer">
-        <p><MiniAnt index={10} /> {video ? `${video.name} is ${activeCloudRun ? `saved as cloud run ${String(activeCloudRun.id).slice(0, 8)}` : `connected to the local ${formatCount(simulatedPersonaCount)} persona intelligence payload`}.` : "Ready for a source video."}</p>
-        <div><span>Elapsed: 00:{String(video ? 18 + phase * 7 : 0).padStart(2, "0")}</span><span>ETA: 00:{String(video ? Math.max(0, 42 - phase * 6) : 42).padStart(2, "0")}</span></div>
-      </footer>
-    </div>
-  );
-}
-
-function MomentCard({ kind, label, left, tone }) {
-  return (
-    <div className={`moment-card ${tone}`} style={{ left }}>
-      <MarkerAsset name={kind} />
-      <span>{label}</span>
-      <StaticCluster count={kind === "confusion" ? 10 : 22} tone={tone} />
-    </div>
-  );
 }
 
 function MetricCard({ label, value = null, suffix = "", note = "" }) {
@@ -5182,107 +4714,6 @@ function MetricCard({ label, value = null, suffix = "", note = "" }) {
       <span>{label}</span>
       <div><strong>{value}</strong>{suffix && <small>{suffix}</small>}</div>
       {note ? <p>{note}</p> : null}
-    </article>
-  );
-}
-
-function RetentionChart({ curve }) {
-  // No real cloud-derived curve yet — render nothing rather than a synthetic placeholder.
-  if (!Array.isArray(curve) || curve.length < 2) {
-    return null;
-  }
-
-  const xs = curve.map((p) => Number(p.time_sec) || 0);
-  const ys = curve.map((p) => {
-    const r = Number(p.retention);
-    if (!Number.isFinite(r)) return 0;
-    return r <= 1 ? r : r / 100;
-  });
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const xRange = maxX - minX || 1;
-  const padX = 14;
-  const padTop = 20;
-  const padBottom = 20;
-  const W = 920;
-  const H = 270;
-  const points = curve.map((_, i) => {
-    const px = padX + ((xs[i] - minX) / xRange) * (W - padX * 2);
-    const py = padTop + (1 - Math.max(0, Math.min(1, ys[i]))) * (H - padTop - padBottom);
-    return [px, py];
-  });
-  const lineD = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
-  const last = points[points.length - 1];
-  const first = points[0];
-  const areaD = `${lineD} L${last[0].toFixed(1)} ${H} L${first[0].toFixed(1)} ${H} Z`;
-
-  // Axis labels: 6 evenly spaced ticks across observed time range
-  const axisLabels = [0, 1, 2, 3, 4, 5].map((i) => {
-    const t = minX + (xRange * i) / 5;
-    return `${Math.round(t)}s`;
-  });
-
-  // Drop marker: lowest retention point in first half (or absolute lowest)
-  let dropIdx = 0;
-  for (let i = 1; i < ys.length; i++) {
-    if (ys[i] < ys[dropIdx]) dropIdx = i;
-  }
-  const dropMarker = {
-    label: `${Math.round(xs[dropIdx])}s hold`,
-    value: `${Math.round(ys[dropIdx] * 100)}%`,
-  };
-
-  return (
-    <div className="chart-box">
-      <svg viewBox="0 0 920 270" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="retentionFill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#5f9c3b" stopOpacity=".2" />
-            <stop offset="100%" stopColor="#5f9c3b" stopOpacity="0" />
-          </linearGradient>
-          <path id="dashboard-retention-path" d={lineD} />
-        </defs>
-        {[0, 1, 2, 3].map((line) => <line key={line} x1="0" x2="920" y1={line * 68 + 24} y2={line * 68 + 24} />)}
-        {[0, 1, 2, 3, 4, 5].map((line) => <line key={line} y1="20" y2="250" x1={line * 184} x2={line * 184} />)}
-        <path className="chart-area" d={areaD} />
-        <path className="chart-line" d={lineD} />
-        {Array.from({ length: 32 }).map((_, index) => (
-          <g key={index} className="svg-ant" opacity=".78">
-            <animateMotion dur={`${5.5 + (index % 5) * 0.2}s`} begin={`${index * -0.16}s`} repeatCount="indefinite" rotate="auto">
-              <mpath href="#dashboard-retention-path" />
-            </animateMotion>
-            <image href={atomic.pathAnt} x="-8.5" y="-8.5" width="17" height="17" transform="rotate(90 0 0)" />
-          </g>
-        ))}
-      </svg>
-      <div className="drop-marker"><strong>{dropMarker.label}</strong><span>{dropMarker.value}</span></div>
-      <div className="axis-labels">{axisLabels.map((l, i) => <span key={`${l}-${i}`}>{l}</span>)}</div>
-    </div>
-  );
-}
-
-function SentimentRow({ name, positive, neutral, negative, tone }) {
-  return (
-    <div className="sentiment-row">
-      <span className={`persona-icon ${tone}`}><MiniAnt index={positive % 16} /></span>
-      <strong>{name}</strong>
-      <div className="sentiment-bar">
-        <span className="positive" style={{ width: `${positive}%` }} />
-        <span className="neutral" style={{ width: `${neutral}%` }} />
-        <span className="negative" style={{ width: `${negative}%` }} />
-      </div>
-      <small>{positive}%</small><small>{neutral}%</small><small>{negative}%</small>
-    </div>
-  );
-}
-
-function LiveMetric({ title, value, suffix = "", delta, tone }) {
-  if (value == null) return null;
-  return (
-    <article className={`live-card ${tone}`}>
-      <span>{title}</span>
-      <div><strong>{value}</strong>{suffix && <small>{suffix}</small>}</div>
-      {delta ? <p>{delta}</p> : null}
     </article>
   );
 }

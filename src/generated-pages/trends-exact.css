@@ -1300,3 +1300,251 @@
     top: 142px;
   }
 }
+
+/* ---- Data-driven Trends additions ---- */
+
+.trends-exact .te-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 46vh;
+  padding: 64px 24px;
+  text-align: center;
+  color: var(--te-soft-ink);
+}
+
+.trends-exact .te-empty-state svg {
+  opacity: 0.55;
+}
+
+.trends-exact .te-empty-state h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--te-ink);
+}
+
+.trends-exact .te-empty-state p {
+  margin: 0;
+  max-width: 480px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--te-muted);
+}
+
+.te-data-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.te-data-grid .te-panel.te-full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 980px) {
+  .te-data-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.te-trend-bars {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.te-trend-bar-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 26%) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.te-trend-bar-row strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.te-trend-bar-track {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(207, 218, 199, 0.45);
+  overflow: hidden;
+}
+
+.te-trend-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--te-green), var(--te-green-deep));
+  animation: teRiseIn 480ms ease both;
+}
+
+.te-trend-bar-fill.te-tone-gold {
+  background: linear-gradient(90deg, #f1c34a, var(--te-gold));
+}
+
+.te-trend-bar-fill.te-tone-blue {
+  background: linear-gradient(90deg, #76b9ee, var(--te-blue));
+}
+
+.te-trend-bar-count {
+  color: var(--te-soft-ink);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.te-trend-bar-delta {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.te-trend-bar-delta.te-up {
+  color: var(--te-green-deep);
+}
+
+.te-trend-bar-delta.te-down {
+  color: var(--te-red);
+}
+
+.te-keyword-pill.te-seed {
+  border-color: rgba(74, 155, 232, 0.42);
+  background: rgba(234, 244, 255, 0.86);
+  color: #1d3a5e;
+}
+
+.te-keyword-pill.te-seed strong {
+  color: var(--te-blue);
+}
+
+.te-keyword-pill.is-active {
+  border-color: rgba(46, 112, 31, 0.72);
+  background: var(--te-green-soft);
+  color: var(--te-green-deep);
+  cursor: pointer;
+}
+
+.te-set-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.te-set-row .te-select-button {
+  cursor: pointer;
+}
+
+.te-set-row .te-select-button.is-active {
+  border-color: rgba(46, 112, 31, 0.65);
+  background: var(--te-green-soft);
+  color: var(--te-green-deep);
+}
+
+.te-nia-panel {
+  position: relative;
+}
+
+.te-nia-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.te-nia-status.te-status-ready {
+  color: var(--te-green-deep);
+  background: var(--te-green-soft);
+}
+
+.te-nia-status.te-status-pending {
+  color: #9a6c00;
+  background: var(--te-gold-soft);
+}
+
+.te-nia-status.te-status-error {
+  color: #b1372d;
+  background: var(--te-red-soft);
+}
+
+.te-nia-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--te-soft-ink);
+  white-space: pre-wrap;
+}
+
+.te-nia-toggle {
+  margin-top: 8px;
+  align-self: start;
+  padding: 0;
+  color: var(--te-green-deep);
+  font-size: 12px;
+  font-weight: 800;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.te-nia-toggle:hover {
+  text-decoration: underline;
+}
+
+.te-move-icon.te-red {
+  color: #b1372d;
+  background: var(--te-red-soft);
+}
+
+.te-move-row.te-tone-gold {
+  border-color: rgba(215, 160, 23, 0.42);
+}
+
+.te-move-row.te-tone-blue {
+  border-color: rgba(74, 155, 232, 0.42);
+}
+
+.te-move-row.te-tone-red {
+  border-color: rgba(224, 93, 81, 0.42);
+}
+
+.te-context-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  color: var(--te-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.te-context-meta b {
+  color: var(--te-ink);
+  font-weight: 800;
+}
+
+.te-context-meta i {
+  font-style: normal;
+  opacity: 0.6;
+}
+

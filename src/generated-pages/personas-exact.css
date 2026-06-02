@@ -1729,3 +1729,46 @@
 .personas-exact .pe-content-grid > * > * {
   color: var(--pe-ink);
 }
+
+/* Hub overlay label (persona_count / virality_score) — sits inside .pe-central-hub. */
+.pe-central-hub .pe-hub-label {
+  position: absolute;
+  z-index: 2;
+  bottom: -22px;
+  left: 50%;
+  padding: 3px 9px;
+  border: 1px solid rgba(205, 190, 160, 0.6);
+  border-radius: 999px;
+  background: rgba(7, 12, 17, 0.72);
+  color: var(--pe-ink);
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* Pause control freezes the SVG animateMotion ticks via CSS. */
+.pe-map-canvas.pe-map-paused .pe-motion-layer {
+  animation-play-state: paused;
+}
+.pe-map-canvas.pe-map-paused svg animateMotion {
+  /* No direct CSS hook for animateMotion; the visual freeze is achieved via
+     the JS-controlled `paused` flag rerendering with a static frame. Kept
+     here for clarity / future refinement. */
+}
+
+/* Expanded map mode: bump the canvas height so the colony breathes. */
+.pe-card.pe-map-expanded .pe-map-canvas {
+  height: min(80vh, 760px);
+}
+
+/* Reaction pill icon span — previously rendered text emoji; now lucide icons. */
+.pe-reaction-row button > span {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: var(--pe-ink);
+}
+
