@@ -276,8 +276,16 @@ async def analyze(request: Request, video: UploadFile = File(...)) -> StreamingR
             "label": f"Received {video_meta['video_name']} ({size} bytes)",
             "pct": 1.0,
         })
+        # SSE heartbeat: emit a comment line every 5s during silent stages
+        # (build_brain_payload doesn't emit progress for 30-60s and the proxy
+        # in front of us drops idle connections). Comment lines are ignored
+        # by EventSource clients but keep the TCP/HTTP2 stream warm.
         while True:
-            event = await queue.get()
+            try:
+                event = await asyncio.wait_for(queue.get(), timeout=5.0)
+            except asyncio.TimeoutError:
+                yield b": keepalive\n\n"
+                continue
             if event.get("type") == "__done__":
                 break
             yield _sse(event)

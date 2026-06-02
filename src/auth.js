@@ -40,11 +40,19 @@ function writeStoredToken(token) {
 
 export function getInsforgeClient() {
   if (_client) return _client;
-  const token = readStoredToken();
+  // IMPORTANT: do NOT pass `edgeFunctionToken` here. The SDK uses that flag as
+  // a signal to flip itself into "server mode" (`isServerMode = !!opts.edge
+  // FunctionToken`), and server mode disables the refresh-cookie flow. Once
+  // the 15-minute access token expires, the SDK keeps sending the stale
+  // Bearer to `/api/auth/sessions/current` and gets 401 forever — users
+  // appeared signed in but every authenticated call silently failed.
+  //
+  // The localStorage token we keep (`insforge_session`) is only for our own
+  // direct edge-function fetches (Authorization: Bearer ...). The SDK itself
+  // refreshes via httpOnly cookies on its own when not pinned to a token.
   _client = createClient({
     baseUrl,
     anonKey,
-    ...(token ? { edgeFunctionToken: token } : {}),
   });
   return _client;
 }
@@ -344,6 +352,24 @@ export async function signOut() {
   resetClient();
 }
 
+// Pull the SDK's current Bearer token out of its private http header bag, so
+// our localStorage copy stays in sync after the SDK silently refreshes via
+// the httpOnly cookie. Without this, direct edge-function fetches (which use
+// `Authorization: Bearer <localStorage>`) keep sending a stale token after a
+// refresh cycle. Falls back gracefully if the SDK changes shape.
+function extractTokenFromClient(client) {
+  try {
+    const headers = client?.auth?.http?.getHeaders?.()
+      || client?.http?.getHeaders?.()
+      || {};
+    const authH = headers.Authorization || headers.authorization;
+    if (typeof authH === "string" && authH.startsWith("Bearer ")) {
+      return authH.slice(7).trim() || null;
+    }
+  } catch { /* fall through */ }
+  return null;
+}
+
 export async function getCurrentUser() {
   const client = getInsforgeClient();
   try {
@@ -362,6 +388,11 @@ export async function getCurrentUser() {
       }
       return null;
     }
+    // SDK successfully resolved a user — either from existing session or via
+    // refresh. Either way, sync its current Bearer back to localStorage so
+    // direct edge-function fetches use the freshest token.
+    const fresh = extractTokenFromClient(client);
+    if (fresh) writeStoredToken(fresh);
     return data.user;
   } catch (e) {
     // Same here: don't wipe on a network/throw — let the next call retry.

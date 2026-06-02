@@ -34,9 +34,11 @@ try:
     import torch
     import torch.nn.functional as F
     torch.set_num_threads(max(1, min(4, torch.get_num_threads() or 1)))
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 except Exception:  # pragma: no cover
     torch = None
     F = None
+    DEVICE = None
 
 
 from .video_signals import extract_signals
@@ -770,7 +772,7 @@ def load_engagement_model():
 
     from server.models.engagement_quick_transformer import EngagementConcatMLP
 
-    ckpt = torch.load(ENGAGEMENT_CKPT, map_location="cpu", weights_only=False)
+    ckpt = torch.load(ENGAGEMENT_CKPT, map_location=DEVICE, weights_only=False)
     labels = list(ckpt.get("engagement_keys", REACTION_ORDER))
     net = EngagementConcatMLP(
         d_model=int(ckpt.get("d_model", 100)),
@@ -781,6 +783,8 @@ def load_engagement_model():
     )
     net.load_state_dict(ckpt["model_state_dict"])
     net.eval()
+    net.to(DEVICE)
+    print(f"[engagement] loaded on {DEVICE}")
     return net, labels
 
 
@@ -795,15 +799,15 @@ def predict_reaction_probs(
         return raw, labels, "fallback_persona_softmax"
 
     emb = hashed_embedding(text)
-    transcript = torch.from_numpy(emb).float().unsqueeze(0)
-    summary = torch.from_numpy(np.roll(emb, 17).copy()).float().unsqueeze(0)
+    transcript = torch.from_numpy(emb).float().unsqueeze(0).to(DEVICE)
+    summary = torch.from_numpy(np.roll(emb, 17).copy()).float().unsqueeze(0).to(DEVICE)
     out = np.empty((len(personas), len(labels)), dtype=np.float32)
     batch_size = 8192
     n = len(personas)
     with torch.no_grad():
         for start in range(0, n, batch_size):
             end = min(start + batch_size, n)
-            p = torch.from_numpy(personas[start:end]).float()
+            p = torch.from_numpy(personas[start:end]).float().to(DEVICE)
             t = transcript.expand(end - start, -1)
             s = summary.expand(end - start, -1)
             probs = F.softmax(net(p, t, s), dim=-1)

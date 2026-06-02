@@ -184,6 +184,27 @@ async function runTribeBrain(videoUrl: string | null | undefined) {
   }
 }
 
+// Strip the heavy base64 PNG arrays out of a row before writing it to the
+// viewlytics_analysis_runs table. Each render_frame is ~150 KB of base64;
+// 18 frames per run × dozens of runs was making this table ~3 MB/row and
+// pushing the InsForge instance memory toward OOM (that's what triggered the
+// 2026-05-20 InstanceDown alert). The dashboard reads brain renders via the
+// `/brain/<hash>.html` iframe proxy URL — not from these rows — so dropping
+// them is safe. shape_timesteps_vertices is also large and unused.
+function stripHeavyIntelligence(intel: Record<string, unknown>): Record<string, unknown> {
+  if (!intel || typeof intel !== "object") return intel;
+  const brain = (intel as any).brain || {};
+  return {
+    ...intel,
+    brain: {
+      ...brain,
+      render_frames: [],
+      geometry_frames: Array.isArray(brain.geometry_frames) ? brain.geometry_frames.slice(0, 4) : [],
+      shape_timesteps_vertices: null,
+    },
+  };
+}
+
 function mergeTribeIntoIntelligence(
   intelligence: Record<string, unknown>,
   summary: Record<string, unknown>,
@@ -439,7 +460,7 @@ async function proxyAntServerStream(req: Request): Promise<Response> {
                   progress: 100,
                   current_stage: STAGES[STAGES.length - 1],
                   summary: built.summary,
-                  intelligence: { ...built.intelligence, source: "ant-local-pipeline" },
+                  intelligence: stripHeavyIntelligence({ ...built.intelligence, source: "ant-local-pipeline" }),
                 })
                 .eq("id", runId);
             } else if (ev.type === "error" && runId !== null) {
@@ -625,7 +646,7 @@ async function createRunStream(req: Request) {
                     progress: 100,
                     current_stage: STAGES[STAGES.length - 1],
                     summary,
-                    intelligence,
+                    intelligence: stripHeavyIntelligence(intelligence),
                   })
                   .eq("id", runId);
               }
@@ -741,7 +762,7 @@ async function createRun(req: Request) {
     progress: 100,
     current_stage: STAGES[STAGES.length - 1],
     summary,
-    intelligence,
+    intelligence: stripHeavyIntelligence(intelligence),
     claim_token_hash: syncClaimTokenHash,
     user_id: user?.id || null,
     claimed_at: claimedAt,

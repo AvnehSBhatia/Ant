@@ -19,13 +19,13 @@ export default function TrendsExact() {
       <h1
         style={{
           margin: 0,
-          fontSize: "clamp(40px, 7vw, 80px)",
+          fontSize: "clamp(24px, 3vw, 36px)",
           fontWeight: 800,
-          letterSpacing: "-0.04em",
-          lineHeight: 1,
+          letterSpacing: 0,
+          lineHeight: 1.05,
         }}
       >
-        COMING SOON
+        Trend analysis is in progress
       </h1>
       <p
         style={{

@@ -186,20 +186,20 @@
 
 .te-title-row h1 {
   margin: 0;
-  font-size: 40px;
+  font-size: clamp(28px, 2.6vw, 40px);
   font-weight: 950;
   letter-spacing: 0;
-  line-height: 0.95;
+  line-height: 1;
 }
 
 .te-subtitle {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 16px;
-  color: #11130f;
-  font-size: 21px;
-  font-weight: 500;
+  margin-top: 8px;
+  color: var(--te-muted);
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .te-subtitle svg {
@@ -693,7 +693,7 @@
 }
 
 .te-soft-button span {
-  flex: 1;
+  flex: 0 1 auto;
 }
 
 .te-topics-panel {

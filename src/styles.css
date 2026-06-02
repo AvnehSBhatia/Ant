@@ -1826,8 +1826,9 @@ svg {
 .virality-gauge span {
   align-self: end;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -2231,7 +2232,7 @@ svg {
 }
 
 .dash-topbar {
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 18px;
 }
 
@@ -2456,6 +2457,217 @@ svg {
 .history-load-button {
   min-width: 136px;
   padding: 0 14px;
+}
+
+/* ----------------------------------------------------------------------------
+   History page: scoped dark-theme overrides
+   The base .history-* styles above were written for the old light theme. The
+   page now renders inside `.sim-step-history` (dark sim-flow layout) — these
+   overrides retint everything to match without rewriting the base rules.
+   ---------------------------------------------------------------------------- */
+.sim-step-history .sim-flow-main-history {
+  padding: 28px 32px 36px;
+}
+
+.sim-step-history .history-page {
+  gap: 18px;
+  padding: 0;
+}
+
+.sim-step-history .analytics-panel {
+  border: 1px solid var(--sim-line-strong);
+  border-radius: 14px;
+  background: rgba(9, 15, 20, 0.78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 24px 26px;
+  color: var(--sim-text);
+}
+
+.sim-step-history .panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.sim-step-history .panel-heading h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--sim-text);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.sim-step-history .panel-heading > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--sim-muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.sim-step-history .panel-heading i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--exact-green);
+  box-shadow: 0 0 8px rgba(139, 197, 65, 0.55);
+}
+
+.sim-step-history .history-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.sim-step-history .history-summary-grid .metric-card {
+  min-height: 110px;
+  padding: 16px 18px;
+  border: 1px solid var(--sim-line);
+  border-radius: 12px;
+  background: rgba(7, 12, 17, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  color: var(--sim-text);
+}
+
+.sim-step-history .history-summary-grid .metric-card strong {
+  color: var(--sim-text);
+  font-size: 32px;
+  line-height: 1;
+}
+
+.sim-step-history .history-summary-grid .metric-card > span,
+.sim-step-history .history-summary-grid .metric-card small {
+  color: var(--sim-muted);
+}
+
+.sim-step-history .history-empty {
+  border-color: rgba(235, 240, 232, 0.16);
+  background: rgba(7, 12, 17, 0.42);
+  color: var(--sim-muted);
+}
+
+.sim-step-history .history-empty strong {
+  color: var(--sim-text);
+}
+
+.sim-step-history .history-list {
+  gap: 12px;
+}
+
+.sim-step-history .history-card {
+  border: 1px solid var(--sim-line);
+  border-radius: 12px;
+  background: rgba(7, 12, 17, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  padding: 16px 18px;
+}
+
+.sim-step-history .history-card-title strong {
+  color: var(--sim-text);
+  font-weight: 800;
+}
+
+.sim-step-history .history-card-title small {
+  color: var(--sim-muted);
+  font-weight: 700;
+}
+
+.sim-step-history .history-video-icon {
+  border-color: rgba(139, 197, 65, 0.32);
+  background: rgba(139, 197, 65, 0.12);
+  color: var(--exact-green);
+}
+
+.sim-step-history .history-meta-row,
+.sim-step-history .history-meta-row > span {
+  color: var(--sim-muted);
+}
+
+.sim-step-history .history-meta-row > span {
+  background: rgba(235, 240, 232, 0.06);
+  border: 1px solid rgba(235, 240, 232, 0.10);
+  font-weight: 700;
+}
+
+.sim-step-history .history-status {
+  color: var(--exact-green) !important;
+  background: rgba(139, 197, 65, 0.14) !important;
+  border-color: rgba(139, 197, 65, 0.32) !important;
+}
+
+.sim-step-history .history-status.failed {
+  color: #ff8b78 !important;
+  background: rgba(255, 87, 63, 0.14) !important;
+  border-color: rgba(255, 87, 63, 0.32) !important;
+}
+
+.sim-step-history .history-status.analyzing,
+.sim-step-history .history-status.uploading,
+.sim-step-history .history-status.queued {
+  color: var(--exact-yellow) !important;
+  background: rgba(255, 216, 77, 0.12) !important;
+  border-color: rgba(255, 216, 77, 0.32) !important;
+}
+
+.sim-step-history .history-metric-row > span {
+  border-color: rgba(235, 240, 232, 0.10);
+  background: rgba(235, 240, 232, 0.04);
+}
+
+.sim-step-history .history-metric-row strong {
+  color: var(--sim-text);
+  font-weight: 800;
+}
+
+.sim-step-history .history-metric-row small {
+  color: var(--sim-muted);
+}
+
+.sim-step-history .history-load-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--exact-yellow);
+  color: #0c0c07;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sim-step-history .history-load-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sim-step-history .history-load-button:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 900px) {
+  .sim-step-history .sim-flow-main-history {
+    padding: 18px 14px 28px;
+  }
+  .sim-step-history .history-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sim-step-history .history-card {
+    grid-template-columns: 1fr;
+  }
+  .sim-step-history .history-metric-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .sim-step-history .history-load-button {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .metric-grid {
@@ -7453,10 +7665,12 @@ body:has(.ant-login-page) {
   animation: exactFloat 7s ease-in-out infinite;
 }
 
-.exact-video-card > img {
+.exact-video-card > img,
+.exact-video-card > video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  background: #0b1117;
 }
 
 .exact-video-card::after {
@@ -7530,10 +7744,11 @@ body:has(.ant-login-page) {
 
 .exact-video-progress b {
   display: block;
-  width: 48%;
+  width: 0%;
   height: 100%;
   border-radius: inherit;
   background: white;
+  transition: width 200ms linear;
 }
 
 .exact-landing-analytics {
@@ -7699,21 +7914,21 @@ body:has(.ant-login-page) {
 }
 
 .exact-gauge-score strong {
-  font-size: 64px;
+  font-size: 44px;
   line-height: 0.78;
 }
 
 .exact-gauge-score span {
   margin: 0 0 5px;
   color: var(--exact-muted);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .exact-gauge small {
   display: block;
   color: var(--exact-green);
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 900;
   line-height: 1;
 }
@@ -7750,7 +7965,7 @@ body:has(.ant-login-page) {
 }
 
 .exact-landing-page .exact-virality-card .exact-gauge-score strong {
-  font-size: 56px;
+  font-size: 38px;
 }
 
 .exact-landing-page .exact-virality-card .exact-gauge-score span,
@@ -7867,9 +8082,11 @@ body:has(.ant-login-page) {
 
 .exact-new-sim span {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
   font-size: 31px;
   font-weight: 300;
-  line-height: 0;
+  line-height: 1;
 }
 
 .exact-dashboard-sidebar nav {
@@ -7909,13 +8126,32 @@ body:has(.ant-login-page) {
   border-radius: 8px;
   color: var(--exact-text);
   background: rgba(9, 15, 20, 0.72);
+  text-align: left;
 }
 
-.exact-creator-card img {
+.exact-creator-card img,
+.exact-creator-card-avatar-img {
+  display: block;
+  align-self: center;
+  justify-self: center;
   width: 43px;
   height: 43px;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.exact-creator-card-avatar {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  border-radius: 50%;
+  color: var(--exact-yellow);
+  background: var(--exact-panel-2);
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 216, 77, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 
 .exact-creator-card strong,
@@ -8613,13 +8849,32 @@ body:has(.sim-flow-page) {
   border-radius: 8px;
   color: var(--sim-text);
   background: rgba(9, 15, 20, 0.72);
+  text-align: left;
 }
 
-.sim-flow-creator img {
+.sim-flow-creator img,
+.sim-flow-creator-avatar-img {
+  display: block;
+  align-self: center;
+  justify-self: center;
   width: 38px;
   height: 38px;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.sim-flow-creator-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: var(--exact-yellow);
+  background: #0e151b;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 216, 77, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 
 .sim-flow-creator strong,
@@ -8666,7 +8921,7 @@ body:has(.sim-flow-page) {
 .sim-results-head h1 {
   margin: 0;
   color: var(--sim-text);
-  font-size: 35px;
+  font-size: clamp(28px, 2.8vw, 36px);
   line-height: 1.08;
   letter-spacing: 0;
 }
@@ -8800,6 +9055,77 @@ body:has(.sim-flow-page) {
   font-size: 10px;
   font-style: normal;
   font-weight: 750;
+}
+
+.sim-platform-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.sim-platform-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 39px;
+  padding: 0 10px;
+  border: 1px solid rgba(230, 236, 226, 0.16);
+  border-radius: 6px;
+  color: rgba(235, 240, 232, 0.66);
+  background: rgba(3, 8, 11, 0.42);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.sim-platform-option:hover {
+  color: var(--sim-text);
+  border-color: rgba(230, 236, 226, 0.32);
+}
+
+.sim-platform-option:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px rgba(245, 199, 74, 0.45);
+}
+
+.sim-platform-option.is-active {
+  color: var(--sim-text);
+  border-color: rgba(245, 199, 74, 0.75);
+  background: rgba(245, 199, 74, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(245, 199, 74, 0.25);
+}
+
+.sim-platform-option.sim-tiktok.is-active    { border-color: rgba(235, 240, 232, 0.8); background: rgba(235, 240, 232, 0.06); }
+.sim-platform-option.sim-instagram.is-active { border-color: rgba(224, 76, 134, 0.85); background: rgba(224, 76, 134, 0.10); }
+.sim-platform-option.sim-youtube.is-active   { border-color: rgba(239, 45, 36, 0.85);  background: rgba(239, 45, 36, 0.10); }
+
+.sim-icp-select {
+  flex: 1 1 auto;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--sim-text);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  outline: 0;
+}
+
+.sim-icp-select option {
+  color: var(--sim-text);
+  background: #05080b;
+}
+
+.sim-wide-button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .sim-wide-button {
@@ -8969,6 +9295,179 @@ body:has(.sim-flow-page) {
   object-fit: cover;
 }
 
+/* 3-row marquee. Used post-selection. Rows scroll left/right/left in opposite
+   directions; the user's clip first appears as a giant hero overlay, then
+   shrinks down to the first tile of the middle row. */
+.video-marquee-3row {
+  --tile-w: 88px;
+  --tile-h: 138px;
+  --row-gap: 8px;
+  --pad: 8px;
+  position: relative;
+  display: grid;
+  grid-template-rows: repeat(3, var(--tile-h));
+  gap: var(--row-gap);
+  width: 100%;
+  max-width: 540px;
+  padding: var(--pad);
+  margin: 0 auto 18px;
+  overflow: hidden;
+  border: 1px solid rgba(235, 240, 232, 0.18);
+  border-radius: 16px;
+  background: rgba(7, 11, 15, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 36px rgba(0, 0, 0, 0.22);
+}
+
+.video-marquee-row {
+  position: relative;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+}
+
+.video-marquee-track {
+  display: flex;
+  gap: var(--row-gap);
+  width: max-content;
+  animation: video-marquee-scroll-left 34s linear infinite;
+}
+
+.video-marquee-track.reverse {
+  animation: video-marquee-scroll-right 30s linear infinite;
+}
+
+@keyframes video-marquee-scroll-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes video-marquee-scroll-right {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+
+.video-marquee-tile {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--tile-w);
+  height: var(--tile-h);
+  overflow: hidden;
+  border-radius: 10px;
+  background: #06090c;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.34);
+}
+
+.video-marquee-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-marquee-tile.is-user {
+  outline: 2px solid var(--exact-yellow);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.42), 0 6px 22px rgba(255, 216, 77, 0.18);
+}
+
+/* Hero overlay (only rendered when there's a user clip). Lives in absolute
+   position so it can scale out beyond the row layout during the intro. */
+.video-marquee-hero {
+  position: absolute;
+  z-index: 10;
+  width: var(--tile-w);
+  height: var(--tile-h);
+  /* Final resting position == the slot of the user's tile in the middle row:
+     padding-top + first row + row gap = pad + tile-h + gap */
+  top: calc(var(--pad) + var(--tile-h) + var(--row-gap));
+  left: var(--pad);
+  border-radius: 10px;
+  overflow: hidden;
+  outline: 2px solid var(--exact-yellow);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.42), 0 8px 28px rgba(255, 216, 77, 0.28);
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.video-marquee-hero video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Phase: HERO — user clip fills the container; top + bottom rows + sibling
+   tiles are dimmed/hidden. The hero scales up to roughly fill the bubble. */
+.video-marquee-3row.phase-hero {
+  overflow: visible; /* let the giant hero overlay sit on top of the bubble */
+}
+
+.video-marquee-3row.phase-hero .row-top,
+.video-marquee-3row.phase-hero .row-bottom {
+  opacity: 0;
+}
+
+.video-marquee-3row.phase-hero .video-marquee-track {
+  animation-play-state: paused;
+  opacity: 0.55;
+}
+
+.video-marquee-3row.phase-hero .is-user-slot {
+  visibility: hidden; /* slot is reserved but the visual is the hero overlay */
+}
+
+.video-marquee-3row.phase-hero .video-marquee-hero {
+  /* Big and centered relative to the container. Scale 4 makes a 88x138 tile
+     into a 352x552 hero — close enough to fill the .sim-morph-bubble. */
+  transform: translate(78px, 28px) scale(4);
+  transition: transform 720ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Phase: SHRINK — overlay animates back to its slot position; rows still
+   hidden so the user sees the shrink before the grid appears. */
+.video-marquee-3row.phase-shrink .row-top,
+.video-marquee-3row.phase-shrink .row-bottom {
+  opacity: 0;
+}
+
+.video-marquee-3row.phase-shrink .video-marquee-track {
+  animation-play-state: paused;
+}
+
+.video-marquee-3row.phase-shrink .is-user-slot {
+  visibility: hidden;
+}
+
+.video-marquee-3row.phase-shrink .video-marquee-hero {
+  transform: translate(0, 0) scale(1);
+  transition: transform 720ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Phase: MARQUEE — full grid revealed, scrolling, hero overlay fades out as
+   the in-flow user tile takes over the slot. */
+.video-marquee-3row.phase-marquee .row-top,
+.video-marquee-3row.phase-marquee .row-bottom {
+  opacity: 1;
+  transition: opacity 600ms ease;
+}
+
+.video-marquee-3row.phase-marquee .video-marquee-hero {
+  opacity: 0;
+  transition: opacity 300ms ease 50ms;
+  transform: translate(0, 0) scale(1);
+}
+
+.video-marquee-3row.phase-marquee .is-user-slot {
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-marquee-track { animation: none; }
+  .video-marquee-3row.phase-hero .video-marquee-hero,
+  .video-marquee-3row.phase-shrink .video-marquee-hero {
+    transition: none;
+  }
+}
+
 .sim-upload-icon {
   display: grid;
   width: 54px;
@@ -9108,12 +9607,12 @@ body:has(.sim-flow-page) {
 }
 
 .sim-morph-run-copy strong {
-  font-size: 64px;
+  font-size: clamp(40px, 5.2vw, 64px);
   line-height: 0.9;
 }
 
 .sim-morph-run-copy span {
-  font-size: 21px;
+  font-size: clamp(15px, 1.6vw, 21px);
   font-weight: 900;
 }
 
@@ -9183,6 +9682,65 @@ body:has(.sim-flow-page) {
   height: 100%;
   object-fit: cover;
   opacity: 0.74;
+}
+
+/* The 3-row marquee fills the entire circular morph/run bubble. The parent
+   bubble's border-radius:50% + overflow:hidden naturally clips the marquee
+   into a circle, so the rows visually fade at the curved edges without us
+   needing any explicit mask. */
+.sim-morph-bubble .video-marquee-3row,
+.sim-run-bubble .video-marquee-3row {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 0;
+  --tile-w: 120px;
+}
+
+/* Tiles fill the row height; portrait aspect via fixed width. */
+.sim-morph-bubble .video-marquee-tile,
+.sim-run-bubble .video-marquee-tile {
+  width: var(--tile-w);
+  height: 100%;
+  border-radius: 8px;
+}
+
+/* Hero overlay's resting position is the first-tile slot of the middle row.
+   With grid-template-rows: 1fr each, that's exactly at left:0, top:33.33%. */
+.sim-morph-bubble .video-marquee-hero,
+.sim-run-bubble .video-marquee-hero {
+  width: var(--tile-w);
+  height: calc(100% / 3);
+  top: calc(100% / 3);
+  left: 0;
+}
+
+/* Hero phase: user's clip fills (most of) the circle.
+   Hero's rest position is (left:0, top:33%, w:tile-w, h:33%). To center it
+   in the bubble, translate horizontally by (bubble_w/2 - tile_w/2). The
+   bubble width is min(560px, 52vw) and tile-w is 120px. Vertical translate
+   is 0 because the middle row is already vertically centered. */
+.sim-morph-bubble .video-marquee-3row.phase-hero .video-marquee-hero,
+.sim-run-bubble .video-marquee-3row.phase-hero .video-marquee-hero {
+  transform: translate(calc(min(560px, 52vw) / 2 - 60px), 0) scale(3.8);
+  transform-origin: 50% 50%;
+  transition: transform 720ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sim-morph-bubble .video-marquee-3row.phase-shrink .video-marquee-hero,
+.sim-run-bubble .video-marquee-3row.phase-shrink .video-marquee-hero {
+  transform: translate(0, 0) scale(1);
+  transition: transform 720ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .sim-run-bubble::after {
@@ -9325,13 +9883,15 @@ body:has(.sim-flow-page) {
 }
 
 .sim-result-hold strong {
+  max-width: 100%;
   color: var(--sim-green);
-  font-size: 86px;
+  font-size: clamp(54px, 5vw, 72px);
   line-height: 0.9;
+  white-space: nowrap;
 }
 
 .sim-result-hold small {
-  font-size: 38px;
+  font-size: clamp(22px, 2vw, 30px);
 }
 
 .sim-result-hold p {
@@ -9795,6 +10355,160 @@ body:has(.sim-flow-page) {
 
   .exact-dashboard-main {
     padding: 22px;
+  }
+}
+
+/* --- Simulation flow: mobile + tablet --- */
+@media (max-width: 900px) {
+  .app-shell:has(.sim-flow-page) {
+    max-width: 100vw;
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
+  .page-stage:has(.sim-flow-page) {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+    min-width: 0;
+    min-height: auto;
+  }
+
+  .sim-flow-frame {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .sim-flow-sidebar {
+    position: relative;
+    grid-template-rows: auto auto auto auto;
+    grid-template-columns: auto auto 1fr auto;
+    gap: 10px;
+    padding: 14px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--sim-line-strong);
+    align-items: center;
+  }
+
+  .sim-flow-sidebar .exact-brand {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .sim-flow-new {
+    grid-row: 1;
+    grid-column: 4;
+    min-height: 36px;
+    padding: 0 14px;
+    font-size: 12px;
+    justify-self: end;
+  }
+
+  .sim-flow-sidebar nav {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .sim-flow-sidebar nav button {
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 8px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .sim-flow-creator {
+    grid-row: 3;
+    grid-column: 1 / -1;
+    grid-template-columns: 38px 1fr auto;
+  }
+
+  .sim-flow-main {
+    padding: 18px 14px 28px;
+  }
+
+  .sim-intake-screen {
+    padding: 0;
+  }
+
+  .sim-intake-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    margin-top: 22px;
+  }
+
+  .sim-form-card,
+  .sim-signal-card {
+    min-width: 0;
+  }
+
+  .sim-form-card {
+    padding: 20px 18px;
+  }
+
+  .sim-platform-picker {
+    gap: 6px;
+  }
+
+  .sim-platform-option {
+    padding: 0 6px;
+    font-size: 11px;
+  }
+
+  .sim-platform-option span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sim-upload-bubble {
+    width: calc(100vw - 48px);
+    max-width: 100%;
+    height: auto;
+    min-height: 460px;
+    padding: 32px 18px;
+    border-radius: 36px;
+  }
+
+  .sim-upload-bubble h1 {
+    font-size: 26px;
+    text-align: center;
+  }
+
+  .sim-upload-bubble .exact-yellow-button {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .video-marquee-3row {
+    --tile-w: 62px;
+    --tile-h: 88px;
+    --row-gap: 6px;
+    --pad: 6px;
+    max-width: 100%;
+  }
+
+  .video-marquee-track {
+    animation-duration: 24s;
+  }
+
+  .video-marquee-track.reverse {
+    animation-duration: 22s;
+  }
+
+  .video-marquee-3row.phase-hero .video-marquee-hero {
+    transform: translate(54px, 18px) scale(3.3);
+  }
+
+  .sim-status-strip {
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .sim-result-card {
+    padding: 18px 16px;
   }
 }
 

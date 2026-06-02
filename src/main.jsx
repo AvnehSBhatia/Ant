@@ -82,7 +82,12 @@ const INSFORGE_ANALYSIS_FUNCTION_URL =
   import.meta.env.VITE_INSFORGE_ANALYSIS_FUNCTION_URL ||
   "https://g9jy59jq.functions.insforge.app/viewlytics-analysis";
 
-const INTELLIGENCE_STORAGE_KEY = "viewlytics_intelligence_v1";
+// Bumped from v1 → v2 after the Nia+brain-render fixes. v1 cached runs from
+// before the Vast box had matplotlib/nilearn/NIA_API_KEY, so they had empty
+// render_frames AND deterministic "Jordan Cohen"-style cohorts. v2 is the
+// post-fix schema (real Nia keyword sets + real brain renders in-session).
+// Old v1 entries are ignored on mount.
+const INTELLIGENCE_STORAGE_KEY = "viewlytics_intelligence_v2";
 const PENDING_RUN_STORAGE_KEY = "viewlytics_pending_run_v1";
 
 // The frontend MUST NOT talk to the Vast Ant box directly — that box is
@@ -186,6 +191,32 @@ const exactDarkAssets = {
   avatar: "/assets/exact-dark/creator-avatar.png",
   poster: "/assets/atomic/video-poster.png"
 };
+
+// Curated set of real creator videos from the viewlytics-videos bucket. Used by
+// the landing reel preview and the sidebar profile bubble (9-tile grid). The
+// /api/storage/... URLs return a signed 302 redirect to the CDN at request time,
+// so they don't carry an embedded TTL — safe to hardcode.
+const VIEWLYTICS_BUCKET_URL =
+  "https://g9jy59jq.us-west.insforge.app/api/storage/buckets/viewlytics-videos/objects";
+
+const bucketObjectUrl = (key) => `${VIEWLYTICS_BUCKET_URL}/${encodeURIComponent(key)}`;
+
+// Tile-optimized versions: re-encoded to 240x426 portrait, 15fps, libx264
+// CRF 30, no audio, 12s max. Each clip is now 180-390KB (was 0.6-7.5MB).
+// 8x smaller total payload — fixes marquee load lag on cold start.
+const CURATED_BUCKET_VIDEOS = [
+  "tiles/dreamteampov_7541493755799407927_tile.mp4",
+  "tiles/diana02hh_7536119031993077014_tile.mp4",
+  "tiles/swe3tlikecinn4mon_7293936671693819168_tile.mp4",
+  "tiles/aemilst_7336952492531518722_tile.mp4",
+  "tiles/thirdnetwork_7436445034611854600_tile.mp4",
+].map(bucketObjectUrl);
+
+// Landing reel: keep the full-resolution upload so the hero preview is
+// presentable. The post-selection marquee uses the tile versions above.
+const FEATURED_LANDING_VIDEO = bucketObjectUrl(
+  "uploads/cdf1459b-b8aa-4bc6-8d4e-dcd10c323deb-dreamteampov_7541493755799407927.mp4"
+);
 
 const simulationFlowAssets = {
   storyboard: "/assets/simulation-flow/gpt-storyboard.png",
@@ -384,11 +415,17 @@ function useAnalysisRunner(parentIntelligence) {
   const [streamedIntelligence, setStreamedIntelligence] = useState(null);
   const [pendingRun, setPendingRun] = useState(() => readPendingRun());
 
+  // The dashboard reads this via `activeIntelligence`. Previously this branch
+  // returned `null` while a sim was running (video set, streamedIntelligence
+  // not yet populated) — which made the dashboard fall back to its hardcoded
+  // SVG path + "—" placeholders even when the parent state already had a
+  // valid prior or freshly-streamed run. Always return the best available
+  // intelligence: streamed first, then parent, never null while we have
+  // either source. The dashboard's `hasData` gate handles the genuinely-
+  // empty case (no localStorage entry, no event yet).
   const intelligence = streamedIntelligence
     ? { ...(parentIntelligence || {}), ...streamedIntelligence, cloud: parentIntelligence?.cloud }
-    : video
-      ? null
-      : parentIntelligence;
+    : parentIntelligence;
 
   const isComplete = Boolean(video) && phase === stages.length - 1 && !isRunning;
   const progress = video ? Math.min(100, Math.round(((phase + (isRunning ? 0.55 : 1)) / stages.length) * 100)) : 0;
@@ -463,6 +500,9 @@ function useAnalysisRunner(parentIntelligence) {
     if (!file) throw new Error("Ant server requires a video file");
     const form = new FormData();
     form.append("video", file);
+    if (metadata?.intake) {
+      form.append("intake", JSON.stringify(metadata.intake));
+    }
     const url = `${INSFORGE_ANALYSIS_FUNCTION_URL}${INSFORGE_ANALYSIS_FUNCTION_URL.includes("?") ? "&" : "?"}stream=1`;
     const token = getStoredAccessToken();
     const response = await fetch(url, {
@@ -514,6 +554,7 @@ function useAnalysisRunner(parentIntelligence) {
       video_name: metadata.name,
       video_size: metadata.rawSize || metadata.size,
       video_type: metadata.type,
+      intake: metadata.intake || null,
     };
     const url = `${INSFORGE_ANALYSIS_FUNCTION_URL}${INSFORGE_ANALYSIS_FUNCTION_URL.includes("?") ? "&" : "?"}stream=1`;
     const token = getStoredAccessToken();
@@ -624,7 +665,7 @@ function useAnalysisRunner(parentIntelligence) {
     setStreamedIntelligence(null);
   };
 
-  const analyzeFile = (file) => {
+  const analyzeFile = (file, intake = null) => {
     if (!file) return false;
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     const objectUrl = URL.createObjectURL(file);
@@ -633,6 +674,7 @@ function useAnalysisRunner(parentIntelligence) {
       size: file.size,
       rawSize: file.size,
       type: file.type || "video",
+      intake: intake || null,
     };
     startAnalysis(
       {
@@ -792,13 +834,6 @@ function App() {
       {user && PROTECTED_ROUTES.has(displayRoute) ? (
         <>
           <button
-            className="logout-button floating-clear-intel"
-            onClick={clearIntelligence}
-            title="Clear saved analysis"
-          >
-            Clear saved analysis
-          </button>
-          <button
             className="logout-button floating-signout"
             onClick={handleSignOut}
             title={user.email || "Sign out"}
@@ -811,14 +846,53 @@ function App() {
       <section className={`page-stage ${isExiting ? "is-exiting" : "is-entering"}`} key={displayRoute}>
         {displayRoute === "landing" && <LandingPage go={go} user={user} runner={analysisRunner} />}
         {displayRoute === "login" && <LoginPage go={go} onSignedIn={handleSignedIn} />}
-        {displayRoute === "dashboard" && <DashboardPage go={go} intelligence={activeIntelligence} runner={analysisRunner} />}
-        {displayRoute === "simulations" && <FlowPage go={go} intelligence={activeIntelligence} runner={analysisRunner} />}
+        {displayRoute === "dashboard" && <DashboardPage go={go} user={user} intelligence={activeIntelligence} runner={analysisRunner} />}
+        {displayRoute === "simulations" && <FlowPage go={go} user={user} intelligence={activeIntelligence} runner={analysisRunner} />}
         {displayRoute === "personas" && <PersonasExact go={go} intelligence={activeIntelligence} />}
-        {displayRoute === "flow" && <FlowPage go={go} intelligence={activeIntelligence} runner={analysisRunner} />}
+        {displayRoute === "flow" && <FlowPage go={go} user={user} intelligence={activeIntelligence} runner={analysisRunner} />}
         {displayRoute === "history" && <HistoryPage go={go} />}
       </section>
     </main>
   );
+}
+
+// Trim heavy base64-PNG arrays out of an intelligence blob before writing it
+// to localStorage. The 5MB browser quota silently rejected the previous
+// payload — once `brain.render_frames` (~18 PNGs, 3-4MB) plus the geometry
+// frames went in, setItem threw QuotaExceededError and nothing persisted.
+// On reload we still get every metric, retention curve, persona breakdown,
+// etc.; render_frames repopulate as soon as a new run streams in (authed
+// users also get them back via the `latestRun` fetch).
+function trimForStorage(intel) {
+  if (!intel || typeof intel !== "object") return intel;
+  const brain = intel.brain || {};
+  return {
+    ...intel,
+    brain: {
+      ...brain,
+      render_frames: [],            // base64 PNGs — too big
+      geometry_frames: brain.geometry_frames?.slice(0, 4) || [],  // keep a few for the 3D dot fallback
+      shape_timesteps_vertices: null,
+    },
+  };
+}
+
+function persistIntelligence(merged) {
+  try {
+    localStorage.setItem(INTELLIGENCE_STORAGE_KEY, JSON.stringify(trimForStorage(merged)));
+  } catch (_) {
+    // Still over quota even after trimming — last-resort: drop the optional
+    // arrays entirely. Keeps the headline metrics for reload UX.
+    try {
+      const minimal = trimForStorage(merged);
+      delete minimal.share_edges_sample;
+      delete minimal.brain?.peak_moments;
+      delete minimal.brain?.top_brain_vertices_over_full_video;
+      localStorage.setItem(INTELLIGENCE_STORAGE_KEY, JSON.stringify(minimal));
+    } catch (__) {
+      // give up — in-memory state still works for the rest of the session
+    }
+  }
 }
 
 function useIntelligenceData(user) {
@@ -873,11 +947,7 @@ function useIntelligenceData(user) {
           source: run.intelligence?.source || "insforge-account-run",
         };
         setData(merged);
-        try {
-          localStorage.setItem(INTELLIGENCE_STORAGE_KEY, JSON.stringify(merged));
-        } catch (_) {
-          /* ignore */
-        }
+        persistIntelligence(merged);
       })
       .catch(() => {});
     return () => {
@@ -900,32 +970,35 @@ function useIntelligenceData(user) {
         );
       }
       setData((prev) => {
+        // Build the next intelligence FROM the new payload, not by spreading
+        // prev first. Earlier we used `{...prev, ...payload}` which kept stale
+        // fields from prior runs whenever the new payload happened to omit a
+        // sibling — that's how the dashboard ended up showing the previous
+        // upload's numbers even after a fresh sim completed. Now: the payload
+        // wins outright. We only fall back to prev for sections the pipeline
+        // genuinely doesn't emit (videos.terms, model.persona_dimensions, etc.)
+        // and only when the new payload didn't include them at all.
         const cloud = prev?.cloud || { connected: true, endpoint: INSFORGE_ANALYSIS_FUNCTION_URL };
-        // Preserve the inner `brain` block verbatim from the event payload —
-        // its `source` field ("…re-warped…") is what gates BrainActivityPanel.
-        // Only fall back to prev.brain if payload truly omits it.
-        const nextBrain = payload.brain ? payload.brain : (prev?.brain || {});
         const merged = {
-          ...(prev || {}),
           ...payload,
+          // summary is partial (pipeline emits {video_name} only) — keep client-
+          // side metadata like completed_at that lives in prev.
           summary: { ...(prev?.summary || {}), ...(payload.summary || {}) },
-          videos: payload.videos || prev?.videos || { count: 0, top: [], terms: [], hashtags: [] },
-          keyword_sets: payload.keyword_sets || prev?.keyword_sets || [],
-          simulation: payload.simulation || prev?.simulation || {},
-          brain: nextBrain,
-          insights: payload.insights || prev?.insights || [],
-          trends: payload.trends || prev?.trends || [],
-          model: payload.model || prev?.model || {},
-          nia: payload.nia || prev?.nia || {},
+          // The rest: take new if present, else fall back to prev (rather than
+          // an empty default that wipes the dashboard).
+          videos: payload.videos ?? prev?.videos ?? { count: 0, top: [], terms: [], hashtags: [] },
+          keyword_sets: payload.keyword_sets ?? prev?.keyword_sets ?? [],
+          simulation: payload.simulation ?? prev?.simulation ?? {},
+          brain: payload.brain ?? prev?.brain ?? {},
+          insights: payload.insights ?? prev?.insights ?? [],
+          trends: payload.trends ?? prev?.trends ?? [],
+          model: payload.model ?? prev?.model ?? {},
+          nia: payload.nia ?? prev?.nia ?? {},
           cloud: { ...cloud, latestRun: { ...(cloud.latestRun || {}), intelligence: payload } },
           cloudRun: { ...(prev?.cloudRun || {}), intelligence: payload },
           source: payload.source || "insforge-stream-merge",
         };
-        try {
-          localStorage.setItem(INTELLIGENCE_STORAGE_KEY, JSON.stringify(merged));
-        } catch (_) {
-          // quota/serialize errors are non-fatal — keep in-memory state
-        }
+        persistIntelligence(merged);
         return merged;
       });
     };
@@ -1224,7 +1297,7 @@ function ColonyBackdrop({ id }) {
 }
 
 function LandingPage({ go, user, runner }) {
-  return <ExactLandingPage go={go} />;
+  return <ExactLandingPage go={go} user={user} />;
 
   const landingRef = useRef(null);
   const inputRef = useRef(null);
@@ -1396,7 +1469,11 @@ function HeroSimulationVisual() {
   );
 }
 
-function ExactLandingPage({ go }) {
+function ExactLandingPage({ go, user }) {
+  // Unauthenticated visitors must sign in before reaching the simulation flow.
+  // Without this gate, /flow happily renders the intake screen for anyone,
+  // which made the "Run a simulation" CTA look like it bypassed auth.
+  const runSim = () => go(user ? "flow" : "login");
   return (
     <div className="page exact-dark-page exact-landing-page">
       <section className="exact-dark-frame exact-landing-frame">
@@ -1404,7 +1481,7 @@ function ExactLandingPage({ go }) {
           <ExactBrand />
           <nav>
             <button type="button" onClick={() => go("login")}>Sign in</button>
-            <button className="exact-yellow-button nav-cta" type="button" onClick={() => go("flow")}>Run a simulation</button>
+            <button className="exact-yellow-button nav-cta" type="button" onClick={runSim}>Run a simulation</button>
           </nav>
         </header>
 
@@ -1413,7 +1490,7 @@ function ExactLandingPage({ go }) {
             <h1>Predict the post before you post.</h1>
             <p>Synthetic viewer swarms test your video for retention, sentiment, and virality in under 60 seconds.</p>
             <div className="exact-landing-actions">
-              <button className="exact-yellow-button" type="button" onClick={() => go("flow")}>
+              <button className="exact-yellow-button" type="button" onClick={runSim}>
                 Run a simulation <ExactAntMark className="button-ant" />
               </button>
               <button className="exact-dark-button" type="button">
@@ -1452,19 +1529,202 @@ function ExactBrand() {
   );
 }
 
+// Derive a display name + initials from whatever the user state has. Falls back
+// cleanly when the user is anonymous or the profile is partly hydrated.
+function deriveUserIdentity(user) {
+  const profile = user?.profile || {};
+  const displayName =
+    profile.display_name ||
+    user?.name ||
+    user?.email?.split("@")?.[0] ||
+    "Guest";
+  const plan = profile.plan_label || (user ? "Free plan" : "Sign in");
+  const avatarUrl =
+    profile.avatar_url ||
+    profile.avatar ||
+    user?.avatar_url ||
+    null;
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0])
+    .join("")
+    .toUpperCase() || "?";
+  return { displayName, plan, avatarUrl, initials };
+}
+
+function ProfileBubble({ user, variant = "dashboard" }) {
+  const { displayName, plan, avatarUrl, initials } = deriveUserIdentity(user);
+  const cls = variant === "sim" ? "sim-flow-creator" : "exact-creator-card";
+  return (
+    <>
+      {avatarUrl ? (
+        <img className={`${cls}-avatar-img`} src={avatarUrl} alt="" />
+      ) : (
+        <span className={`${cls}-avatar`} aria-hidden="true">{initials}</span>
+      )}
+      <div><strong>{displayName}</strong><span>{plan}</span></div>
+    </>
+  );
+}
+
+// 3-row video marquee with an intro sequence. When a user video is provided:
+//   phase "hero"     (0 - 1.4s):  user's clip is rendered as a big overlay
+//                                  filling the bubble; the 3-row grid below
+//                                  is NOT mounted yet so the browser only has
+//                                  one <video> to decode — keeps the intro
+//                                  animation smooth even on slow boxes.
+//   phase "shrink"   (1.4 - 2.0s): hero overlay shrinks + slides to the slot
+//                                  position in the middle row. Grid still not
+//                                  mounted.
+//   phase "marquee"  (2.0s+):     grid mounts; all three rows scroll
+//                                  horizontally; user's clip is now the first
+//                                  tile of the middle row; hero overlay fades.
+// When there's no user video, we skip the intro and render the steady marquee.
+function VideoMarquee({ userVideoSrc, videos = CURATED_BUCKET_VIDEOS }) {
+  const hasUser = !!userVideoSrc;
+  const [phase, setPhase] = useState(hasUser ? "hero" : "marquee");
+  // mountedCount = number of grid <video> elements that have actually been
+  // attached to the DOM so far. We cascade these one-by-one with a delay so
+  // the browser doesn't try to fetch+decode 36 mp4s in parallel (which causes
+  // the marquee lag at start). Tile slot containers always render — only the
+  // inner <video> appears once its index has been reached.
+  const [mountedCount, setMountedCount] = useState(0);
+
+  useEffect(() => {
+    if (!hasUser) return;
+    setPhase("hero");
+    const t1 = window.setTimeout(() => setPhase("shrink"), 1400);
+    const t2 = window.setTimeout(() => setPhase("marquee"), 2100);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [hasUser, userVideoSrc]);
+
+  // Each row gets two copies of the bucket list so a CSS translate to -50%
+  // loops seamlessly. Different orderings per row break the obvious repeat.
+  const rotate = (arr, n) => arr.slice(n).concat(arr.slice(0, n));
+  const topSeq = [...rotate(videos, 1), ...rotate(videos, 1)];
+  const midSeq = [...videos, ...videos];
+  const botSeq = [...rotate(videos, 3), ...rotate(videos, 3)];
+
+  // Assign each tile a global sequential index. Mount order: top row first,
+  // then user hero slot, then middle row, then bottom row. Each tile waits
+  // its turn (~140ms apart) before its <video> mounts.
+  let g = 0;
+  const topIndexed = topSeq.map((src) => ({ src, gi: g++ }));
+  const userIndexed = hasUser ? { src: userVideoSrc, gi: g++, isUser: true } : null;
+  const midIndexed = midSeq.map((src) => ({ src, gi: g++ }));
+  const botIndexed = botSeq.map((src) => ({ src, gi: g++ }));
+  const totalTiles = g;
+
+  useEffect(() => {
+    if (hasUser && phase !== "marquee") {
+      setMountedCount(0);
+      return undefined;
+    }
+    setMountedCount(0);
+    const interval = window.setInterval(() => {
+      setMountedCount((c) => {
+        if (c >= totalTiles) {
+          window.clearInterval(interval);
+          return c;
+        }
+        return c + 1;
+      });
+    }, 140);
+    return () => window.clearInterval(interval);
+  }, [phase, hasUser, totalTiles]);
+
+  const renderTile = ({ src, gi, isUser }, keyPrefix) => (
+    <div
+      key={`${keyPrefix}-${gi}`}
+      className={`video-marquee-tile ${isUser ? "is-user is-user-slot" : ""}`}
+    >
+      {gi < mountedCount ? (
+        <video src={src} muted loop playsInline autoPlay preload="none" />
+      ) : null}
+    </div>
+  );
+
+  return (
+    <div className={`video-marquee-3row phase-${phase} ${hasUser ? "has-user" : ""}`} aria-hidden="true">
+      <div className="video-marquee-row row-top">
+        <div className="video-marquee-track">
+          {topIndexed.map((t) => renderTile(t, "t"))}
+        </div>
+      </div>
+      <div className="video-marquee-row row-middle">
+        <div className="video-marquee-track">
+          {userIndexed ? renderTile(userIndexed, "u") : null}
+          {midIndexed.map((t) => renderTile(t, "m"))}
+        </div>
+      </div>
+      <div className="video-marquee-row row-bottom">
+        <div className="video-marquee-track reverse">
+          {botIndexed.map((t) => renderTile(t, "b"))}
+        </div>
+      </div>
+      {hasUser ? (
+        <div className="video-marquee-hero">
+          {/* Hero is the only video element during the intro — preload=auto so
+              decoding starts immediately and the scale animation is smooth. */}
+          <video src={userVideoSrc} muted loop playsInline autoPlay preload="auto" />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ExactVideoPreview() {
+  const videoRef = useRef(null);
+  const [progress, setProgress] = useState({ current: 0, duration: 0 });
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return undefined;
+    const onTime = () => setProgress({ current: v.currentTime || 0, duration: v.duration || 0 });
+    v.addEventListener("timeupdate", onTime);
+    v.addEventListener("loadedmetadata", onTime);
+    return () => {
+      v.removeEventListener("timeupdate", onTime);
+      v.removeEventListener("loadedmetadata", onTime);
+    };
+  }, []);
+
+  const fmt = (s) => {
+    if (!Number.isFinite(s) || s <= 0) return "0:00";
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60).toString().padStart(2, "0");
+    return `${m}:${sec}`;
+  };
+  const pct = progress.duration > 0 ? (progress.current / progress.duration) * 100 : 0;
+
   return (
     <article className="exact-video-card">
-      <img src={exactDarkAssets.poster} alt="" />
-      <button className="exact-play" type="button" aria-label="Play video"><Play size={25} fill="currentColor" /></button>
-      <div className="exact-video-social">
-        <span><Heart size={26} fill="currentColor" /><small>12.4K</small></span>
-        <span><MessageSquare size={24} fill="currentColor" /><small>842</small></span>
-        <span><Share2 size={24} fill="currentColor" /><small>1.2K</small></span>
+      <video
+        ref={videoRef}
+        src={FEATURED_LANDING_VIDEO}
+        poster={exactDarkAssets.poster}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-label="Featured creator reel"
+      />
+      {/* Icons only — counts were 12.4K/842/1.2K stubs, removed to stop the
+          landing reel from looking like a fake dashboard. */}
+      <div className="exact-video-social exact-video-social-icons-only">
+        <span><Heart size={26} fill="currentColor" /></span>
+        <span><MessageSquare size={24} fill="currentColor" /></span>
+        <span><Share2 size={24} fill="currentColor" /></span>
       </div>
       <div className="exact-video-progress">
-        <span>0:07 / 0:15</span>
-        <i><b /></i>
+        <span>{fmt(progress.current)} / {fmt(progress.duration)}</span>
+        <i><b style={{ width: `${pct}%` }} /></i>
       </div>
     </article>
   );
@@ -2988,6 +3248,12 @@ function TribeBrainModel({ brain, phase = 0, progress = 0, isRunning = false }) 
     );
   }
 
+  // No realistic render available — render nothing (instead of the old
+  // SVG ellipsoid+dot-cloud brain). The user wants only the real nilearn
+  // cortical surface, never the synthetic stand-in.
+  return null;
+
+  // Dead code below — kept for reference; never reached.
   return (
     <div className="tribe-brain-model" aria-label="TribeV2 cortical activation model">
       <div className="tribe-brain-shell">
@@ -3250,7 +3516,41 @@ function RealPageInsights({ active, data }) {
   );
 }
 
-function ExactDashboardPage({ go, intelligence, runner }) {
+function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
+  // Subscribe to fresh intelligence directly. Prop path
+  //   useIntelligenceData → App.activeIntelligence → DashboardPage prop
+  // was leaving the dashboard a render behind on some transitions, so it
+  // would still be drawing the previous run's brain + KPIs even though the
+  // results page (which reads runner.intelligence directly) already had the
+  // new payload. Now we eagerly latch the latest `cloud-intelligence-updated`
+  // event payload AND fall back to runner/prop, picking the freshest of the
+  // three by `summary.completed_at` / `generated_at`.
+  const [livePayload, setLivePayload] = useState(null);
+  useEffect(() => {
+    const handler = (e) => {
+      if (e?.detail) setLivePayload(e.detail);
+    };
+    window.addEventListener("cloud-intelligence-updated", handler);
+    return () => window.removeEventListener("cloud-intelligence-updated", handler);
+  }, []);
+
+  const candidates = [livePayload, runner?.intelligence, parentIntel].filter(Boolean);
+  const stampOf = (x) => x?.summary?.completed_at || x?.generated_at || "";
+  candidates.sort((a, b) => String(stampOf(b)).localeCompare(String(stampOf(a))));
+  const intelligence = candidates[0] || null;
+
+  if (typeof window !== "undefined" && window?.console) {
+    const sim = intelligence?.simulation || {};
+    const brain = intelligence?.brain || {};
+    console.debug(
+      "[ExactDashboard] picked=", intelligence ? stampOf(intelligence) || "(no stamp)" : "NULL",
+      "| sources=", candidates.length,
+      "| sim.virality:", sim.virality_score,
+      "| sim.persona_count:", sim.persona_count,
+      "| brain.retention_pts:", (brain.retention_curve || []).length,
+      "| brain.interactive_html_url:", brain.interactive_html_url,
+    );
+  }
   const [isLaunching, setIsLaunching] = useState(false);
   const handleRunSimulation = () => {
     setIsLaunching(true);
@@ -3416,8 +3716,7 @@ function ExactDashboardPage({ go, intelligence, runner }) {
             <button type="button" onClick={() => go("personas")}><UsersRound size={17} /> Personas</button>
           </nav>
           <button className="exact-creator-card" type="button" onClick={() => go("history")} aria-label="Open history">
-            <img src={exactDarkAssets.avatar} alt="" />
-            <div><strong>Creator Lab</strong><span>Pro Plan</span></div>
+            <ProfileBubble user={user} variant="dashboard" />
             <ChevronRight size={17} />
           </button>
         </aside>
@@ -3510,7 +3809,7 @@ function ExactDashboardPage({ go, intelligence, runner }) {
 
           <section className="exact-panel exact-persona-table">
             <h2>Performance by persona</h2>
-            <div className="table-head"><span>Persona</span><span>Trend</span><span>3s Hold</span><span>Virality</span><span>Drop-off Risk</span></div>
+            {cohorts.length ? <div className="table-head"><span>Persona</span><span>Trend</span><span>3s Hold</span><span>Virality</span><span>Drop-off Risk</span></div> : null}
             {cohorts.length ? cohorts.map((cohort, index) => {
               // Real cohort fields from the Vast simulator:
               //   label / personas / positive_rate_pct / share_rate_pct / top_reaction
@@ -3592,8 +3891,25 @@ function ExactRetentionLargeChart({ curve, hold3s }) {
   const top = 38;
   const bottom = 226;
 
-  let linePath = "M58 38 C88 38 103 50 126 65 C154 82 172 70 198 86 C228 104 250 102 276 113 C304 125 322 148 352 156 C383 164 405 152 430 166 C462 184 490 187 522 197 C558 209 590 210 620 219 C662 230 699 227 742 228";
-  let areaPath = "M58 38 C88 38 103 50 126 65 C154 82 172 70 198 86 C228 104 250 102 276 113 C304 125 322 148 352 156 C383 164 405 152 430 166 C462 184 490 187 522 197 C558 209 590 210 620 219 C662 230 699 227 742 228 L742 226 L58 226 Z";
+  // Empty state: no retention curve yet. Render a blank grid + small caption
+  // instead of a hardcoded SVG line that looks like real data — that was the
+  // "dashboard is hardcoded" symptom when intelligence hadn't loaded yet.
+  if (!useReal) {
+    return (
+      <div className="exact-large-chart exact-large-chart-empty">
+        <svg viewBox="0 0 760 245" preserveAspectRatio="none" aria-hidden="true">
+          {[42, 88, 134, 180, 226].map((y) => <line key={`h-${y}`} x1={left} x2={right} y1={y} y2={y} />)}
+          {[58, 230, 402, 574, 742].map((x) => <line key={`v-${x}`} x1={x} x2={x} y1="32" y2={bottom} />)}
+        </svg>
+        <div className="large-y"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div>
+        <div className="large-x"><span>0s</span><span>3s</span><span>6s</span><span>9s</span><span>12s</span><span>15s</span></div>
+        <div className="large-callout"><span>Awaiting retention curve</span><strong>—</strong></div>
+      </div>
+    );
+  }
+
+  let linePath = "";
+  let areaPath = "";
 
   let holdX = 270;
   let holdY = 112;
@@ -3634,8 +3950,8 @@ function ExactRetentionLargeChart({ curve, hold3s }) {
   );
 }
 
-function DashboardPage({ go, intelligence, runner }) {
-  return <ExactDashboardPage go={go} intelligence={intelligence} runner={runner} />;
+function DashboardPage({ go, user, intelligence, runner }) {
+  return <ExactDashboardPage go={go} user={user} intelligence={intelligence} runner={runner} />;
 
   const sim = intelligence?.simulation || {};
   const brain = intelligence?.brain || {};
@@ -3945,7 +4261,7 @@ function HistoryPage({ go }) {
   );
 }
 
-function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
+function SimulationFlowPage({ go, user, runner, intelligence: parentIntelligence }) {
   const inputRef = useRef(null);
   const realIntelligence = runner?.intelligence || parentIntelligence;
   const cloudStatus = runner?.cloudStatus;
@@ -3969,6 +4285,9 @@ function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
   // Demo-mode progress when there's no real run streaming — keeps the
   // anim alive for the marketing/landing flow.
   const [fakeProgress, setFakeProgress] = useState(23);
+  // Captured from the intake step; flows through to runner.analyzeFile so the
+  // edge function and downstream simulation can bias personas by platform/ICP.
+  const [intake, setIntake] = useState(null);
 
   // Real progress comes from cloud SSE if we have it; otherwise fall back
   // to the canned demo sequence.
@@ -3990,11 +4309,15 @@ function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
         : 4;
 
   // Auto-advance step as the real run progresses. We only promote to
-  // "results" if the user is currently watching the run (step === "running"
-  // or "morphing") — otherwise sidebar clicks would dump them on the old
-  // results screen instead of letting them start fresh.
+  // "results" when the CURRENT run completes — gate on the runner's own
+  // completion signal (`cloudStatus === "synced"` is what applyAnalysisPayload
+  // sets after the SSE stream's final `result` event lands). Earlier this
+  // checked `realIntelligence` which, after the runner-null fix, falls back
+  // to ANY prior intelligence in parent state — causing the page to jump
+  // straight to results 0.2s after upload using the previous run's payload.
   useEffect(() => {
-    if (realIntelligence && (step === "running" || step === "morphing")) {
+    const thisRunDone = runner?.cloudStatus === "synced";
+    if (thisRunDone && (step === "running" || step === "morphing")) {
       setFinishing(true);
       const t = window.setTimeout(() => setStep("results"), 600);
       return () => window.clearTimeout(t);
@@ -4003,7 +4326,7 @@ function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
       setStep("running");
     }
     return undefined;
-  }, [realIntelligence, hasLiveRun, step]);
+  }, [runner?.cloudStatus, hasLiveRun, step]);
 
   // Demo progress only when there is no real run — runs once on entering
   // the running step.
@@ -4033,7 +4356,7 @@ function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
     setUploadedName(displayName);
     if (file && runner?.analyzeFile) {
       // Real upload to the cloud edge fn — auto-advances via the runner state effect.
-      runner.analyzeFile(file);
+      runner.analyzeFile(file, intake);
     }
     setStep("morphing");
   };
@@ -4066,12 +4389,20 @@ function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
   return (
     <div className={`page exact-dark-page sim-flow-page sim-step-${step} ${finishing ? "is-finishing" : ""}`}>
       <section className="exact-dark-frame sim-flow-frame">
-        <SimulationFlowSidebar go={go} onNewSimulation={handleNewSimulation} />
+        <SimulationFlowSidebar go={go} user={user} onNewSimulation={handleNewSimulation} />
         <main className="sim-flow-main">
-          {step === "intake" ? <SimulationBusinessIntake onContinue={() => setStep("upload")} /> : null}
+          {step === "intake" ? (
+            <SimulationBusinessIntake
+              value={intake}
+              onContinue={(payload) => {
+                setIntake(payload);
+                setStep("upload");
+              }}
+            />
+          ) : null}
           {step === "upload" ? <SimulationUploadStage inputRef={inputRef} onUpload={startUpload} /> : null}
-          {step === "morphing" ? <SimulationMorphStage workflow={workflow} uploadedName={uploadedName} /> : null}
-          {step === "running" ? <SimulationRunningStage workflow={workflow} activeIndex={activeIndex} progress={progress} uploadedName={uploadedName} liveStageLabel={runner?.liveStage?.label} /> : null}
+          {step === "morphing" ? <SimulationMorphStage workflow={workflow} uploadedName={uploadedName} previewUrl={runner?.previewUrl} /> : null}
+          {step === "running" ? <SimulationRunningStage workflow={workflow} activeIndex={activeIndex} progress={progress} uploadedName={uploadedName} liveStageLabel={runner?.liveStage?.label} previewUrl={runner?.previewUrl} /> : null}
           {step === "results" ? <SimulationResultsStage onRunAgain={handleNewSimulation} onSaveReport={handleSaveReport} intelligence={realIntelligence} /> : null}
           <input
             ref={inputRef}
@@ -4089,7 +4420,7 @@ function SimulationFlowPage({ go, runner, intelligence: parentIntelligence }) {
   );
 }
 
-function SimulationFlowSidebar({ go, onNewSimulation, active = "simulations" }) {
+function SimulationFlowSidebar({ go, user, onNewSimulation, active = "simulations" }) {
   const cls = (id) => (active === id ? "active" : "");
   return (
     <aside className="sim-flow-sidebar">
@@ -4101,15 +4432,33 @@ function SimulationFlowSidebar({ go, onNewSimulation, active = "simulations" }) 
         <button type="button" className={cls("personas")} onClick={() => go?.("personas")}><UsersRound size={15} /> Personas</button>
       </nav>
       <button className="sim-flow-creator" type="button" onClick={() => go?.("history")} aria-label="Open history">
-        <img src={exactDarkAssets.avatar} alt="" />
-        <div><strong>Creator Lab</strong><span>Pro Plan</span></div>
+        <ProfileBubble user={user} variant="sim" />
         <ChevronRight size={14} />
       </button>
     </aside>
   );
 }
 
-function SimulationBusinessIntake({ onContinue }) {
+const ICP_OPTIONS = [
+  { id: "aspiring_creators",    label: "Aspiring creators & solopreneurs" },
+  { id: "small_business",       label: "Small business owners" },
+  { id: "gen_z_lifestyle",      label: "Gen Z lifestyle consumers" },
+  { id: "millennial_parents",   label: "Millennial / Gen X parents" },
+  { id: "b2b_saas",             label: "B2B SaaS decision makers" },
+  { id: "fitness_wellness",     label: "Fitness & wellness enthusiasts" },
+  { id: "tech_early_adopters",  label: "Tech early adopters" },
+  { id: "food_cooking",         label: "Food & cooking enthusiasts" },
+];
+
+const SOCIAL_PLATFORMS = [
+  { id: "tiktok",    label: "TikTok",    Icon: Music2,    placeholder: "@yourbrand" },
+  { id: "instagram", label: "Instagram", Icon: Instagram, placeholder: "@yourbrand" },
+  { id: "youtube",   label: "YouTube",   Icon: Youtube,   placeholder: "@yourchannel" },
+];
+
+const DESCRIPTION_MAX = 120;
+
+function SimulationBusinessIntake({ value, onContinue }) {
   const signals = [
     ["Attention patterns", "Early scroll behavior and drop-offs", Sparkles],
     ["Emotional response", "Sentiment, resonance, and reactions", BrainCircuit],
@@ -4117,6 +4466,29 @@ function SimulationBusinessIntake({ onContinue }) {
     ["Audience fit", "How well it matches your ICP", UsersRound],
     ["Tribe potential", "Likelihood to build engaged community", Network]
   ];
+
+  const [platform, setPlatform] = useState(value?.platform || "tiktok");
+  const [handle, setHandle] = useState(value?.handle || "");
+  const [icp, setIcp] = useState(value?.icp || ICP_OPTIONS[0].id);
+  const [description, setDescription] = useState(value?.description || "");
+
+  const activePlatform = SOCIAL_PLATFORMS.find((p) => p.id === platform) || SOCIAL_PLATFORMS[0];
+  const PlatformIcon = activePlatform.Icon;
+  const trimmedHandle = handle.trim();
+  const canContinue = trimmedHandle.length > 0 && Boolean(icp);
+
+  const handleContinue = () => {
+    if (!canContinue) return;
+    const icpRecord = ICP_OPTIONS.find((i) => i.id === icp) || ICP_OPTIONS[0];
+    onContinue({
+      platform,
+      handle: trimmedHandle.replace(/^@+/, ""),
+      icp: icpRecord.id,
+      icp_label: icpRecord.label,
+      description: description.trim().slice(0, DESCRIPTION_MAX),
+    });
+  };
+
   return (
     <section className="sim-intake-screen">
       <div className="sim-screen-title">
@@ -4125,12 +4497,79 @@ function SimulationBusinessIntake({ onContinue }) {
       </div>
       <div className="sim-intake-grid">
         <article className="sim-form-card">
-          <label><span>YouTube handle</span><div className="sim-input"><span className="sim-platform-badge sim-youtube"><Youtube size={13} /></span><input defaultValue="@CreatorLab" /></div></label>
-          <label><span>Instagram Reels handle</span><div className="sim-input"><span className="sim-platform-badge sim-instagram"><Instagram size={13} /></span><input defaultValue="@creatorlab" /></div></label>
-          <label><span>TikTok handle</span><div className="sim-input"><span className="sim-platform-badge sim-tiktok"><Music2 size={13} /></span><input defaultValue="@creatorlab" /></div></label>
-          <label><span>Ideal customer profile (ICP)</span><div className="sim-select-row"><strong>Aspiring creators & solopreneurs</strong><ChevronRight size={14} /></div></label>
-          <label><span>What do you do?</span><div className="sim-textarea-wrap"><textarea defaultValue="I help creators grow their audience and monetize their content." /><em>55/120</em></div></label>
-          <button className="exact-yellow-button sim-wide-button" type="button" onClick={onContinue}>Continue</button>
+          <label>
+            <span>Where do you post?</span>
+            <div className="sim-platform-picker" role="radiogroup" aria-label="Platform">
+              {SOCIAL_PLATFORMS.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={platform === id}
+                  className={`sim-platform-option sim-${id} ${platform === id ? "is-active" : ""}`}
+                  onClick={() => setPlatform(id)}
+                >
+                  <Icon size={15} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </label>
+
+          <label>
+            <span>{activePlatform.label} handle</span>
+            <div className="sim-input">
+              <span className={`sim-platform-badge sim-${activePlatform.id}`}>
+                <PlatformIcon size={13} />
+              </span>
+              <input
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+                placeholder={activePlatform.placeholder}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+          </label>
+
+          <label>
+            <span>Ideal customer profile (ICP)</span>
+            <div className="sim-select-row">
+              <select
+                className="sim-icp-select"
+                value={icp}
+                onChange={(e) => setIcp(e.target.value)}
+                aria-label="Ideal customer profile"
+              >
+                {ICP_OPTIONS.map(({ id, label }) => (
+                  <option key={id} value={id}>{label}</option>
+                ))}
+              </select>
+              <ChevronRight size={14} aria-hidden="true" />
+            </div>
+          </label>
+
+          <label>
+            <span>What do you do?</span>
+            <div className="sim-textarea-wrap">
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value.slice(0, DESCRIPTION_MAX))}
+                placeholder="I help creators grow their audience and monetize their content."
+                maxLength={DESCRIPTION_MAX}
+              />
+              <em>{description.length}/{DESCRIPTION_MAX}</em>
+            </div>
+          </label>
+
+          <button
+            className="exact-yellow-button sim-wide-button"
+            type="button"
+            onClick={handleContinue}
+            disabled={!canContinue}
+          >
+            Continue
+          </button>
         </article>
         <article className="sim-signal-card">
           <h2>Audience signals we’ll analyze</h2>
@@ -4184,14 +4623,14 @@ function SimulationUploadStage({ inputRef, onUpload }) {
   );
 }
 
-function SimulationMorphStage({ workflow, uploadedName }) {
+function SimulationMorphStage({ workflow, uploadedName, previewUrl }) {
   return (
     <section className="sim-morph-screen">
       <SimulationStatusStrip workflow={workflow} activeIndex={2} />
       <div className="sim-wave-field" aria-hidden="true" />
       <SimulationAntSwarm intro />
       <article className="sim-morph-bubble" aria-label="Video morphing into simulation lens">
-        <img src={exactDarkAssets.poster} alt="" />
+        <VideoMarquee userVideoSrc={previewUrl} />
         <div className="sim-morph-upload-copy">
           <Upload size={22} />
           <strong>Uploaded</strong>
@@ -4206,7 +4645,7 @@ function SimulationMorphStage({ workflow, uploadedName }) {
   );
 }
 
-function SimulationRunningStage({ workflow, activeIndex, progress, uploadedName, liveStageLabel }) {
+function SimulationRunningStage({ workflow, activeIndex, progress, uploadedName, liveStageLabel, previewUrl }) {
   const stageLabel = liveStageLabel || (progress < 74 ? "Simulating 200k viewers" : "Creating TribeV2 brain scan");
   return (
     <section className="sim-running-screen">
@@ -4214,7 +4653,7 @@ function SimulationRunningStage({ workflow, activeIndex, progress, uploadedName,
       <div className="sim-wave-field" aria-hidden="true" />
       <SimulationAntSwarm />
       <article className="sim-run-bubble">
-        <img src={exactDarkAssets.poster} alt="" />
+        <VideoMarquee userVideoSrc={previewUrl} />
         <div><strong>{progress}%</strong><span>{stageLabel}</span></div>
         <small>{uploadedName || "Summer Launch Reel.mp4"}</small>
       </article>
@@ -4345,8 +4784,8 @@ function SimulationRetentionChart({ curve }) {
       }).filter((v) => v != null)
     : [];
   const useReal = normalized.length >= 4;
-  let linePath = "M54 26 C92 30 112 42 142 62 C174 84 202 72 232 94 C266 120 298 118 328 132 C366 151 394 158 432 170 C462 180 482 186 500 190";
-  let areaPath = "M54 26 C92 30 112 42 142 62 C174 84 202 72 232 94 C266 120 298 118 328 132 C366 151 394 158 432 170 C462 180 482 186 500 190 L500 196 L54 196 Z";
+  let linePath = "";
+  let areaPath = "";
   if (useReal) {
     const pts = normalized.map((v, i) => {
       const ratio = normalized.length === 1 ? 0 : i / (normalized.length - 1);
@@ -4363,16 +4802,16 @@ function SimulationRetentionChart({ curve }) {
   return (
     <svg className="sim-retention-chart" viewBox="0 0 520 210" preserveAspectRatio="none" aria-hidden="true">
       {[42, 84, 126, 168].map((y) => <line key={y} x1="54" x2="500" y1={y} y2={y} />)}
-      <path className="sim-chart-area" d={areaPath} />
-      <path className="sim-chart-line" d={linePath} />
-      {useReal ? null : <circle cx="362" cy="149" r="5" />}
+      {useReal ? <path className="sim-chart-area" d={areaPath} /> : null}
+      {useReal ? <path className="sim-chart-line" d={linePath} /> : null}
+      {useReal ? null : <text x="277" y="108" textAnchor="middle" style={{ fontSize: 11, fill: "rgba(20,30,18,0.55)" }}>Awaiting retention curve — run a simulation</text>}
       <text x="22" y="30">100%</text><text x="28" y="90">75%</text><text x="28" y="144">50%</text><text x="34" y="198">0%</text>
     </svg>
   );
 }
 
-function FlowPage({ go, intelligence: parentIntelligence, runner }) {
-  return <SimulationFlowPage go={go} runner={runner} intelligence={parentIntelligence} />;
+function FlowPage({ go, user, intelligence: parentIntelligence, runner }) {
+  return <SimulationFlowPage go={go} user={user} runner={runner} intelligence={parentIntelligence} />;
 
   const inputRef = useRef(null);
   const reelRef = useRef(null);

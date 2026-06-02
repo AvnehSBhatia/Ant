@@ -365,61 +365,8 @@ export default function TribeBrain3D({
     );
   }
 
-  const frame = frames[frameIndex] || frames[0] || {};
-  const timeSec = Number(frame.time_window_start_sec ?? frame.time_sec ?? 0);
-
-  // Mean retention proxy near the current time.
-  const retentionCurve = brain?.retention_curve || [];
-  const nearestRetention = retentionCurve.length
-    ? retentionCurve.reduce((nearest, item) => (
-        Math.abs(Number(item.time_sec || 0) - timeSec)
-          < Math.abs(Number(nearest.time_sec || 0) - timeSec)
-          ? item : nearest
-      ), retentionCurve[0])?.retention
-    : brain?.summary?.mean_retention_proxy;
-
-  const totalFrames = frames.length;
-  const totalVerts = brain?.shape_timesteps_vertices?.[1] || 20484;
-  const peakRegion = brain?.peak_moments?.[0]?.region;
-
-  return (
-    <div className={`tribe-brain-3d ${compact ? "is-compact" : ""}`}>
-      <div className="tribe-brain-3d-canvas">
-        <Canvas
-          dpr={[1, 2]}
-          camera={{ position: [0, 0.25, 3.4], fov: 38 }}
-          gl={{ antialias: true, alpha: false }}
-          onCreated={({ gl }) => { gl.setClearColor("#0b0d11", 1); }}
-        >
-          <ambientLight intensity={0.45} />
-          <directionalLight position={[2.2, 2.5, 3]} intensity={0.95} color="#fff4e6" />
-          <directionalLight position={[-2.5, -1.2, -2]} intensity={0.35} color="#7aa8ff" />
-          <pointLight position={[0, 0, 2.4]} intensity={0.5} color="#ffe2b0" />
-          <SpinningBrain brain={brain} isRunning={isRunning} frameIndex={frameIndex} />
-          <OrbitControls
-            enableZoom
-            enablePan={false}
-            enableDamping
-            dampingFactor={0.08}
-            minDistance={2.2}
-            maxDistance={5.5}
-          />
-        </Canvas>
-      </div>
-      <div className="tribe-brain-3d-caption">
-        <span className="tb3-label">
-          frame <strong>{(Number(frame.timestep_index ?? frame.frame ?? frameIndex) + 1)}</strong>
-          <em>/{totalFrames}</em>
-          <i className="tb3-dot" />
-          t = <strong>{timeSec.toFixed(1)}s</strong>
-        </span>
-        <span className="tb3-label">
-          retention <strong>{nearestRetention != null ? `${Math.round((nearestRetention > 1.5 ? nearestRetention : nearestRetention * 100))}%` : "--"}</strong>
-          <i className="tb3-dot" />
-          {Number(totalVerts).toLocaleString()} cortical vertices
-        </span>
-        {peakRegion ? <span className="tb3-region">peak: {peakRegion}</span> : null}
-      </div>
-    </div>
-  );
+  // Neither an MP4 nor an interactive HTML render is available. Don't fall
+  // back to the R3F dot-cloud brain — the user wants only the realistic
+  // nilearn cortical surface, never the synthetic ellipsoid. Render nothing.
+  return null;
 }

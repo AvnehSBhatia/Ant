@@ -7,14 +7,17 @@ import {
   CalendarDays,
   ChevronDown,
   Film,
+  Frown,
   Gauge,
   Grid2X2,
   Heart,
   Info,
   LineChart,
   Maximize2,
+  Meh,
   Pause,
   SlidersHorizontal,
+  Smile,
   UserRound,
   UsersRound
 } from "lucide-react";
@@ -46,7 +49,9 @@ function buildPersonas(cohorts) {
     id: cohort?.id,
     name: cohort?.label || `Cohort ${index + 1}`,
     value: pe_formatCount(cohort?.personas),
-    share: `${(((Number(cohort?.personas) || 0) / total) * 100).toFixed(1)}%`,
+    share: Number.isFinite(Number(cohort?.personas))
+      ? `${((Number(cohort.personas) / total) * 100).toFixed(1)}%`
+      : "--",
     tone: personaTones[index % personaTones.length],
     icon: personaIcons[index % personaIcons.length],
     spark: personaSparks[index % personaSparks.length],
@@ -139,7 +144,7 @@ function PersonaCard({ persona, active }) {
       <div className="pe-kpi-body">
         <span>
           <b>{persona.value}</b>
-          <small>{persona.share} of viewers</small>
+          <small>{persona.share === "--" ? "share unknown" : `${persona.share} of viewers`}</small>
         </span>
         <svg viewBox="0 0 136 50" className="pe-sparkline" aria-hidden="true">
           <path d={persona.spark} />
@@ -225,7 +230,7 @@ function SentimentPanel({ positivePct, neutralPct, negativePct, sentimentDrivers
           <div className="pe-sentiment-bars">
             {pos != null ? (
               <div>
-                <span className="pe-face pe-good">☺</span>
+                <span className="pe-face pe-good"><Smile size={14} /></span>
                 <p>Positive</p>
                 <b>{pos}%</b>
                 <i style={{ "--w": `${pos}%` }} />
@@ -233,7 +238,7 @@ function SentimentPanel({ positivePct, neutralPct, negativePct, sentimentDrivers
             ) : null}
             {neu != null ? (
               <div>
-                <span className="pe-face pe-neutral">◔</span>
+                <span className="pe-face pe-neutral"><Meh size={14} /></span>
                 <p>Neutral</p>
                 <b>{neu}%</b>
                 <i style={{ "--w": `${neu}%` }} />
@@ -241,7 +246,7 @@ function SentimentPanel({ positivePct, neutralPct, negativePct, sentimentDrivers
             ) : null}
             {neg != null ? (
               <div>
-                <span className="pe-face pe-bad">↯</span>
+                <span className="pe-face pe-bad"><Frown size={14} /></span>
                 <p>Negative</p>
                 <b>{neg}%</b>
                 <i style={{ "--w": `${neg}%` }} />
@@ -462,7 +467,103 @@ function ProfilePanel({ activePersona, simulation }) {
   );
 }
 
-function DemographicsPanel() {
+// Derive aggregate demographics from cohort + persona-pool data instead of
+// the old hardcoded "22-34, 62%M/38%F, Global" defaults. We have two signal
+// sources: simulation.demographics (if the pipeline emitted it) and cohort
+// keywords (which carry city / job / family-status hints from the persona
+// rows). We pick the richest available signal.
+const COUNTRY_KEYWORDS = {
+  "United States": ["united states", "us ", "usa", "austin", "seattle", "new york", "chicago", "boston", "los angeles", "san francisco", "denver", "atlanta", "dallas"],
+  "United Kingdom": ["united kingdom", "uk", "london", "manchester", "birmingham", "leeds"],
+  "Australia": ["australia", "sydney", "melbourne", "brisbane", "perth", "vic"],
+  "Canada": ["canada", "toronto", "vancouver", "montreal"],
+  "Germany": ["germany", "berlin", "munich", "hamburg"],
+  "France": ["france", "paris", "lyon"],
+  "India": ["india", "mumbai", "delhi", "bangalore"],
+};
+const AGE_KEYWORDS = {
+  young:   ["student", "graduate", "doctorate", "early"],
+  mid:     ["manager", "professional", "marketing", "engineer", "director"],
+  older:   ["retired", "senior"],
+};
+const FAMILY_KEYWORDS = {
+  "Has children": ["child", "children", "parenting", "parent", "kids"],
+  "Single":       ["single", "alone"],
+  "Married/Partnered": ["married", "spouse", "partner", "divorced"],
+};
+
+function inferDemographics(cohorts) {
+  if (!Array.isArray(cohorts) || cohorts.length === 0) return null;
+  const ageBucket = { young: 0, mid: 0, older: 0, unknown: 0 };
+  const countryTally = new Map();
+  const familyTally = new Map();
+  let totalPersonas = 0;
+  for (const cohort of cohorts) {
+    const weight = Math.max(1, Number(cohort?.personas) || 1);
+    totalPersonas += weight;
+    const blob = (cohort?.keywords || []).join(" ").toLowerCase();
+    // age
+    let ageHit = "unknown";
+    for (const [bucket, words] of Object.entries(AGE_KEYWORDS)) {
+      if (words.some((w) => blob.includes(w))) { ageHit = bucket; break; }
+    }
+    ageBucket[ageHit] += weight;
+    // country
+    let matched = false;
+    for (const [country, words] of Object.entries(COUNTRY_KEYWORDS)) {
+      if (words.some((w) => blob.includes(w))) {
+        countryTally.set(country, (countryTally.get(country) || 0) + weight);
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) countryTally.set("Other", (countryTally.get("Other") || 0) + weight);
+    // family
+    for (const [label, words] of Object.entries(FAMILY_KEYWORDS)) {
+      if (words.some((w) => blob.includes(w))) {
+        familyTally.set(label, (familyTally.get(label) || 0) + weight);
+        break;
+      }
+    }
+  }
+  if (totalPersonas === 0) return null;
+  // Convert age bucket weights into a percentile range (loose mapping).
+  const knownAge = ageBucket.young + ageBucket.mid + ageBucket.older;
+  const knownFamily = familyTally.size > 0;
+  const knownCountry = [...countryTally.keys()].some((k) => k !== "Other");
+  if (knownAge === 0 && !knownFamily && !knownCountry) return null;
+  const ageStartPct = knownAge > 0
+    ? Math.round((ageBucket.young / knownAge) * 30) // 0-30%
+    : 14;
+  const ageEndPct = knownAge > 0
+    ? Math.min(90, ageStartPct + 30 + Math.round((ageBucket.mid / knownAge) * 30))
+    : 62;
+  const ageLow = 18 + Math.round((ageStartPct / 100) * 47);
+  const ageHigh = 18 + Math.round((ageEndPct / 100) * 47);
+
+  const topCountry = [...countryTally.entries()].sort((a, b) => b[1] - a[1])[0];
+  const topFamily = [...familyTally.entries()].sort((a, b) => b[1] - a[1])[0];
+  return {
+    ageLabel: `${ageLow}–${ageHigh}`,
+    ageStartPct: `${ageStartPct}%`,
+    ageEndPct: `${ageEndPct}%`,
+    topCountry: topCountry ? topCountry[0] : "Global",
+    topCountryShare: topCountry ? Math.round((topCountry[1] / totalPersonas) * 100) : 0,
+    topFamily: topFamily ? topFamily[0] : null,
+    topFamilyShare: topFamily ? Math.round((topFamily[1] / totalPersonas) * 100) : 0,
+  };
+}
+
+function DemographicsPanel({ cohorts }) {
+  const demo = inferDemographics(cohorts);
+  if (!demo) {
+    return (
+      <section className="pe-card pe-demo-card">
+        <h2>Demographic composition</h2>
+        <p className="pe-empty-line">Run a simulation to populate cohort demographics.</p>
+      </section>
+    );
+  }
   return (
     <section className="pe-card pe-demo-card">
       <h2>Demographic composition</h2>
@@ -470,40 +571,42 @@ function DemographicsPanel() {
         <div className="pe-demo-control pe-age">
           <div className="pe-demo-label">
             <span>Age</span>
-            <button type="button">22&nbsp;&nbsp;-&nbsp;&nbsp;34</button>
+            <button type="button">{demo.ageLabel}</button>
           </div>
-          <div className="pe-range pe-two" style={{ "--start": "14%", "--end": "62%" }}>
+          <div className="pe-range pe-two" style={{ "--start": demo.ageStartPct, "--end": demo.ageEndPct }}>
             <i />
             <span className="pe-handle pe-left" />
             <span className="pe-handle pe-right" />
           </div>
           <div className="pe-scale">
             <span>18</span>
-            <span>45+</span>
+            <span>65+</span>
           </div>
         </div>
-        <div className="pe-demo-control pe-gender">
-          <div className="pe-demo-label">
-            <span>Gender</span>
-            <button type="button">
-              All <ChevronDown size={14} />
-            </button>
+        {demo.topFamily ? (
+          <div className="pe-demo-control pe-gender">
+            <div className="pe-demo-label">
+              <span>Household</span>
+              <button type="button">
+                {demo.topFamily} <ChevronDown size={14} />
+              </button>
+            </div>
+            <div className="pe-range pe-two" style={{ "--start": "0%", "--end": `${demo.topFamilyShare}%` }}>
+              <i />
+              <span className="pe-handle pe-left" />
+              <span className="pe-handle pe-right" />
+            </div>
+            <div className="pe-scale">
+              <span>0%</span>
+              <span>{demo.topFamilyShare}% match</span>
+            </div>
           </div>
-          <div className="pe-range pe-two" style={{ "--start": "38%", "--end": "78%" }}>
-            <i />
-            <span className="pe-handle pe-left" />
-            <span className="pe-handle pe-right" />
-          </div>
-          <div className="pe-scale">
-            <span>0%</span>
-            <span>62% M&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;38% F</span>
-          </div>
-        </div>
+        ) : null}
         <div className="pe-demo-control pe-location">
           <div className="pe-demo-label">
             <span>Location</span>
             <button type="button">
-              Global <ChevronDown size={14} />
+              {demo.topCountry}{demo.topCountryShare ? ` · ${demo.topCountryShare}%` : ""} <ChevronDown size={14} />
             </button>
           </div>
         </div>
@@ -641,28 +744,38 @@ export default function PersonasExact({ intelligence, go }) {
           </div>
         </header>
 
-        <div className="pe-kpi-row">
-          {personasList.map((persona, index) => (
-            <PersonaCard persona={persona} active={index === 0} key={persona.name} />
-          ))}
-        </div>
+        {personasList.length === 0 ? (
+          <div className="pe-empty-state">
+            <UsersRound size={56} strokeWidth={1.5} aria-hidden />
+            <h2>No personas yet</h2>
+            <p>Upload a video to see synthetic viewer cohorts, sentiment, and demographics appear here.</p>
+          </div>
+        ) : (
+          <>
+            <div className="pe-kpi-row">
+              {personasList.map((persona, index) => (
+                <PersonaCard persona={persona} active={index === 0} key={persona.name} />
+              ))}
+            </div>
 
-        <div className="pe-content-grid">
-          <ProfilePanel activePersona={activePersona} simulation={simulation} />
-          <div className="pe-center-stack">
-            <ColonyMap clusterData={clusterData} />
-            <DemographicsPanel />
-          </div>
-          <div className="pe-right-rail">
-            <SentimentPanel
-              positivePct={positivePct}
-              neutralPct={neutralPct}
-              negativePct={negativePct}
-              sentimentDrivers={sentimentDrivers}
-            />
-            <ReactionsPanel reactionPills={reactionPills} quoteList={quoteList} />
-          </div>
-        </div>
+            <div className="pe-content-grid">
+              <ProfilePanel activePersona={activePersona} simulation={simulation} />
+              <div className="pe-center-stack">
+                <ColonyMap clusterData={clusterData} />
+                <DemographicsPanel cohorts={cohorts} />
+              </div>
+              <div className="pe-right-rail">
+                <SentimentPanel
+                  positivePct={positivePct}
+                  neutralPct={neutralPct}
+                  negativePct={negativePct}
+                  sentimentDrivers={sentimentDrivers}
+                />
+                <ReactionsPanel reactionPills={reactionPills} quoteList={quoteList} />
+              </div>
+            </div>
+          </>
+        )}
       </section>
     </main>
   );
