@@ -1347,7 +1347,7 @@ function ExactLandingPage({ go, user }) {
         <div className="exact-landing-content">
           <section className="exact-landing-copy">
             <h1>Predict the post before you post.</h1>
-            <p>Synthetic viewer swarms test your video for retention, sentiment, and virality in under 60 seconds.</p>
+            <p>Synthetic viewer swarms test your video for retention, sentiment, and virality in minutes — not hours.</p>
             <div className="exact-landing-actions">
               <button className="exact-yellow-button" type="button" onClick={runSim}>
                 Run a simulation <ExactAntMark className="button-ant" />
@@ -1594,18 +1594,23 @@ function ExactRetentionMiniChart({ curve }) {
   // { time_sec, retention (0-100), activity_l2 } objects (or bare numbers
   // for legacy runs). When absent, render a neutral empty state instead of
   // the previous frozen "67% at 3s" mock SVG.
-  const normalized = Array.isArray(curve)
+  const items = Array.isArray(curve)
     ? curve.map((p) => {
         if (p && typeof p === "object") {
           const v = Number(p.retention ?? p.engagement ?? p.value);
           if (!Number.isFinite(v)) return null;
-          return Math.max(0, Math.min(100, v > 1.5 ? v : v * 100));
+          const t = Number(p.time_sec);
+          return {
+            v: Math.max(0, Math.min(100, v > 1.5 ? v : v * 100)),
+            t: Number.isFinite(t) ? t : null,
+          };
         }
         const n = Number(p);
         if (!Number.isFinite(n)) return null;
-        return Math.max(0, Math.min(100, n > 1.5 ? n : n * 100));
+        return { v: Math.max(0, Math.min(100, n > 1.5 ? n : n * 100)), t: null };
       }).filter((v) => v != null)
     : [];
+  const normalized = items.map((i) => i.v);
 
   if (normalized.length < 2) {
     return (
@@ -1617,7 +1622,9 @@ function ExactRetentionMiniChart({ curve }) {
         </svg>
         <div className="exact-chart-callout">— <span>Run a simulation</span></div>
         <div className="exact-chart-y"><span>100%</span><span>50%</span><span>0%</span></div>
-        <div className="exact-chart-x"><span>0s</span><span>5s</span><span>10s</span><span>15s</span></div>
+        {/* Empty state: no duration known yet — show a generic axis hint
+            instead of fabricating 0s/5s/10s/15s tick labels. */}
+        <div className="exact-chart-x"><span>time →</span></div>
       </div>
     );
   }
@@ -1632,11 +1639,43 @@ function ExactRetentionMiniChart({ curve }) {
   });
   const linePath = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
 
-  // 3s marker — clamp to range, label uses the actual sample value.
-  const idx3 = Math.min(3, normalized.length - 1);
-  const holdPct = Math.round(normalized[idx3]);
-  const holdX = pts[idx3][0];
-  const holdY = pts[idx3][1];
+  // Time-domain derivation: use the per-sample time_sec when available so
+  // the callout reflects the actual second, not array index.
+  const timesKnown = items.every((it) => it.t != null);
+  const tMax = timesKnown ? items[items.length - 1].t : null;
+
+  // Early-hook marker: find sample whose time_sec is closest to 3s (or to
+  // 10% of duration for longer clips). Fall back to array index when times
+  // are unknown — but then label by the actual time rather than "3s".
+  let markerIdx;
+  let markerSec;
+  if (timesKnown && tMax != null) {
+    const target = tMax <= 30 ? Math.min(3, tMax) : tMax * 0.1;
+    let best = 0;
+    let bestDiff = Math.abs(items[0].t - target);
+    for (let i = 1; i < items.length; i++) {
+      const d = Math.abs(items[i].t - target);
+      if (d < bestDiff) { bestDiff = d; best = i; }
+    }
+    markerIdx = best;
+    markerSec = items[best].t;
+  } else {
+    markerIdx = Math.min(3, normalized.length - 1);
+    markerSec = null;
+  }
+  const holdPct = Math.round(normalized[markerIdx]);
+  const holdX = pts[markerIdx][0];
+  const holdY = pts[markerIdx][1];
+
+  // Build 4 axis ticks from real duration when known; otherwise omit labels.
+  const fmtSec = (s) => {
+    if (s == null || !Number.isFinite(s)) return "";
+    if (s >= 10) return `${Math.round(s)}s`;
+    return `${Number(s.toFixed(1))}s`;
+  };
+  const tickLabels = (timesKnown && tMax != null)
+    ? [0, tMax / 3, (2 * tMax) / 3, tMax].map(fmtSec)
+    : null;
 
   return (
     <div className="exact-mini-chart">
@@ -1647,9 +1686,17 @@ function ExactRetentionMiniChart({ curve }) {
         <path className="exact-chart-line" d={linePath} />
         <circle cx={holdX.toFixed(1)} cy={holdY.toFixed(1)} r="6" />
       </svg>
-      <div className="exact-chart-callout">{holdPct}% <span>at 3s</span></div>
+      <div className="exact-chart-callout">
+        {holdPct}% <span>{markerSec != null ? `at ${fmtSec(markerSec)}` : "early"}</span>
+      </div>
       <div className="exact-chart-y"><span>100%</span><span>50%</span><span>0%</span></div>
-      <div className="exact-chart-x"><span>0s</span><span>5s</span><span>10s</span><span>15s</span></div>
+      {tickLabels ? (
+        <div className="exact-chart-x">
+          {tickLabels.map((t, i) => <span key={i}>{t}</span>)}
+        </div>
+      ) : (
+        <div className="exact-chart-x"><span>time →</span></div>
+      )}
     </div>
   );
 }
@@ -3601,25 +3648,58 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
     : null;
 
   // retention_curve items are objects: { time_sec, retention (0-100), activity_l2 }
-  // Older runs might send raw numbers — handle both.
+  // Older runs might send raw numbers — handle both. Build {v, t} pairs so the
+  // "3s hold" callout can look up by actual time_sec, not by array index.
   const rawCurve = Array.isArray(brain?.retention_curve) ? brain.retention_curve : null;
-  const retentionPoints = rawCurve
-    ? rawCurve.map((p) => {
+  const retentionPairs = rawCurve
+    ? rawCurve.map((p, i) => {
+        let v = null;
+        let t = null;
         if (p && typeof p === "object") {
-          const v = Number(p.retention ?? p.engagement ?? p.value);
-          return Number.isFinite(v) ? v : null;
+          const rv = Number(p.retention ?? p.engagement ?? p.value);
+          v = Number.isFinite(rv) ? rv : null;
+          const rt = Number(p.time_sec);
+          t = Number.isFinite(rt) ? rt : null;
+        } else {
+          const n = Number(p);
+          v = Number.isFinite(n) ? (n <= 1.5 ? n * 100 : n) : null;
         }
-        const n = Number(p);
-        // legacy 0..1 format → scale to 0..100
-        return Number.isFinite(n) ? (n <= 1.5 ? n * 100 : n) : null;
-      }).filter((v) => v != null)
+        return v == null ? null : { v, t, i };
+      }).filter((x) => x != null)
     : null;
+  const retentionPoints = retentionPairs ? retentionPairs.map((p) => p.v) : null;
+
+  // Pick the sample whose time_sec is closest to 3s; fall back to a single-
+  // sample-per-second assumption ONLY when no time_sec metadata exists, and
+  // in that case drop the "3s hold" callout entirely rather than mislabel.
   let hold3s = null;
-  if (retentionPoints && retentionPoints.length >= 4) {
-    hold3s = Math.round(Math.max(0, Math.min(100, retentionPoints[3])));
-  } else if (meanRetention != null) {
+  let hold3sTime = null;
+  let hold3sIndex = null;
+  if (retentionPairs && retentionPairs.length >= 4) {
+    const haveTimes = retentionPairs.every((p) => p.t != null);
+    if (haveTimes) {
+      let best = 0;
+      let bestDiff = Math.abs(retentionPairs[0].t - 3);
+      for (let i = 1; i < retentionPairs.length; i++) {
+        const d = Math.abs(retentionPairs[i].t - 3);
+        if (d < bestDiff) { bestDiff = d; best = i; }
+      }
+      // Only honor the callout when within ~1.25s of t=3 — otherwise the
+      // curve doesn't actually sample near 3s and a "3s hold" label would lie.
+      if (bestDiff <= 1.25) {
+        hold3s = Math.round(Math.max(0, Math.min(100, retentionPairs[best].v)));
+        hold3sTime = retentionPairs[best].t;
+        hold3sIndex = best;
+      }
+    }
+  }
+  if (hold3s == null && meanRetention != null) {
+    // Fallback metric (not a 3s hold) — surfaced through MetricCard label.
     hold3s = meanRetention;
   }
+  const duration = retentionPairs && retentionPairs.length
+    ? retentionPairs[retentionPairs.length - 1].t
+    : null;
 
   const completedAt = intelligence?.summary?.completed_at || intelligence?.summary?.generated_at;
   const completedDate = completedAt
@@ -3627,7 +3707,17 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
     : null;
 
   const allCohorts = Array.isArray(sim.cohorts) ? sim.cohorts : [];
-  const cohorts = allCohorts.slice(0, 6);
+  // Cap kept consistent with audience-segments card downstream.
+  const COHORT_DISPLAY_CAP = 6;
+  const cohorts = allCohorts.slice(0, Math.min(allCohorts.length, COHORT_DISPLAY_CAP));
+
+  // Derive the canonical reaction-key order from the simulation-level rates
+  // object (when present), so the per-cohort spark bars iterate the actual
+  // taxonomy the analyzer emitted instead of a frozen ["like", "neutral",
+  // "share", "strong_like", "comment", "follow", "saves"] canon.
+  const reactionKeyOrder = sim?.reaction_rates_pct && typeof sim.reaction_rates_pct === "object"
+    ? Object.keys(sim.reaction_rates_pct)
+    : null;
 
   // Decisions: prefer explicit insights[] (analyzer emits { title, detail, tone }),
   // fall back to top_traits and then brain.peak_moments so the panel always
@@ -3778,7 +3868,7 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
 
           <section className="exact-metrics-row">
             <ExactMetricCard title="Virality Score" value={viralityScore != null ? String(viralityScore) : "—"} suffix={viralityScore != null ? "/100" : ""} note={viralityNote} sparkPoints={viralityTimelinePoints} />
-            <ExactMetricCard title="Predicted 3s Hold" value={hold3s != null ? String(hold3s) : "—"} suffix={hold3s != null ? "%" : ""} note={holdNote} />
+            <ExactMetricCard title={hold3sTime != null ? `Hold @ ${(hold3sTime).toFixed(1)}s` : "Mean retention"} value={hold3s != null ? String(hold3s) : "—"} suffix={hold3s != null ? "%" : ""} note={holdNote} />
             <ExactMetricCard title="Drop-off Risk" value={dropoffRisk != null ? String(dropoffRisk) : "—"} suffix={dropoffRisk != null ? "%" : ""} note={dropoffNote} />
             <ExactMetricCard title="Simulated Viewers" value={personaCount != null ? fmtCount(personaCount) : "—"} note={viewerNote} />
           </section>
@@ -3786,7 +3876,7 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
           <section className="exact-dashboard-middle">
             <article className="exact-panel exact-retention-large">
               <div className="exact-panel-head"><h2>Retention over time (by second)</h2><span><i /> This video</span></div>
-              <ExactRetentionLargeChart curve={retentionPoints} hold3s={hold3s} />
+              <ExactRetentionLargeChart curve={retentionPoints} hold3s={hold3s} hold3sTime={hold3sTime} hold3sIndex={hold3sIndex} duration={duration} />
             </article>
             <article className="exact-panel exact-stayed-card">
               <h2>{hasData ? "Why they stayed" : "Insights"}</h2>
@@ -3811,17 +3901,29 @@ function ExactDashboardPage({ go, user, intelligence: parentIntel, runner }) {
                     cohort.reaction_counts, not one of four canned SVG paths. */}
             {cohorts.length ? <div className="table-head"><span>Persona</span><span>Reactions</span><span>Share fit</span><span>Virality</span><span>Top reaction</span></div> : null}
             {cohorts.length ? cohorts.map((cohort, index) => {
-              // Cohorts arrive snake_case (creator_operator_1) — humanize for display.
-              const rawLabel = cohort?.label || cohort?.name || `Cohort ${index + 1}`;
+              // Prefer the labeled identity. Fall back to the cohort id, then
+              // omit the row when neither is present (rather than fabricating
+              // a synthetic "Cohort N" label).
+              const rawLabel = cohort?.label || cohort?.name || cohort?.id;
+              if (!rawLabel) return null;
               const name = /[a-z0-9]_[a-z0-9]/.test(rawLabel)
                 ? rawLabel.split(/[_-]+/).map((w) => w[0]?.toUpperCase() + w.slice(1)).join(" ")
                 : rawLabel;
               const positive = cohort?.positive_rate_pct ?? cohort?.virality_score ?? cohort?.virality;
               const positiveNum = positive != null ? Math.round(Number(positive)) : null;
               const shareNum = cohort?.share_rate_pct != null ? Math.round(Number(cohort.share_rate_pct)) : null;
-              const reactionCounts = cohort?.reaction_counts || {};
-              const reactionBars = ["like", "neutral", "share", "strong_like", "comment", "follow", "saves"]
-                .map((key) => Number(reactionCounts[key]) || 0);
+              const reactionCounts = cohort?.reaction_counts && typeof cohort.reaction_counts === "object"
+                ? cohort.reaction_counts
+                : {};
+              // Iterate the analyzer's actual reaction taxonomy. Use the
+              // sim-level ordering for cross-cohort comparison stability;
+              // otherwise fall back to the cohort's own keys.
+              const cohortKeys = Object.keys(reactionCounts);
+              const orderedKeys = reactionKeyOrder
+                ? reactionKeyOrder.filter((k) => cohortKeys.includes(k))
+                    .concat(cohortKeys.filter((k) => !reactionKeyOrder.includes(k)))
+                : cohortKeys;
+              const reactionBars = orderedKeys.map((k) => Number(reactionCounts[k]) || 0);
               const hasBars = reactionBars.some((v) => v > 0);
               const topReaction = cohort?.top_reaction
                 ? String(cohort.top_reaction).replace(/_/g, " ")
@@ -3899,13 +4001,26 @@ function ExactTinySpark({ points, bars }) {
   return null;
 }
 
-function ExactRetentionLargeChart({ curve, hold3s }) {
+function ExactRetentionLargeChart({ curve, hold3s, hold3sTime, hold3sIndex, duration }) {
   // curve is an array of numbers in 0..100 (parsed upstream from retention_curve)
   const useReal = Array.isArray(curve) && curve.length >= 4;
   const left = 58;
   const right = 742;
   const top = 38;
   const bottom = 226;
+
+  // Build x-axis tick labels from the verified `duration` (last sample's
+  // time_sec). If duration is missing, omit the row entirely instead of
+  // fabricating 0s/3s/6s/9s/12s/15s — that was the "every video is exactly
+  // 15s" lie that made the chart look like static chrome.
+  const fmtSec = (s) => {
+    if (s == null || !Number.isFinite(s)) return "";
+    if (s >= 10) return `${Math.round(s)}s`;
+    return `${Number(s.toFixed(1))}s`;
+  };
+  const xTickLabels = Number.isFinite(duration) && duration > 0
+    ? Array.from({ length: 6 }, (_, i) => fmtSec((i / 5) * duration))
+    : null;
 
   // Empty state: no retention curve yet. Render a blank grid + small caption
   // instead of a hardcoded SVG line that looks like real data — that was the
@@ -3918,7 +4033,7 @@ function ExactRetentionLargeChart({ curve, hold3s }) {
           {[58, 230, 402, 574, 742].map((x) => <line key={`v-${x}`} x1={x} x2={x} y1="32" y2={bottom} />)}
         </svg>
         <div className="large-y"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div>
-        <div className="large-x"><span>0s</span><span>3s</span><span>6s</span><span>9s</span><span>12s</span><span>15s</span></div>
+        {/* No x-axis labels in the empty state — duration is unknown. */}
         <div className="large-callout"><span>Awaiting retention curve</span><strong>—</strong></div>
       </div>
     );
@@ -3927,27 +4042,30 @@ function ExactRetentionLargeChart({ curve, hold3s }) {
   let linePath = "";
   let areaPath = "";
 
-  let holdX = 270;
-  let holdY = 112;
+  let holdX = null;
+  let holdY = null;
 
-  if (useReal) {
-    const pts = curve.map((v, i) => {
-      const ratio = curve.length === 1 ? 0 : i / (curve.length - 1);
-      const x = left + ratio * (right - left);
-      const norm = Math.max(0, Math.min(1, (Number(v) || 0) / 100));
-      const y = top + (1 - norm) * (bottom - top);
-      return [x, y];
-    });
-    const head = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
-    const tail = pts.slice(1).map(([x, y]) => `L${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
-    linePath = `${head} ${tail}`;
-    areaPath = `${linePath} L${pts[pts.length - 1][0].toFixed(1)} ${bottom} L${pts[0][0].toFixed(1)} ${bottom} Z`;
+  const pts = curve.map((v, i) => {
+    const ratio = curve.length === 1 ? 0 : i / (curve.length - 1);
+    const x = left + ratio * (right - left);
+    const norm = Math.max(0, Math.min(1, (Number(v) || 0) / 100));
+    const y = top + (1 - norm) * (bottom - top);
+    return [x, y];
+  });
+  const head = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  const tail = pts.slice(1).map(([x, y]) => `L${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  linePath = `${head} ${tail}`;
+  areaPath = `${linePath} L${pts[pts.length - 1][0].toFixed(1)} ${bottom} L${pts[0][0].toFixed(1)} ${bottom} Z`;
 
-    // 3s marker — clamp to range
-    const idx3 = Math.min(3, curve.length - 1);
-    holdX = pts[idx3][0];
-    holdY = pts[idx3][1];
+  // 3s marker: use the data-derived sample index (validated to be near t=3)
+  // when available. Otherwise no marker is drawn — better than placing one
+  // at array-index 3, which is a different time per payload cadence.
+  if (Number.isFinite(hold3sIndex) && hold3sIndex >= 0 && hold3sIndex < pts.length) {
+    holdX = pts[hold3sIndex][0];
+    holdY = pts[hold3sIndex][1];
   }
+
+  const calloutLabel = hold3sTime != null ? `${fmtSec(hold3sTime)} hold` : (hold3s != null ? "Mean retention" : "—");
 
   return (
     <div className="exact-large-chart">
@@ -3956,12 +4074,14 @@ function ExactRetentionLargeChart({ curve, hold3s }) {
         {[58, 230, 402, 574, 742].map((x) => <line key={`v-${x}`} x1={x} x2={x} y1="32" y2={bottom} />)}
         <path className="exact-chart-area" d={areaPath} />
         <path className="exact-chart-line large" d={linePath} />
-        <line className="hold-line" x1={holdX.toFixed(1)} x2={holdX.toFixed(1)} y1="32" y2={bottom} />
-        <circle className="hold-dot" cx={holdX.toFixed(1)} cy={holdY.toFixed(1)} r="6" />
+        {holdX != null ? <line className="hold-line" x1={holdX.toFixed(1)} x2={holdX.toFixed(1)} y1="32" y2={bottom} /> : null}
+        {holdX != null ? <circle className="hold-dot" cx={holdX.toFixed(1)} cy={holdY.toFixed(1)} r="6" /> : null}
       </svg>
       <div className="large-y"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div>
-      <div className="large-x"><span>0s</span><span>3s</span><span>6s</span><span>9s</span><span>12s</span><span>15s</span></div>
-      <div className="large-callout"><span>3s hold</span><strong>{hold3s != null ? `${hold3s}%` : "—"}</strong></div>
+      {xTickLabels ? (
+        <div className="large-x">{xTickLabels.map((t, i) => <span key={i}>{t}</span>)}</div>
+      ) : null}
+      <div className="large-callout"><span>{calloutLabel}</span><strong>{hold3s != null ? `${hold3s}%` : "—"}</strong></div>
     </div>
   );
 }
@@ -4137,17 +4257,16 @@ function SimulationFlowPage({ go, user, runner, intelligence: parentIntelligence
   });
   const [uploadedName, setUploadedName] = useState(runner?.video?.name || "");
   const [finishing, setFinishing] = useState(false);
-  // Demo-mode progress when there's no real run streaming — keeps the
-  // anim alive for the marketing/landing flow. Starts at 0 (not 23) so a
-  // user with no run in flight doesn't see a misleadingly-already-in-flight bar.
-  const [fakeProgress, setFakeProgress] = useState(0);
   // Captured from the intake step; flows through to runner.analyzeFile so the
   // edge function and downstream simulation can bias personas by platform/ICP.
   const [intake, setIntake] = useState(null);
 
-  // Real progress comes from cloud SSE when a stream is in flight; otherwise
-  // we use the demo-mode progress (starts at 0).
-  const progress = livePct != null && hasLiveRun ? Math.max(0, Math.min(100, Math.round(livePct))) : fakeProgress;
+  // Real progress comes from cloud SSE when a stream is in flight. With no
+  // live run, progress stays at null and the UI shows an indeterminate state
+  // rather than a scripted percentage that fakes a run in flight.
+  const progress = livePct != null && hasLiveRun
+    ? Math.max(0, Math.min(100, Math.round(livePct)))
+    : null;
 
   // Build the workflow labels dynamically. The middle "Simulating N viewers"
   // step used to hardcode "200k viewers" regardless of the real persona count
@@ -4170,9 +4289,9 @@ function SimulationFlowPage({ go, user, runner, intelligence: parentIntelligence
       : step === "morphing"
         ? 2
         : step === "running"
-        ? progress >= 96
+        ? (progress != null && progress >= 96)
           ? 4
-          : progress >= 74
+          : (progress != null && progress >= 74)
             ? 3
             : 2
         : 4;
@@ -4191,51 +4310,38 @@ function SimulationFlowPage({ go, user, runner, intelligence: parentIntelligence
       const t = window.setTimeout(() => setStep("results"), 600);
       return () => window.clearTimeout(t);
     }
-    if (hasLiveRun && step !== "running" && step !== "results" && step !== "morphing") {
+    // Promote into "running" as soon as the SSE stream actually starts emitting
+    // progress. This used to be a 1220ms wall-clock timer, which advanced even
+    // when no run was in flight. Now the transition is data-driven: livePct
+    // becomes non-null only after the analyzer's first tick.
+    if (hasLiveRun && step === "morphing" && livePct != null) {
+      setStep("running");
+    } else if (hasLiveRun && step !== "running" && step !== "results" && step !== "morphing") {
       setStep("running");
     }
     return undefined;
-  }, [runner?.cloudStatus, hasLiveRun, step]);
+  }, [runner?.cloudStatus, hasLiveRun, step, livePct]);
 
-  // Demo progress only when there is no real run — runs once on entering
-  // the running step.
-  useEffect(() => {
-    if (step !== "running" || hasLiveRun) return undefined;
-    setFakeProgress(0);
-    setFinishing(false);
-    const ticks = [16, 32, 49, 63, 78, 91, 100];
-    const timers = ticks.map((value, index) => window.setTimeout(() => {
-      setFakeProgress(value);
-      if (value === 100) {
-        setFinishing(true);
-        window.setTimeout(() => setStep("results"), 1280);
-      }
-    }, 760 + index * 740));
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [step, hasLiveRun]);
-
-  useEffect(() => {
-    if (step !== "morphing" || hasLiveRun) return undefined;
-    const timer = window.setTimeout(() => setStep("running"), 1220);
-    return () => window.clearTimeout(timer);
-  }, [step, hasLiveRun]);
+  // (Removed) Demo-mode fake progress + demo morph auto-advance: they cycled
+  // through scripted percentages (16/32/49/63/78/91/100) and auto-jumped to
+  // results with no real intelligence, falsely implying a simulation ran.
+  // Progress is now exclusively driven by the live SSE stream.
 
   const startUpload = (file) => {
-    // Don't fabricate a name; let downstream components fall back to a real
-    // empty state if the user didn't provide a file (e.g. "Use demo reel").
-    const displayName = file?.name || "";
-    setUploadedName(displayName);
-    if (file && runner?.analyzeFile) {
-      // Real upload to the cloud edge fn — auto-advances via the runner state effect.
-      runner.analyzeFile(file, intake);
-    }
+    // Only advance the flow when there is a real file + a real analyzer
+    // hook. Previously, a null file (from the deleted "Use demo reel" button)
+    // would still call setStep("morphing") and feed the scripted-progress
+    // path. Now: no file ⇒ stay on the upload step.
+    if (!file || !runner?.analyzeFile) return;
+    setUploadedName(file.name || "");
+    // Real upload to the cloud edge fn — auto-advances via the runner state effect.
+    runner.analyzeFile(file, intake);
     setStep("morphing");
   };
 
   const handleNewSimulation = () => {
     setStep("intake");
     setUploadedName("");
-    setFakeProgress(0);
     setFinishing(false);
   };
 
@@ -4488,23 +4594,25 @@ function SimulationUploadStage({ inputRef, onUpload }) {
         <h1>Drop launch reel</h1>
         <p>MP4 up to 60s · Max 500MB</p>
         <button className="exact-yellow-button" type="button" onClick={() => inputRef.current?.click()}>Choose file</button>
-        <button className="sim-demo-link" type="button" onClick={() => onUpload(null)}>Use demo reel</button>
+        {/* (Removed) "Use demo reel" button — it called onUpload(null), which
+            bypassed runner.analyzeFile and triggered scripted fake-progress. */}
       </article>
     </section>
   );
 }
 
-function SimulationMorphStage({ workflow, uploadedName, previewUrl, progress = 0, liveStageLabel }) {
-  // The morph strap used to print "23%" + "Simulating 200k viewers" verbatim
-  // regardless of the live SSE state. Now drive it from the same progress +
-  // stage label the running step uses so the user sees a continuous count.
-  const pct = Number.isFinite(progress) ? Math.max(0, Math.min(100, Math.round(progress))) : 0;
+function SimulationMorphStage({ workflow, uploadedName, previewUrl, progress, liveStageLabel }) {
+  // Progress is null when no SSE stream is live — show an indeterminate
+  // marker rather than fabricating "0%" or "23%".
+  const pct = Number.isFinite(progress) ? Math.max(0, Math.min(100, Math.round(progress))) : null;
   return (
     <section className="sim-morph-screen">
       <SimulationStatusStrip workflow={workflow} activeIndex={2} />
       <div className="sim-wave-field" aria-hidden="true" />
       <SimulationAntSwarm intro />
       <article className="sim-morph-bubble" aria-label="Video morphing into simulation lens">
+        {/* DECORATIVE CHROME - intentionally static: marquee is visual texture,
+            not a "sample analyzed videos" feed. Hidden from assistive tech. */}
         <VideoMarquee userVideoSrc={previewUrl} />
         <div className="sim-morph-upload-copy">
           <Upload size={22} />
@@ -4512,7 +4620,7 @@ function SimulationMorphStage({ workflow, uploadedName, previewUrl, progress = 0
           <span>{uploadedName || "Awaiting source video"}</span>
         </div>
         <div className="sim-morph-run-copy">
-          <strong>{pct}%</strong>
+          <strong>{pct != null ? `${pct}%` : "—"}</strong>
           <span>{liveStageLabel || "Simulating viewers"}</span>
         </div>
       </article>
@@ -4524,15 +4632,19 @@ function SimulationRunningStage({ workflow, activeIndex, progress, uploadedName,
   // Prefer the live SSE label outright. Past brain-scan threshold (74%+),
   // surface the brain label derived from intelligence/runner rather than a
   // hardcoded "TribeV2 brain scan" copy.
-  const stageLabel = liveStageLabel || (progress < 74 ? "Simulating viewers" : (brainLabel || "Brain scan"));
+  const pct = Number.isFinite(progress) ? Math.max(0, Math.min(100, Math.round(progress))) : null;
+  const stageLabel = liveStageLabel
+    || (pct != null && pct >= 74 ? (brainLabel || "Brain scan") : "Simulating viewers");
   return (
     <section className="sim-running-screen">
       <SimulationStatusStrip workflow={workflow} activeIndex={activeIndex} />
       <div className="sim-wave-field" aria-hidden="true" />
       <SimulationAntSwarm />
       <article className="sim-run-bubble">
+        {/* DECORATIVE CHROME - intentionally static: marquee is visual texture,
+            not a "sample analyzed videos" feed. Hidden from assistive tech. */}
         <VideoMarquee userVideoSrc={previewUrl} />
-        <div><strong>{progress}%</strong><span>{stageLabel}</span></div>
+        <div><strong>{pct != null ? `${pct}%` : "—"}</strong><span>{stageLabel}</span></div>
         <small>{uploadedName || "Awaiting source video"}</small>
       </article>
     </section>
@@ -4613,35 +4725,58 @@ function SimulationResultsStage({ onRunAgain, onSaveReport, intelligence }) {
   // cohort, fall back to normalizing positive_rate_pct so the bars are at
   // least labeled correctly ("share of positive reactions") instead of
   // silently fabricating weight=1 per missing cohort.
+  // Keep the cap consistent with the dashboard's persona-table cap (6) so
+  // the two views report the same cohort universe to the user.
+  const SEGMENTS_CAP = 6;
   let segments = [];
   let segmentsBasis = "personas";
   if (Array.isArray(sim.cohorts) && sim.cohorts.length) {
-    const cohortsForSegments = sim.cohorts.slice(0, 4);
+    const cohortsForSegments = sim.cohorts.slice(0, Math.min(sim.cohorts.length, SEGMENTS_CAP));
     const allHavePersonas = cohortsForSegments.every((c) => Number.isFinite(Number(c.personas)) && Number(c.personas) > 0);
     if (allHavePersonas) {
       const totalWeight = cohortsForSegments.reduce((acc, c) => acc + Number(c.personas), 0) || 1;
-      segments = cohortsForSegments.map((c) => {
-        const name = c.label || c.name || "Cohort";
-        return [name, `${Math.max(1, Math.round((Number(c.personas) / totalWeight) * 100))}%`];
-      });
+      // Drop the Math.max(1, ...) floor — if a cohort rounds to 0% we show
+      // it honestly as 0% rather than inflating its bar to make the panel
+      // look populated.
+      segments = cohortsForSegments
+        .map((c) => {
+          const name = c.label || c.name || c.id;
+          if (!name) return null;
+          return [name, `${Math.round((Number(c.personas) / totalWeight) * 100)}%`];
+        })
+        .filter(Boolean);
     } else {
       const totalWeight = cohortsForSegments.reduce((acc, c) => acc + Math.max(0, Number(c.positive_rate_pct) || 0), 0);
       if (totalWeight > 0) {
         segmentsBasis = "positive_rate_pct";
-        segments = cohortsForSegments.map((c) => {
-          const name = c.label || c.name || "Cohort";
-          const w = Math.max(0, Number(c.positive_rate_pct) || 0);
-          return [name, `${Math.max(1, Math.round((w / totalWeight) * 100))}%`];
-        });
+        segments = cohortsForSegments
+          .map((c) => {
+            const name = c.label || c.name || c.id;
+            if (!name) return null;
+            const w = Math.max(0, Number(c.positive_rate_pct) || 0);
+            return [name, `${Math.round((w / totalWeight) * 100)}%`];
+          })
+          .filter(Boolean);
       }
     }
   }
 
+  // Gate the "Simulation complete" header on real intelligence. If the user
+  // lands here with no payload (stale state, manual nav), declare the empty
+  // state honestly and route them back to the intake flow.
+  const hasRealResults = Boolean(intelligence?.simulation);
   return (
     <section className="sim-results-screen">
       <header className="sim-results-head">
-        <div><span><Check size={16} /></span><h1>Simulation complete</h1><p>Here’s what we predicted.</p></div>
-        <nav><button className="exact-yellow-button" type="button" onClick={onSaveReport} disabled={!intelligence}>Save report</button><button className="exact-dark-button" type="button" onClick={onRunAgain}><Repeat2 size={15} /> Run another simulation</button></nav>
+        {hasRealResults ? (
+          <div><span><Check size={16} /></span><h1>Simulation complete</h1><p>Here’s what we predicted.</p></div>
+        ) : (
+          <div><h1>No simulation yet</h1><p>Upload a reel to start a simulation.</p></div>
+        )}
+        <nav>
+          <button className="exact-yellow-button" type="button" onClick={onSaveReport} disabled={!intelligence}>Save report</button>
+          <button className="exact-dark-button" type="button" onClick={onRunAgain}><Repeat2 size={15} /> {hasRealResults ? "Run another simulation" : "Start a simulation"}</button>
+        </nav>
       </header>
       <div className="sim-results-grid">
         <article className="sim-result-card sim-result-hold"><span>Predicted 3s hold</span><strong>{holdPct != null ? holdPct : "—"}{holdPct != null ? <small>%</small> : null}</strong><p>{holdNote}</p></article>

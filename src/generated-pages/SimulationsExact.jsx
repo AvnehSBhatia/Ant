@@ -22,22 +22,36 @@ const assets = {
   ant: "/assets/atomic/ants/ant-01.png"
 };
 
-const metricStripPaths = [
-  "M2 34 C18 36 25 31 40 34 C56 38 66 28 82 32 C98 36 104 18 117 26 C129 33 135 18 146 7 C156 24 164 24 174 33",
-  "M3 35 C18 34 25 30 38 21 C50 36 63 33 76 31 C90 39 96 27 108 34 C122 40 126 18 140 27 C154 33 165 24 177 26",
-  "M2 36 C18 35 26 29 40 33 C56 39 65 30 80 35 C96 41 103 32 116 26 C132 41 135 26 148 29 C160 30 166 18 178 13"
-];
-
+/* DECORATIVE CHROME - intentionally static. Cohort labels themselves come from real data
+   (simulation.cohorts[].label); these palettes only style the cards. */
 const cohortColors = ["#4f8a45", "#3478c8", "#eea400", "#8856d9", "#ef5d85"];
+/* DECORATIVE CHROME - intentionally static. Icons assigned positionally; the cohort label
+   (real data) is what conveys meaning to the user. */
 const cohortIcons = [Monitor, UserRound, UsersRound, GraduationCap, BriefcaseBusiness];
-const liftPaths = [
-  "M4 55 L20 58 L30 50 L43 55 L54 43 L65 52 L78 30 L91 44 L108 26 L121 33 L136 18",
-  "M4 54 L18 40 L31 54 L42 49 L55 59 L67 44 L80 55 L93 39 L104 46 L119 31 L136 25",
-  "M4 58 L18 49 L30 55 L43 42 L55 52 L68 40 L82 47 L96 30 L108 38 L121 19 L136 28",
-  "M4 56 L18 51 L31 59 L45 44 L57 55 L70 36 L83 52 L96 31 L108 40 L121 25 L136 17",
-  "M4 57 L19 43 L32 54 L44 37 L58 57 L70 41 L83 53 L97 32 L109 42 L122 23 L136 15"
-];
+/* DECORATIVE CHROME - intentionally static. peak_moments[].label (real data) drives the
+   visible stage label; icons are just a positional sequence marker. */
 const pipelineIcons = [CirclePlay, Gem, BarChart3, UsersRound, Flag];
+
+// Build an SVG path that linearly scales a numeric series into the given viewBox.
+// Returns null when the series is too short to draw a meaningful line.
+function toPath(series, width, height, { padX = 2, padY = 4 } = {}) {
+  if (!Array.isArray(series) || series.length < 2) return null;
+  const nums = series.map((v) => Number(v)).filter((v) => Number.isFinite(v));
+  if (nums.length < 2) return null;
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+  const range = max - min || 1;
+  const innerW = width - padX * 2;
+  const innerH = height - padY * 2;
+  const step = innerW / (nums.length - 1);
+  const points = nums.map((v, i) => {
+    const x = padX + i * step;
+    // Invert y so higher values render higher in the viewBox.
+    const y = padY + innerH - ((v - min) / range) * innerH;
+    return `${x.toFixed(2)} ${y.toFixed(2)}`;
+  });
+  return `M${points[0]} ${points.slice(1).map((p) => `L${p}`).join(" ")}`;
+}
 
 function fmtPct(value, { signed = false } = {}) {
   if (value == null || Number.isNaN(Number(value))) return null;
@@ -114,10 +128,29 @@ export default function SimulationsExact({ intelligence, runner, go }) {
   // No engagement_lift_pct in schema — use positive_rate_pct as an absolute "positive reactions" tile.
   const positiveRate = simulation?.positive_rate_pct ?? null;
 
+  // Sparklines must reflect real series; otherwise omit the spark for that tile.
+  // Completion: retention curve over time (0-1 retention values).
+  // Avg watch time / Positive reactions: no per-metric time series in the schema -> no spark.
+  const retentionSeries = Array.isArray(brain?.retention_curve)
+    ? brain.retention_curve.map((p) => p?.retention).filter((v) => v != null)
+    : [];
+  const motionSeries = Array.isArray(intelligence?.video_signals?.motion)
+    ? intelligence.video_signals.motion
+    : [];
+  const activationSeries = Array.isArray(intelligence?.video_signals?.activation)
+    ? intelligence.video_signals.activation
+    : [];
+
+  const completionPath = toPath(retentionSeries, 180, 48);
+  // Use motion as a rough watch-engagement proxy; only render if real series exists.
+  const watchPath = toPath(motionSeries, 180, 48);
+  // Use activation as a proxy for positive-reaction intensity over time.
+  const positivePath = toPath(activationSeries, 180, 48);
+
   const metricStrip = [
-    { label: "Completion rate", value: fmtPct(completionPct), path: metricStripPaths[0] },
-    { label: "Avg watch time", value: fmtSeconds(watchSeconds), path: metricStripPaths[1] },
-    { label: "Positive reactions", value: fmtPct(positiveRate), path: metricStripPaths[2] }
+    { label: "Completion rate", value: fmtPct(completionPct), path: completionPath },
+    { label: "Avg watch time", value: fmtSeconds(watchSeconds), path: watchPath },
+    { label: "Positive reactions", value: fmtPct(positiveRate), path: positivePath }
   ].filter((m) => m.value != null);
 
   // Scene pipeline — drive from peak_moments[] (real labels + scores) when available,
@@ -174,8 +207,7 @@ export default function SimulationsExact({ intelligence, runner, go }) {
       label: cohort?.label || `Cohort ${index + 1}`,
       lift: liftValue,
       color: cohortColors[index % cohortColors.length],
-      Icon: cohortIcons[index % cohortIcons.length],
-      path: liftPaths[index % liftPaths.length]
+      Icon: cohortIcons[index % cohortIcons.length]
     };
   }).filter((l) => l.lift != null);
 
@@ -276,7 +308,7 @@ export default function SimulationsExact({ intelligence, runner, go }) {
               <div className="sim-exact-strip-metric" key={metric.label}>
                 <strong>{metric.value}</strong>
                 <span>{metric.label}</span>
-                <MetricSpark path={metric.path} />
+                {metric.path ? <MetricSpark path={metric.path} /> : null}
               </div>
             ))}
           </div>
@@ -351,14 +383,11 @@ export default function SimulationsExact({ intelligence, runner, go }) {
               <Info size={16} />
             </div>
             <div className="sim-exact-lift-grid">
-              {lifts.map(({ label, lift, color, Icon, path }) => (
+              {lifts.map(({ label, lift, color, Icon }) => (
                 <div className="sim-exact-lift-card" style={{ "--tone": color }} key={label}>
                   <Icon size={24} />
                   <span>{label}</span>
                   <strong>{lift}</strong>
-                  <svg viewBox="0 0 140 64" aria-hidden="true">
-                    <path d={path} />
-                  </svg>
                 </div>
               ))}
             </div>

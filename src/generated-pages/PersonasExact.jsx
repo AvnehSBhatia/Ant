@@ -28,7 +28,7 @@ const ant = (index = 0) => `/assets/atomic/ants/ant-${String((index % 16) + 1).p
 const personaTones = ["green", "purple", "orange", "blue"];
 const personaIcons = [4, 10, 12, 15];
 
-// Decorative stones in the colony map background. Pure visual chrome, no data tie-in.
+/* DECORATIVE CHROME - intentionally static. Pure visual chrome, no data tie-in. */
 const DECORATIVE_STONES = [
   [35, 355, 24, 11],
   [79, 376, 18, 8],
@@ -167,8 +167,8 @@ function buildClusterData(personasList, svgWidth = 884, svgHeight = 520) {
       pctY = 50 + Math.sin(angle) * r * 0.9;
     }
     const share = (persona.personas || 0) / totalPersonas;
-    // Visual cap so clusters don't explode; min 4 so tiny cohorts still read as a cluster.
-    const count = Math.min(40, Math.max(4, Math.round(share * 120)));
+    // Visual cap so clusters don't explode; min 1 so a single-persona cohort reads as one ant.
+    const count = Math.min(40, Math.max(1, Math.round(share * 120)));
     return {
       label: persona.value,
       name: persona.name,
@@ -441,7 +441,7 @@ function ReactionsPanel({ reactionPills, quoteList }) {
 function ColonyMap({ clusterData, tunnelPaths, motionAnts, floatingAnts, hubLabel }) {
   const [paused, setPaused] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  if (!clusterData.length) {
+  if (!clusterData.length || (clusterData.length < 2 && tunnelPaths.length === 0)) {
     return (
       <section className="pe-card pe-map-card">
         <div className="pe-card-head">
@@ -450,7 +450,7 @@ function ColonyMap({ clusterData, tunnelPaths, motionAnts, floatingAnts, hubLabe
           </h2>
         </div>
         <div className="pe-map-canvas pe-map-empty">
-          <p>No cohorts yet — run a simulation to populate cluster behavior.</p>
+          <p>Cluster behavior requires at least two cohorts — run a richer simulation to populate.</p>
         </div>
       </section>
     );
@@ -554,9 +554,10 @@ function ProfilePanel({ activePersona, simulation }) {
   if (!persona) return null;
   const keywords = persona.keywords && persona.keywords.length ? persona.keywords.slice(0, 6) : [];
 
-  // Per-cohort engagement stages: prefer the cohort's own reaction_counts
-  // (so each persona's stage bars actually differ); fall back to global
-  // reaction_rates_pct only if the cohort has no breakdown.
+  // Per-cohort reaction breakdown: prefer the cohort's own reaction_counts
+  // (so each persona's bars actually differ); fall back to global
+  // reaction_rates_pct only if the cohort has no breakdown. Labels match the
+  // data exactly — no marketer-framework relabeling.
   const cohortCounts = persona.reaction_counts;
   const globalRates = simulation?.reaction_rates_pct || {};
   let stages = [];
@@ -565,19 +566,19 @@ function ProfilePanel({ activePersona, simulation }) {
     if (total > 0) {
       const pct = (key) => Math.round(((Number(cohortCounts[key]) || 0) / total) * 100);
       stages = [
-        ["Hook", persona.positive_rate_pct != null ? Math.round(persona.positive_rate_pct) : null],
-        ["Value", pct("like") + pct("strong_like")],
-        ["Proof", pct("comment")],
-        ["CTA", pct("share") + pct("saves")]
+        ["Positive", persona.positive_rate_pct != null ? Math.round(persona.positive_rate_pct) : null],
+        ["Likes", pct("like") + pct("strong_like")],
+        ["Comments", pct("comment")],
+        ["Shares+Saves", pct("share") + pct("saves")]
       ];
     }
   }
   if (!stages.length) {
     stages = [
-      ["Hook", persona.positive_rate_pct != null ? Math.round(persona.positive_rate_pct) : null],
-      ["Value", globalRates.like != null ? Math.round(globalRates.like) : null],
-      ["Proof", globalRates.comment != null ? Math.round(globalRates.comment) : null],
-      ["CTA", globalRates.share != null ? Math.round(globalRates.share) : null]
+      ["Positive", persona.positive_rate_pct != null ? Math.round(persona.positive_rate_pct) : null],
+      ["Likes", globalRates.like != null ? Math.round(globalRates.like) : null],
+      ["Comments", globalRates.comment != null ? Math.round(globalRates.comment) : null],
+      ["Shares", globalRates.share != null ? Math.round(globalRates.share) : null]
     ];
   }
   stages = stages.filter(([, v]) => v != null && Number.isFinite(v));
@@ -637,159 +638,10 @@ function ProfilePanel({ activePersona, simulation }) {
   );
 }
 
-// Demographics: keyword-based inference across cohort keywords. The pipeline's
-// agents_sample in this codebase does not carry country/age/family signals
-// directly, so cohort keywords remain the source of truth. Any signal we can't
-// detect renders as a hidden section (no fake placeholder values).
-const COUNTRY_KEYWORDS = {
-  "United States": ["united states", "us ", "usa", "austin", "seattle", "new york", "chicago", "boston", "los angeles", "san francisco", "denver", "atlanta", "dallas"],
-  "United Kingdom": ["united kingdom", "uk", "london", "manchester", "birmingham", "leeds"],
-  "Australia": ["australia", "sydney", "melbourne", "brisbane", "perth", "vic"],
-  "Canada": ["canada", "toronto", "vancouver", "montreal"],
-  "Germany": ["germany", "berlin", "munich", "hamburg"],
-  "France": ["france", "paris", "lyon"],
-  "India": ["india", "mumbai", "delhi", "bangalore"]
-};
-const AGE_KEYWORDS = {
-  young: ["student", "graduate", "doctorate", "early"],
-  mid: ["manager", "professional", "marketing", "engineer", "director"],
-  older: ["retired", "senior"]
-};
-const FAMILY_KEYWORDS = {
-  "Has children": ["child", "children", "parenting", "parent", "kids"],
-  "Single": ["single", "alone"],
-  "Married/Partnered": ["married", "spouse", "partner", "divorced"]
-};
-
-function inferDemographics(simulation) {
-  const cohorts = simulation?.cohorts;
-  if (!Array.isArray(cohorts) || cohorts.length === 0) return null;
-  const ageBucket = { young: 0, mid: 0, older: 0, unknown: 0 };
-  const countryTally = new Map();
-  const familyTally = new Map();
-  let totalPersonas = 0;
-  for (const cohort of cohorts) {
-    const weight = Math.max(1, Number(cohort?.personas) || 1);
-    totalPersonas += weight;
-    const blob = (cohort?.keywords || []).join(" ").toLowerCase();
-    let ageHit = "unknown";
-    for (const [bucket, words] of Object.entries(AGE_KEYWORDS)) {
-      if (words.some((w) => blob.includes(w))) { ageHit = bucket; break; }
-    }
-    ageBucket[ageHit] += weight;
-    let matched = false;
-    for (const [country, words] of Object.entries(COUNTRY_KEYWORDS)) {
-      if (words.some((w) => blob.includes(w))) {
-        countryTally.set(country, (countryTally.get(country) || 0) + weight);
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) countryTally.set("Other", (countryTally.get("Other") || 0) + weight);
-    for (const [label, words] of Object.entries(FAMILY_KEYWORDS)) {
-      if (words.some((w) => blob.includes(w))) {
-        familyTally.set(label, (familyTally.get(label) || 0) + weight);
-        break;
-      }
-    }
-  }
-  if (totalPersonas === 0) return null;
-  const knownAge = ageBucket.young + ageBucket.mid + ageBucket.older;
-  const knownFamily = familyTally.size > 0;
-  const knownCountry = [...countryTally.keys()].some((k) => k !== "Other");
-  if (knownAge === 0 && !knownFamily && !knownCountry) return null;
-
-  let ageLabel = null;
-  let ageStartPct = null;
-  let ageEndPct = null;
-  if (knownAge > 0) {
-    const startPct = Math.round((ageBucket.young / knownAge) * 30);
-    const endPct = Math.min(90, startPct + 30 + Math.round((ageBucket.mid / knownAge) * 30));
-    const ageLow = 18 + Math.round((startPct / 100) * 47);
-    const ageHigh = 18 + Math.round((endPct / 100) * 47);
-    ageLabel = `${ageLow}–${ageHigh}`;
-    ageStartPct = `${startPct}%`;
-    ageEndPct = `${endPct}%`;
-  }
-
-  const topCountryEntry = [...countryTally.entries()]
-    .filter(([name]) => name !== "Other")
-    .sort((a, b) => b[1] - a[1])[0];
-  const topFamilyEntry = [...familyTally.entries()].sort((a, b) => b[1] - a[1])[0];
-
-  return {
-    ageLabel,
-    ageStartPct,
-    ageEndPct,
-    topCountry: topCountryEntry ? topCountryEntry[0] : null,
-    topCountryShare: topCountryEntry ? Math.round((topCountryEntry[1] / totalPersonas) * 100) : null,
-    topFamily: topFamilyEntry ? topFamilyEntry[0] : null,
-    topFamilyShare: topFamilyEntry ? Math.round((topFamilyEntry[1] / totalPersonas) * 100) : null
-  };
-}
-
-function DemographicsPanel({ simulation }) {
-  const demo = inferDemographics(simulation);
-  if (!demo) {
-    return (
-      <section className="pe-card pe-demo-card">
-        <h2>Demographic composition</h2>
-        <p className="pe-empty-line">Run a simulation to populate cohort demographics.</p>
-      </section>
-    );
-  }
-  return (
-    <section className="pe-card pe-demo-card">
-      <h2>Demographic composition</h2>
-      <div className="pe-demo-grid">
-        {demo.ageLabel ? (
-          <div className="pe-demo-control pe-age">
-            <div className="pe-demo-label">
-              <span>Age</span>
-              <button type="button">{demo.ageLabel}</button>
-            </div>
-            <div className="pe-range pe-two" style={{ "--start": demo.ageStartPct, "--end": demo.ageEndPct }}>
-              <i />
-              <span className="pe-handle pe-left" />
-              <span className="pe-handle pe-right" />
-            </div>
-            <div className="pe-scale">
-              <span>18</span>
-              <span>65+</span>
-            </div>
-          </div>
-        ) : null}
-        {demo.topFamily ? (
-          <div className="pe-demo-control pe-gender">
-            <div className="pe-demo-label">
-              <span>Household</span>
-              <button type="button">{demo.topFamily}</button>
-            </div>
-            <div className="pe-range pe-two" style={{ "--start": "0%", "--end": `${demo.topFamilyShare}%` }}>
-              <i />
-              <span className="pe-handle pe-left" />
-              <span className="pe-handle pe-right" />
-            </div>
-            <div className="pe-scale">
-              <span>0%</span>
-              <span>{demo.topFamilyShare}% match</span>
-            </div>
-          </div>
-        ) : null}
-        {demo.topCountry ? (
-          <div className="pe-demo-control pe-location">
-            <div className="pe-demo-label">
-              <span>Location</span>
-              <button type="button">
-                {demo.topCountry}{demo.topCountryShare ? ` · ${demo.topCountryShare}%` : ""}
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </section>
-  );
-}
+// NOTE: A DemographicsPanel previously rendered age / household / country
+// composition by substring-matching cohort.keywords against fixed dictionaries.
+// The intelligence payload carries no demographic fields (no age, no country,
+// no household), so every value was invented. Panel + helpers removed.
 
 export default function PersonasExact({ intelligence }) {
   const simulation = intelligence?.simulation;
@@ -953,7 +805,7 @@ export default function PersonasExact({ intelligence }) {
             <div className="pe-empty-state">
               <UsersRound size={56} strokeWidth={1.5} aria-hidden />
               <h2>No personas yet</h2>
-              <p>Upload a video to see synthetic viewer cohorts, sentiment, and demographics appear here.</p>
+              <p>Upload a video to see synthetic viewer cohorts, sentiment, and reactions appear here.</p>
             </div>
           </div>
         ) : (
@@ -974,7 +826,6 @@ export default function PersonasExact({ intelligence }) {
                   floatingAnts={floatingAnts}
                   hubLabel={hubLabel}
                 />
-                <DemographicsPanel simulation={simulation} />
               </div>
               <div className="pe-right-rail">
                 <SentimentPanel

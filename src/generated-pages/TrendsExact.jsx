@@ -29,8 +29,8 @@ function te_normalizeTrend(raw, index) {
     return { term: String(raw), count: null, delta: null };
   }
   if (typeof raw !== "object") return null;
-  const term =
-    raw.term ?? raw.label ?? raw.name ?? raw.keyword ?? raw.text ?? `Trend ${index + 1}`;
+  const term = raw.term ?? raw.label ?? raw.name ?? raw.keyword ?? raw.text;
+  if (term == null || String(term).trim() === "") return null;
   const rawCount =
     raw.count ?? raw.value ?? raw.frequency ?? raw.freq ?? raw.score ?? raw.weight ?? null;
   const count = rawCount == null ? null : Number(rawCount);
@@ -45,11 +45,15 @@ function te_normalizeTrend(raw, index) {
 
 function te_normalizeInsight(raw) {
   if (!raw || typeof raw !== "object") return null;
-  const tone = String(raw.tone || "green").toLowerCase();
+  const title = raw.title || raw.headline;
+  if (!title) return null;
+  const rawTone = raw.tone == null ? null : String(raw.tone).toLowerCase();
+  const tone =
+    rawTone && ["green", "gold", "blue", "red"].includes(rawTone) ? rawTone : "neutral";
   return {
-    title: raw.title || raw.headline || "Insight",
+    title,
     detail: raw.detail || raw.description || raw.body || "",
-    tone: ["green", "gold", "blue", "red"].includes(tone) ? tone : "green",
+    tone,
   };
 }
 
@@ -177,7 +181,7 @@ export default function TrendsExact({ intelligence }) {
     const matched = trends.filter((t) =>
       needles.some((n) => t.term.toLowerCase().includes(n)),
     );
-    return matched.length ? matched : trends;
+    return matched;
   }, [trends, activeSet]);
 
   // Fallback: build trend bars from seed terms when no trends[] arrived
@@ -205,7 +209,9 @@ export default function TrendsExact({ intelligence }) {
 
   const subtitle = topVideo?.title
     ? `Trending terms surfaced from "${te_truncate(topVideo.title, 80)}".`
-    : "Trending search terms surfaced from the video's seed concepts.";
+    : seedTerms.length
+      ? `Surfaced from ${seedTerms.length} seed concept${seedTerms.length === 1 ? "" : "s"}.`
+      : null;
 
   return (
     <main className="trends-exact">
@@ -216,9 +222,11 @@ export default function TrendsExact({ intelligence }) {
               <TrendingUp size={30} />
               <h1>Trends</h1>
             </div>
-            <p className="te-subtitle">
-              <Activity size={15} /> {subtitle}
-            </p>
+            {subtitle ? (
+              <p className="te-subtitle">
+                <Activity size={15} /> {subtitle}
+              </p>
+            ) : null}
             {hasAnyTrendData ? (
               <div className="te-context-meta">
                 <span>
